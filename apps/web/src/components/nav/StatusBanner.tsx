@@ -1,17 +1,16 @@
 "use client";
-import { useEffect, useState } from "react";
 import { useAccount, useSwitchChain } from "wagmi";
 import { AlertTriangle, Construction } from "lucide-react";
 import { configError, isDeployed, network } from "@/lib/env";
 import { useStatus } from "@/lib/api";
+import { useHydrated } from "@/lib/hooks";
 
 /** Honest system banners: wrong network, contracts not deployed, live data unavailable. */
 export function StatusBanner() {
   const { isConnected, chainId } = useAccount();
   const { switchChain, isPending } = useSwitchChain();
   const status = useStatus();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
   if (!mounted) return null;
 
   if (isConnected && chainId !== network.chain.id) {

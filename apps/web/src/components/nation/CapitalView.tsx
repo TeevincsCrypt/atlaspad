@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { motion } from "motion/react";
 import { BuildingType, decodeEmblem, TIERS, type NationSummary } from "@atlaspad/shared";
 import { GLYPH_PATHS } from "../emblem/Flag";
+import { useNow } from "@/lib/hooks";
 
 function rng(seed: number) {
   let s = seed >>> 0 || 1;
@@ -18,7 +19,7 @@ function rng(seed: number) {
  */
 export function CapitalView({ nation }: { nation: NationSummary }) {
   const e = decodeEmblem(nation.emblem);
-  const now = Date.now() / 1000;
+  const now = useNow();
   const status = nation.statuses.find((s) => s.until > now)?.type ?? null;
   const golden = status === "GOLDEN_AGE";
   const crisis = status === "ECONOMIC_CRISIS" || status === "NATIONAL_EMERGENCY";

@@ -1,7 +1,7 @@
 import { BaseError, ContractFunctionRevertedError, UserRejectedRequestError } from "viem";
 
 /** Contract custom errors → plain-language explanations. */
-const CONTRACT_ERRORS: Record<string, string> = {
+export const CONTRACT_ERRORS: Record<string, string> = {
   InvalidName: "That nation name isn't allowed. Use 2–32 letters, numbers, spaces, dots, dashes or apostrophes.",
   InvalidSymbol: "Tickers must be 2–10 characters using A–Z and 0–9.",
   InvalidTheme: "Choose one of the eight themes.",
@@ -31,6 +31,12 @@ const CONTRACT_ERRORS: Record<string, string> = {
   NotProposer: "Only the proposer can cancel.",
   ExceedsReleaseCap: "A single proposal can release at most 25% of the treasury.",
   PoolLockedUntilGraduation: "Tokens can't be sent to the Uniswap pool before graduation.",
+  UnknownProposal: "This proposal does not exist on-chain.",
+  InvalidRecipient: "The treasury can't send ETH to that recipient.",
+  ERC20InsufficientBalance: "You don't hold enough tokens for this amount.",
+  ERC20InsufficientAllowance: "The token allowance is too low for this amount.",
+  ERC2612ExpiredSignature: "The permit signature expired before the transaction was mined. Nothing was traded.",
+  ERC2612InvalidSigner: "The permit signature doesn't match your wallet. Nothing was traded.",
 };
 
 export interface FriendlyError {

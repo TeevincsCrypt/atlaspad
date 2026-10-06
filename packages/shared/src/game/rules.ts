@@ -1,4 +1,4 @@
-import { ALLIANCE, BUILDINGS, BuildingType, WAR, type Resources } from "./constants";
+import { ALLIANCE, BUILDINGS, type BuildingType, WAR, type Resources } from "./constants";
 import { canAfford } from "./resources";
 import { logScore } from "./stats";
 

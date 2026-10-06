@@ -27,6 +27,7 @@ import { ExplorerLink, Progress } from "../ui/misc";
 import { TxDialog } from "../tx/TxDialog";
 import { toast } from "../ui/Toaster";
 import { useProposalVoter } from "./useGovernance";
+import { useNow } from "@/lib/hooks";
 
 const STATE_LABEL: Record<number, { label: string; tone: "gold" | "up" | "down" | "neutral" | "info" | "warn" }> = {
   [ProposalState.Active]: { label: "Voting", tone: "gold" },
@@ -62,7 +63,7 @@ export function ProposalCard({ p, nation, nationName }: { p: ProposalDTO; nation
   const total = forV + againstV + abstainV;
   const quorum = BigInt(p.quorum);
   const quorumProgress = quorum > 0n ? Number(((forV + abstainV) * 10_000n) / quorum) / 10_000 : 0;
-  const now = Date.now() / 1000;
+  const now = useNow();
   const state = STATE_LABEL[p.state] ?? STATE_LABEL[0]!;
   const title = p.description.split("\n")[0] || describeAction(decoded, nationName);
   const body = p.description.split("\n").slice(1).join("\n").trim();

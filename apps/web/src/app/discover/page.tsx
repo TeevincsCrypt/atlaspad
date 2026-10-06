@@ -8,6 +8,7 @@ import { useNews, useWorld } from "@/lib/api";
 import { Flag } from "@/components/emblem/Flag";
 import { ChangePill } from "@/components/ui/ChangePill";
 import { DataUnavailable, EmptyState, Skeleton } from "@/components/ui/misc";
+import { useNow } from "@/lib/hooks";
 
 /** Animated territory preview: hexes in the national color, lights scaled by tier and activity. */
 function TerritoryPreview({ n }: { n: NationSummary }) {
@@ -75,6 +76,7 @@ function NationCard({ n, meta }: { n: NationSummary; meta?: React.ReactNode }) {
 }
 
 function WarCard({ w, byId }: { w: WarSummary; byId: (id: number) => NationSummary | undefined }) {
+  const now = useNow();
   const a = byId(w.attackerId);
   const d = byId(w.defenderId);
   return (
@@ -85,7 +87,7 @@ function WarCard({ w, byId }: { w: WarSummary; byId: (id: number) => NationSumma
       </div>
       <div className="flex flex-col items-center">
         <Swords className="size-5 text-war" />
-        <span className="mt-1 font-mono text-[10px] text-faint">{formatDuration(w.endsAt - Date.now() / 1000)}</span>
+        <span className="mt-1 font-mono text-[10px] text-faint">{formatDuration(w.endsAt - now)}</span>
       </div>
       <div className="flex items-center gap-2">
         <span className="truncate font-display text-xs uppercase text-fg">{d?.name}</span>

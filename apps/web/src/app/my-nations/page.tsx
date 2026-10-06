@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { formatCompact, formatEth, formatInt, TIERS } from "@atlaspad/shared";
@@ -9,14 +8,14 @@ import { Flag } from "@/components/emblem/Flag";
 import { ChangePill } from "@/components/ui/ChangePill";
 import { Button } from "@/components/ui/Button";
 import { DataUnavailable, EmptyState, Skeleton } from "@/components/ui/misc";
+import { useHydrated } from "@/lib/hooks";
 
 export default function MyNationsPage() {
   const { address, isConnected } = useAccount();
   const setWalletOpen = useUi((s) => s.setWalletModalOpen);
   const citizen = useCitizen(address);
   const world = useWorld();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
   const byId = (id: number) => world.data?.nations.find((n) => n.id === id);
 
   if (!mounted) return null;

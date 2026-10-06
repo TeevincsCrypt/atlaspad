@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useAccount } from "wagmi";
 import { AnimatePresence, motion } from "motion/react";
@@ -8,6 +8,7 @@ import { useCitizen, useWorld } from "@/lib/api";
 import { effects } from "@/lib/effects";
 import { playSound } from "@/lib/sound";
 import { useUi } from "@/lib/store";
+import { useNow } from "@/lib/hooks";
 import { Flag } from "../emblem/Flag";
 
 const THEMES: Record<string, { from: string; accent: string; label: string }> = {
@@ -145,36 +146,35 @@ function AchievementUnlocks() {
   const citizen = useCitizen(address);
   const seen = useUi((s) => s.seenAchievements);
   const markSeen = useUi((s) => s.markAchievementsSeen);
-  const [current, setCurrent] = useState<AchievementDTO | null>(null);
+  const now = useNow(60_000);
+  const key = useCallback((a: AchievementDTO) => `${address?.toLowerCase()}:${a.code}`, [address]);
 
-  useEffect(() => {
+  // Unseen achievements earned in the last day queue up for the unlock moment; older ones are marked seen quietly.
+  const { current, stale } = useMemo(() => {
     const list = citizen.data?.profile.achievements;
-    if (!list || !address || current) return;
-    const key = (a: AchievementDTO) => `${address.toLowerCase()}:${a.code}`;
+    if (!list || !address) return { current: null, stale: [] as AchievementDTO[] };
     const unseen = list.filter((a) => !seen.includes(key(a)));
-    if (!unseen.length) return;
-    const recent = unseen.filter((a) => Date.now() / 1000 - a.unlockedAt < 86400);
-    const stale = unseen.filter((a) => !recent.includes(a));
-    if (stale.length) markSeen(stale.map(key));
-    const next = recent[0];
-    if (next) {
-      setCurrent(next);
-      playSound("achievement");
-      markSeen([key(next)]);
-    }
-  }, [citizen.data, address, seen, markSeen, current]);
+    const recent = unseen.filter((a) => now - a.unlockedAt < 86400);
+    return { current: recent[0] ?? null, stale: unseen.filter((a) => !recent.includes(a)) };
+  }, [citizen.data, address, seen, key, now]);
 
   useEffect(() => {
-    if (!current) return;
-    const t = setTimeout(() => setCurrent(null), 4200);
+    if (stale.length) markSeen(stale.map(key));
+  }, [stale, markSeen, key]);
+
+  const currentKey = current ? key(current) : null;
+  useEffect(() => {
+    if (!currentKey) return;
+    playSound("achievement");
+    const t = setTimeout(() => markSeen([currentKey]), 4200);
     return () => clearTimeout(t);
-  }, [current]);
+  }, [currentKey, markSeen]);
 
   const def = current ? ACHIEVEMENT_BY_CODE[current.code] : null;
   return (
     <AnimatePresence>
       {current && def && (
-        <motion.div className="fixed inset-0 z-[75] grid place-items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCurrent(null)}>
+        <motion.div className="fixed inset-0 z-[75] grid place-items-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => currentKey && markSeen([currentKey])}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px]" />
           <motion.div
             className="relative flex flex-col items-center text-center"

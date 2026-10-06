@@ -40,6 +40,7 @@ import { CreateProposal, type ProposalPreset } from "../governance/CreateProposa
 import { useVotingPower } from "../governance/useGovernance";
 import { TxDialog } from "../tx/TxDialog";
 import { toast } from "../ui/Toaster";
+import { useNow } from "@/lib/hooks";
 
 // ---------------------------------------------------------------------------------------------
 // Economy
@@ -332,7 +333,7 @@ export function GovernmentTab({ nation, detail, onPropose }: { nation: NationSum
 export function InfrastructureTab({ nation, detail, onPropose }: { nation: NationSummary; detail: NationDetail; onPropose: (p?: ProposalPreset) => void }) {
   const built = new Set(detail.buildings.filter((b) => b.status === "complete").map((b) => b.type as BuildingType));
   const constructing = new Set(detail.buildings.filter((b) => b.status === "constructing").map((b) => b.type as BuildingType));
-  const now = Date.now() / 1000;
+  const now = useNow();
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-4">
@@ -406,6 +407,7 @@ export function InfrastructureTab({ nation, detail, onPropose }: { nation: Natio
 // ---------------------------------------------------------------------------------------------
 
 export function MilitaryTab({ nation, detail, onPropose }: { nation: NationSummary; detail: NationDetail; onPropose: (p?: ProposalPreset) => void }) {
+  const now = useNow();
   const world = useWorld();
   const byId = (id: number) => world.data?.nations.find((n) => n.id === id);
   return (
@@ -446,7 +448,7 @@ export function MilitaryTab({ nation, detail, onPropose }: { nation: NationSumma
                     {w.attackerId === nation.id ? "Declared war on" : "Attacked by"} {enemy?.name ?? `Nation #${enemyId}`}
                   </div>
                   <div className="font-mono text-[10px] text-faint">
-                    {w.status === "active" ? `Ends in ${formatDuration(w.endsAt - Date.now() / 1000)}` : `Ended ${formatDate(w.endsAt)}`}
+                    {w.status === "active" ? `Ends in ${formatDuration(w.endsAt - now)}` : `Ended ${formatDate(w.endsAt)}`}
                   </div>
                 </div>
                 {w.status === "ended" ? <Badge tone={won ? "gold" : "down"}>{won ? "Victory" : "Defeat"}</Badge> : <Badge tone="war">Live</Badge>}
@@ -472,6 +474,7 @@ export function MilitaryTab({ nation, detail, onPropose }: { nation: NationSumma
 // ---------------------------------------------------------------------------------------------
 
 export function DiplomacyTab({ nation, detail, onPropose }: { nation: NationSummary; detail: NationDetail; onPropose: (p?: ProposalPreset) => void }) {
+  const now = useNow();
   const world = useWorld();
   const byId = (id: number) => world.data?.nations.find((n) => n.id === id);
   const rivals = useMemo(() => [...new Set(detail.wars.map((w) => (w.attackerId === nation.id ? w.defenderId : w.attackerId)))], [detail.wars, nation.id]);
@@ -531,7 +534,7 @@ export function DiplomacyTab({ nation, detail, onPropose }: { nation: NationSumm
               <div key={i.allianceId} className="flex items-center justify-between rounded-lg border border-line px-3 py-2">
                 <div>
                   <div className="text-sm text-fg">{i.allianceName}</div>
-                  <div className="font-mono text-[10px] text-faint">Invited {timeAgo(i.invitedAt)} · expires in {formatDuration(i.invitedAt + ALLIANCE.inviteTtlSeconds - Date.now() / 1000)}</div>
+                  <div className="font-mono text-[10px] text-faint">Invited {timeAgo(i.invitedAt)} · expires in {formatDuration(i.invitedAt + ALLIANCE.inviteTtlSeconds - now)}</div>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => onPropose({ type: "alliance-join", allianceId: i.allianceId })}>
                   Propose joining

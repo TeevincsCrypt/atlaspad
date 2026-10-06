@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/Badge";
 import { Panel } from "@/components/ui/Panel";
 import { DataUnavailable, ExplorerLink, Progress, Skeleton } from "@/components/ui/misc";
 import { NewsFeedItem } from "@/components/news/NewsFeedItem";
+import { useNow } from "@/lib/hooks";
 
 const SCORE_ROWS = [
   { key: "growth", label: "Population growth", max: 30 },
@@ -57,11 +58,11 @@ function Side({ n, align, winner, start }: { n: NationSummary; align: "left" | "
 export default function WarPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const q = useWar(Number(id));
+  const now = useNow();
   if (q.isError) return <div className="mx-auto max-w-3xl px-4 pt-28"><DataUnavailable reason="This war could not be loaded." /></div>;
   if (!q.data) return <div className="mx-auto max-w-5xl px-4 pt-28"><Skeleton className="h-96" /></div>;
   const { war, attacker, defender, projection } = q.data;
   const active = war.status === "active";
-  const now = Date.now() / 1000;
   const scores = active ? projection : war.attackerScore && war.defenderScore ? { attacker: war.attackerScore, defender: war.defenderScore, leader: war.winnerId ?? 0 } : null;
   const elapsed = Math.min(1, (now - war.declaredAt) / (war.endsAt - war.declaredAt));
 

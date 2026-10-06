@@ -62,11 +62,16 @@ export function TxDialog(props: TxDialogProps) {
   const tx = useAtlasTx();
   const [ack, setAck] = useState(false);
   const [showTech, setShowTech] = useState(false);
+  // Every opening requires a fresh acknowledgement.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setAck(false);
+  }
 
   useEffect(() => {
     if (!open) return;
     tx.reset();
-    setAck(false);
     if (previewCall) void tx.prepare(previewCall);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);

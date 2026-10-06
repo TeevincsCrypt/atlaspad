@@ -9,6 +9,7 @@ import { shortAddress } from "@atlaspad/shared";
 import { useUi } from "@/lib/store";
 import { playSound } from "@/lib/sound";
 import { Wordmark } from "./Logo";
+import { useHydrated } from "@/lib/hooks";
 
 const LINKS = [
   { href: "/", label: "Atlas" },
@@ -40,8 +41,7 @@ export function LiveDot() {
 export function WalletButton({ compact = false }: { compact?: boolean }) {
   const { address, isConnected } = useAccount();
   const setOpen = useUi((s) => s.setWalletModalOpen);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
   const connected = mounted && isConnected && address;
   return (
     <button
@@ -67,7 +67,9 @@ export function TopNav() {
   const soundOn = useUi((s) => s.soundOn);
   const setSoundOn = useUi((s) => s.setSoundOn);
   const setSearchOpen = useUi((s) => s.setSearchOpen);
-  const [menu, setMenu] = useState(false);
+  // The mobile menu belongs to the page it was opened on, so navigating closes it.
+  const [menuPath, setMenuPath] = useState<string | null>(null);
+  const menu = menuPath === path;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -79,8 +81,6 @@ export function TopNav() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [setSearchOpen]);
-
-  useEffect(() => setMenu(false), [path]);
 
   return (
     <>
@@ -141,7 +141,7 @@ export function TopNav() {
               <Plus className="size-3.5" /> Found a Nation
             </Link>
             <WalletButton compact />
-            <button className="grid size-9 place-items-center rounded-[10px] border border-line text-dim lg:hidden" onClick={() => setMenu(!menu)} aria-label="Menu">
+            <button className="grid size-9 place-items-center rounded-[10px] border border-line text-dim lg:hidden" onClick={() => setMenuPath(menu ? null : path)} aria-label="Menu">
               {menu ? <X className="size-4" /> : <Menu className="size-4" />}
             </button>
           </div>

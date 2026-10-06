@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { animate, useMotionValue, useReducedMotion } from "motion/react";
 
 /** Counts smoothly to `value`. `format` renders the number (keeps tabular alignment). */
@@ -18,7 +18,9 @@ export function AnimatedNumber({
   const mv = useMotionValue(value ?? 0);
   const reduce = useReducedMotion();
   const fmt = useRef(format);
-  fmt.current = format;
+  useLayoutEffect(() => {
+    fmt.current = format;
+  });
 
   useEffect(() => {
     if (value === null || value === undefined || !Number.isFinite(value)) {

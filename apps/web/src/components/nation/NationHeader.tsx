@@ -18,6 +18,7 @@ import { Badge } from "../ui/Badge";
 import { ChangePill } from "../ui/ChangePill";
 import { ExplorerLink, Progress } from "../ui/misc";
 import { Flag } from "../emblem/Flag";
+import { useNow } from "@/lib/hooks";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "gold" | "down" | "up" | "warn"; icon: React.ReactNode }> = {
   GOLDEN_AGE: { label: "Golden Age", tone: "gold", icon: <Crown className="size-3" /> },
@@ -29,7 +30,7 @@ const STATUS_BADGE: Record<string, { label: string; tone: "gold" | "down" | "up"
 };
 
 export function NationHeader({ nation, ethUsd, territoryRank }: { nation: NationSummary; ethUsd: number | null; territoryRank: number | null }) {
-  const now = Date.now() / 1000;
+  const now = useNow();
   const statuses = nation.statuses.filter((s) => s.until > now);
   const usd = (eth: number | null) => (ethUsd !== null && eth !== null ? formatUsd(eth * ethUsd) : null);
   return (

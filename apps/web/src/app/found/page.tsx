@@ -71,8 +71,8 @@ export default function FoundPage() {
   const [ticker, setTicker] = useState("");
   const [description, setDescription] = useState("");
   const [theme, setTheme] = useState(5);
-  const [emblem, setEmblem] = useState<bigint>(() => encodeEmblem({ glyph: "frog", pattern: "chevron", primary: "#7cd957", secondary: "#ffd23f", accent: "#1e2a12" }));
-  const [emblemTouched, setEmblemTouched] = useState(false);
+  // The theme presets the emblem until the founder customizes it.
+  const [customEmblem, setCustomEmblem] = useState<bigint | null>(null);
   const [supply, setSupply] = useState(1_000_000_000n);
   const [founderBps, setFounderBps] = useState(0);
   const [initialBuy, setInitialBuy] = useState("");
@@ -89,12 +89,11 @@ export default function FoundPage() {
   const creationFee = useReadContract({ address: contracts?.launchpad, abi: atlasLaunchpadAbi, functionName: "creationFee", chainId: network.chain.id, query: { enabled: Boolean(contracts) } });
   const balance = useBalance({ address, chainId: network.chain.id, query: { enabled: Boolean(address) } });
 
-  // Theme presets the emblem until the founder customizes it.
-  useEffect(() => {
-    if (emblemTouched) return;
+  const emblem = useMemo(() => {
+    if (customEmblem !== null) return customEmblem;
     const t = THEMES[theme]!;
-    setEmblem(encodeEmblem({ glyph: THEME_GLYPH[t.key] ?? "star", pattern: "chevron", primary: t.palette[0], secondary: t.palette[1], accent: t.palette[2] }));
-  }, [theme, emblemTouched]);
+    return encodeEmblem({ glyph: THEME_GLYPH[t.key] ?? "star", pattern: "chevron", primary: t.palette[0], secondary: t.palette[1], accent: t.palette[2] });
+  }, [customEmblem, theme]);
 
   const totalSupplyWei = supply * 10n ** 18n;
   const initialBuyWei = (() => {
@@ -252,8 +251,7 @@ export default function FoundPage() {
                   <EmblemEditor
                     value={emblem}
                     onChange={(v) => {
-                      setEmblemTouched(true);
-                      setEmblem(v);
+                      setCustomEmblem(v);
                     }}
                   />
                 </Step>

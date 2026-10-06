@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { isAddress } from "viem";
@@ -31,16 +31,17 @@ export function SearchPalette() {
   const index = useSearchIndex(open);
   const [q, setQ] = useState("");
   const [cursor, setCursor] = useState(0);
-  const input = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
-  useEffect(() => {
+  // Each opening starts from an empty query (state adjusted during render, not in an effect).
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
     if (open) {
       setQ("");
       setCursor(0);
-      setTimeout(() => input.current?.focus(), 30);
     }
-  }, [open]);
+  }
 
   const results = useMemo<Result[]>(() => {
     const query = q.trim().toLowerCase().replace(/^\$/, "");
@@ -88,7 +89,7 @@ export function SearchPalette() {
             <div className="flex items-center gap-3 border-b border-line px-4">
               <Search className="size-4 text-faint" />
               <input
-                ref={input}
+                autoFocus
                 value={q}
                 onChange={(e) => {
                   setQ(e.target.value);

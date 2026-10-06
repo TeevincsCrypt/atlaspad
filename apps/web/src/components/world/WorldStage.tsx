@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { FastForward } from "lucide-react";
 import { useWorld } from "@/lib/api";
 import { useUi } from "@/lib/store";
+import { useMediaQuery } from "@/lib/hooks";
 import { buildWorldModel, createUniforms } from "./model";
 import { computeHighlight } from "./highlight";
 import { WorldScene, type IntroKind, type WorldMode } from "./WorldScene";
@@ -14,26 +15,20 @@ import type { NationSummary } from "@atlaspad/shared";
 
 let previousMode: WorldMode | null = null;
 
-function useIsMobile() {
-  const [mobile, setMobile] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)");
-    setMobile(mq.matches);
-    const on = () => setMobile(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return mobile;
-}
+const useIsMobile = () => useMediaQuery("(max-width: 767px)");
 
+let webglSupport: boolean | undefined;
 function supportsWebGL(): boolean {
+  if (webglSupport !== undefined) return webglSupport;
   try {
     const c = document.createElement("canvas");
-    return Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
+    webglSupport = Boolean(c.getContext("webgl2") ?? c.getContext("webgl"));
   } catch {
-    return false;
+    webglSupport = false;
   }
+  return webglSupport;
 }
+const noopSubscribe = () => () => {};
 
 /**
  * The persistent Atlas world. Mounted once in the root layout and shown behind the landing page (rotating globe)
@@ -42,8 +37,8 @@ function supportsWebGL(): boolean {
 export function WorldStage() {
   const path = usePathname();
   const mode: WorldMode | null = path === "/" ? "hero" : path.startsWith("/world") ? "map" : null;
-  const [webgl, setWebgl] = useState<boolean | null>(null);
-  useEffect(() => setWebgl(supportsWebGL()), []);
+  // Detected once on the client; null during SSR and hydration.
+  const webgl = useSyncExternalStore<boolean | null>(noopSubscribe, supportsWebGL, () => null);
   if (!mode || webgl === null) return null;
   if (!webgl) {
     return (
@@ -103,10 +98,8 @@ function Stage({ mode }: { mode: WorldMode }) {
       ]),
     [nations, wars, alliances],
   );
-  const latest = useRef({ nations, wars, alliances });
-  latest.current = { nations, wars, alliances };
   const model = useMemo(
-    () => buildWorldModel(latest.current.nations, latest.current.wars, latest.current.alliances),
+    () => buildWorldModel(nations, wars, alliances),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [shapeKey],
   );

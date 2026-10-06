@@ -1,15 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import { useUi } from "@/lib/store";
 import { CitizenProfileView } from "@/components/citizen/CitizenProfileView";
 import { Button } from "@/components/ui/Button";
+import { useHydrated } from "@/lib/hooks";
 
 export default function ProfilePage() {
   const { address, isConnected } = useAccount();
   const setWalletOpen = useUi((s) => s.setWalletModalOpen);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const mounted = useHydrated();
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-24 sm:px-6">
       {mounted && isConnected && address ? (
