@@ -9,7 +9,7 @@ export function getSql(): postgres.Sql | null {
   if (!url) return null;
   if (!globalForDb.__atlasSql) {
     globalForDb.__atlasSql = postgres(url, {
-      max: Number(process.env.DATABASE_POOL_MAX ?? 3),
+      max: poolMax(),
       ssl: process.env.DATABASE_SSL === "true" ? "require" : undefined,
       idle_timeout: 20,
       connect_timeout: 10,
@@ -19,4 +19,12 @@ export function getSql(): postgres.Sql | null {
     });
   }
   return globalForDb.__atlasSql;
+}
+
+function poolMax(): number {
+  const raw = process.env.DATABASE_POOL_MAX;
+  if (!raw) return 3;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1) throw new Error("DATABASE_POOL_MAX must be a positive integer");
+  return n;
 }

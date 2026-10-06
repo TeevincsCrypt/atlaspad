@@ -89,7 +89,7 @@ writeFileSync(
 writeFileSync(
   resolve(root, "apps/web/.env.local"),
   toEnv({
-    ...Object.fromEntries(Object.entries(common).map(([k, v]) => [`NEXT_PUBLIC_${k}`, v])),
+    ...Object.fromEntries(Object.entries(common).filter(([k]) => k !== "ATLAS_RPC_URL").map(([k, v]) => [`NEXT_PUBLIC_${k}`, v])),
     NEXT_PUBLIC_RPC_URL: RPC,
     NEXT_PUBLIC_REALTIME_URL: "http://127.0.0.1:4100",
     DATABASE_URL: process.env.DATABASE_URL ?? "postgresql://atlas:atlas@localhost:5432/atlaspad",

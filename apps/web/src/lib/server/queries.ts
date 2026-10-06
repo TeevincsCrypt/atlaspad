@@ -3,6 +3,7 @@ import type postgres from "postgres";
 import { allianceSummaries, indexerHealth, nationSummaries, newsItems, warSummaries } from "@atlaspad/db/queries";
 import {
   ACHIEVEMENT_BY_CODE,
+  ALLIANCE,
   TITLE_ACHIEVEMENTS,
   XP,
   citizenRank,
@@ -76,6 +77,7 @@ export async function getNationDetail(sql: Sql, id: number): Promise<NationDetai
   const [nation] = await nationSummaries(sql, { ids: [id] });
   if (!nation) return null;
   const [raw] = await sql`SELECT * FROM nations WHERE id = ${id}`;
+  const now = await chainNow(sql);
   const [buildings, achievements, wars, allianceRow, invites, ledger, holderCount, health] = await Promise.all([
     sql`SELECT * FROM game_buildings WHERE nation_id = ${id} ORDER BY started_at`,
     sql`SELECT code, unlocked_at FROM game_nation_achievements WHERE nation_id = ${id} ORDER BY unlocked_at`,
@@ -83,7 +85,7 @@ export async function getNationDetail(sql: Sql, id: number): Promise<NationDetai
     nation.allianceId === null
       ? Promise.resolve([])
       : sql`SELECT a.id, a.name, a.leader_id, COALESCE((SELECT array_agg(m.nation_id ORDER BY m.joined_at) FROM game_alliance_members m WHERE m.alliance_id = a.id AND m.left_at IS NULL), '{}') AS members FROM game_alliances a WHERE a.id = ${nation.allianceId}`,
-    sql`SELECT i.alliance_id, i.invited_at, a.name FROM game_alliance_invites i JOIN game_alliances a ON a.id = i.alliance_id WHERE i.nation_id = ${id} AND a.active AND i.invited_at > ${Math.floor(Date.now() / 1000) - 14 * 86400}`,
+    sql`SELECT i.alliance_id, i.invited_at, a.name FROM game_alliance_invites i JOIN game_alliances a ON a.id = i.alliance_id WHERE i.nation_id = ${id} AND a.active AND i.invited_at > ${now - ALLIANCE.inviteTtlSeconds}`,
     sql`SELECT at, influence, culture, energy, materials, reason FROM game_resource_ledger WHERE nation_id = ${id} AND reason <> 'Hourly production' ORDER BY at DESC LIMIT 40`,
     sql`SELECT count(*)::int AS c FROM holders WHERE nation_id = ${id}`,
     indexerHealth(sql),
@@ -412,7 +414,7 @@ export async function getAllianceDetail(sql: Sql, id: number) {
   };
 }
 
-/** Earned XP + citizenship-day XP (5/day per nation, capped at 30 days per nation). */
+/** Earned XP + holding-day XP (5/day per nation, capped at 30 days) counted from the start of the current holding period. */
 const XP_SQL = (sql: Sql, now: number) => sql`
   WITH earned AS (SELECT address, sum(amount)::int AS xp FROM game_citizen_xp GROUP BY address),
   holding AS (
@@ -429,7 +431,7 @@ const XP_SQL = (sql: Sql, now: number) => sql`
 
 export async function getCitizen(sql: Sql, address: string): Promise<CitizenProfile> {
   const a = address.toLowerCase();
-  const now = Math.floor(Date.now() / 1000);
+  const now = await chainNow(sql);
   const [xpRow] = await sql`SELECT * FROM (${XP_SQL(sql, now)}) x WHERE address = ${a}`;
   const holdings = await sql`
     SELECT h.nation_id, h.balance, h.first_held_at, n.name, n.ticker, n.emblem, n.total_supply, n.founder
@@ -477,7 +479,7 @@ export async function getCitizen(sql: Sql, address: string): Promise<CitizenProf
 }
 
 export async function getTopCitizens(sql: Sql, limit: number) {
-  const now = Math.floor(Date.now() / 1000);
+  const now = await chainNow(sql);
   const rows = await sql`SELECT * FROM (${XP_SQL(sql, now)}) x ORDER BY rank LIMIT ${limit}`;
   return rows.map((r) => ({ address: r.address as string, xp: Number(r.xp), rank: Number(r.rank), title: citizenRank(Number(r.xp)) }));
 }

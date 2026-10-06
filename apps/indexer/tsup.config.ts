@@ -1,10 +1,10 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/main.ts", "src/rebuild.ts", "src/migrate.ts"],
+  entry: ["src/main.ts", "src/rebuild.ts", "src/migrate-cli.ts"],
   format: ["esm"],
   platform: "node",
-  target: "node20",
+  target: "node22",
   outDir: "dist",
   clean: true,
   sourcemap: true,

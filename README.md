@@ -24,7 +24,7 @@ AtlasPad is an on-chain civilization game and token launchpad for **Robinhood Ch
 
 ## Quick start (local chain)
 
-Requirements: Node ≥ 20.11, pnpm 10, [Foundry](https://book.getfoundry.sh/) (`forge`, `anvil`, `cast`), PostgreSQL 16 with a database `atlaspad` owned by `atlas:atlas` (or set `DATABASE_URL`).
+Requirements: Node ≥ 22.9, pnpm 10, [Foundry](https://book.getfoundry.sh/) (`forge`, `anvil`, `cast`), PostgreSQL 16 with a database `atlaspad` owned by `atlas:atlas` (or set `DATABASE_URL`).
 
 ```bash
 git submodule update --init --recursive   # forge-std + OpenZeppelin

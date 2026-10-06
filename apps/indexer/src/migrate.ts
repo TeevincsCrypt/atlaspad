@@ -27,11 +27,3 @@ export async function runMigrations(url: string, ssl: boolean) {
     await sql.end({ timeout: 5 });
   }
 }
-
-const isMain = process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1]);
-if (isMain) {
-  const url = process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is required");
-  await runMigrations(url, process.env.DATABASE_SSL === "true");
-  console.log("Migrations applied");
-}

@@ -1,6 +1,6 @@
 /**
  * A scripted sequence of REAL transactions against a LOCAL anvil chain (chain id 31337) running the real
- * AtlasPad contracts. Used by the integration test and by `pnpm dev:seed-local` to give local UI development a
+ * AtlasPad contracts. Used by the integration test and by `pnpm --filter @atlaspad/indexer seed:local` to give local UI development a
  * populated world without fabricating any data. Never point this at a public network.
  */
 import { readFileSync } from "node:fs";

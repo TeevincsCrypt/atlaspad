@@ -49,7 +49,7 @@ export function loadEnv(): IndexerEnv {
       return { address: getAddress(address), label: label.join(":") || "Excluded" };
     });
 
-  const source = process.env.ETH_USD_SOURCE ?? "none";
+  const source = process.env.ETH_USD_SOURCE || "none";
   if (source !== "coinbase" && source !== "none") throw new Error('ETH_USD_SOURCE must be "coinbase" or "none"');
 
   return {

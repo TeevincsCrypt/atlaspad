@@ -6,8 +6,7 @@ export type WorldEffect =
   | { kind: "trade"; nationId: number; side: "buy" | "sell"; magnitude: number }
   | { kind: "cinematic"; type: "GOLDEN_AGE" | "ECONOMIC_CRISIS" | "WAR_DECLARED" | "WAR_ENDED" | "FOUNDED" | "GRADUATED"; nationId: number; targetId?: number | null; title: string; body: string }
   | { kind: "burst"; type: "GOLDEN_AGE" | "ECONOMIC_CRISIS" | "WAR_DECLARED" | "WAR_ENDED" | "FOUNDED" | "GRADUATED"; nationId: number; targetId?: number | null }
-  | { kind: "focus"; nationId: number }
-  | { kind: "founding-preview"; color: string };
+  | { kind: "focus"; nationId: number };
 
 type Listener = (e: WorldEffect) => void;
 const listeners = new Set<Listener>();

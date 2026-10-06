@@ -27,7 +27,6 @@ export const EVENT_TYPES = {
   BUILDING_COMPLETED: { icon: "🏗️", title: "CONSTRUCTION COMPLETE", severity: "notable" },
   ACTION_REJECTED: { icon: "📜", title: "DECREE REJECTED", severity: "minor" },
   PROPOSAL_CREATED: { icon: "🗳️", title: "NEW PROPOSAL", severity: "minor" },
-  PROPOSAL_EXECUTED: { icon: "📜", title: "DECREE ENACTED", severity: "minor" },
   TREASURY_RELEASE: { icon: "🏦", title: "TREASURY SPENDING", severity: "notable" },
   SYMBOL_CHANGED: { icon: "🎌", title: "NEW NATIONAL SYMBOL", severity: "minor" },
   ACHIEVEMENT: { icon: "🏅", title: "ACHIEVEMENT", severity: "minor" },

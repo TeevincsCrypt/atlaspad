@@ -14,9 +14,10 @@ export const publicEnv = {
   uniswapV2Factory: process.env.NEXT_PUBLIC_ATLAS_UNISWAP_V2_FACTORY,
   uniswapV2Router: process.env.NEXT_PUBLIC_ATLAS_UNISWAP_V2_ROUTER,
   weth: process.env.NEXT_PUBLIC_ATLAS_WETH,
-  walletConnectProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ?? "",
-  realtimeUrl: (process.env.NEXT_PUBLIC_REALTIME_URL ?? "").replace(/\/$/, ""),
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL ?? "https://atlaspad.app",
+  walletConnectProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
+  realtimeUrl: (process.env.NEXT_PUBLIC_REALTIME_URL || "").replace(/\/$/, ""),
+  // Used for page metadata and wallet-connection metadata; set it to the public origin in production.
+  siteUrl: (process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").replace(/\/$/, ""),
 };
 
 function load(): { network: AtlasNetworkConfig; error: string | null } {

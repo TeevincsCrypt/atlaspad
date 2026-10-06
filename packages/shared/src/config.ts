@@ -42,7 +42,8 @@ function addr(value: string | undefined, name: string): Address | undefined {
 }
 
 export function resolveNetwork(env: RawNetworkEnv): AtlasNetworkConfig {
-  const key = (env.network ?? "robinhood") as NetworkKey;
+  // Empty strings count as unset, so a blank line in an .env file falls back to the default.
+  const key = (env.network || "robinhood") as NetworkKey;
   if (!(key in CHAINS)) throw new ConfigError(`Unknown ATLAS network "${env.network}". Use "robinhood" or "local".`);
   const chain = CHAINS[key];
   const isLocal = key === "local";
@@ -59,7 +60,10 @@ export function resolveNetwork(env: RawNetworkEnv): AtlasNetworkConfig {
   const launchpad = addr(env.launchpad, "launchpad");
   const governor = addr(env.governor, "governor");
   const treasury = addr(env.treasury, "treasury");
+  const given = [launchpad, governor, treasury].filter(Boolean).length;
+  if (given !== 0 && given !== 3) throw new ConfigError("Set all three contract addresses (launchpad, governor, treasury) or none.");
   const contracts = launchpad && governor && treasury ? { launchpad, governor, treasury } : null;
+  if (env.deployBlock && !/^\d+$/.test(env.deployBlock)) throw new ConfigError(`deployBlock must be a block number: ${env.deployBlock}`);
 
   return {
     key,

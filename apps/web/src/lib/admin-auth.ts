@@ -1,6 +1,13 @@
 /** HTTP Basic auth for the internal admin dashboard. Disabled (404) unless ADMIN_USERNAME and ADMIN_PASSWORD are set. */
+let warned = false;
+
 export function adminConfigured(): boolean {
-  return Boolean(process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.length >= 12);
+  const { ADMIN_USERNAME: user, ADMIN_PASSWORD: pass } = process.env;
+  if (user && pass && pass.length < 12 && !warned) {
+    warned = true;
+    console.warn("Admin dashboard disabled: ADMIN_PASSWORD must be at least 12 characters.");
+  }
+  return Boolean(user && pass && pass.length >= 12);
 }
 
 function safeEqual(a: string, b: string): boolean {

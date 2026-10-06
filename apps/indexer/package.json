@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env.local --env-file-if-exists=../../.env src/main.ts",
     "start": "node dist/main.js",
+    "migrate": "tsx --env-file-if-exists=.env.local --env-file-if-exists=../../.env src/migrate-cli.ts",
     "build": "tsup && rm -rf dist/drizzle && cp -r ../../packages/db/drizzle dist/drizzle",
-    "rebuild-game": "tsx --env-file-if-exists=../../.env src/rebuild.ts",
+    "rebuild-game": "tsx --env-file-if-exists=.env.local --env-file-if-exists=../../.env src/rebuild.ts",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint src test scripts",
     "test": "vitest run",
