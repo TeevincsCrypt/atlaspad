@@ -1,0 +1,29 @@
+{
+  "name": "@atlaspad/indexer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "start": "node dist/main.js",
+    "build": "tsup && rm -rf dist/drizzle && cp -r ../../packages/db/drizzle dist/drizzle",
+    "rebuild-game": "tsx --env-file-if-exists=../../.env src/rebuild.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@atlaspad/db": "workspace:*",
+    "@atlaspad/shared": "workspace:*",
+    "drizzle-orm": "0.45.3",
+    "postgres": "3.4.9",
+    "viem": "2.57.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "tsup": "8.5.1",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

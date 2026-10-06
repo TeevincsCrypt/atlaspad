@@ -1,0 +1,25 @@
+{
+  "name": "@atlaspad/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./abis": "./src/abis/index.ts",
+    "./game": "./src/game/index.ts",
+    "./world": "./src/world/index.ts"
+  },
+  "scripts": {
+    "abi": "node scripts/export-abis.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src test",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "viem": "2.57.3"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

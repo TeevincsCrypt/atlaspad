@@ -1,0 +1,29 @@
+{
+  "name": "@atlaspad/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./queries": "./src/queries.ts"
+  },
+  "scripts": {
+    "generate": "drizzle-kit generate",
+    "migrate": "tsx src/migrate.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src",
+    "test": "echo \"db: covered by indexer integration tests\""
+  },
+  "dependencies": {
+    "drizzle-orm": "0.45.3",
+    "postgres": "3.4.9",
+    "@atlaspad/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "drizzle-kit": "0.31.11",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "@types/node": "22.20.5"
+  }
+}
