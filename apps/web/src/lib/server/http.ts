@@ -20,7 +20,13 @@ export function unavailable(reason: string) {
 
 /** Run a handler with the database, or answer 503 "data unavailable" — never fabricated data. */
 export async function withDb(handler: (sql: postgres.Sql) => Promise<Response>): Promise<Response> {
-  const sql = getSql();
+  let sql: postgres.Sql | null;
+  try {
+    sql = getSql();
+  } catch (err) {
+    console.error("[api] database configuration", err);
+    return unavailable("The AtlasPad indexer database is misconfigured.");
+  }
   if (!sql) return unavailable("The AtlasPad indexer database is not configured (DATABASE_URL).");
   try {
     return await handler(sql);

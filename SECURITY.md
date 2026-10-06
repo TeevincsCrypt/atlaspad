@@ -64,6 +64,7 @@ Each row was checked against the source.
 | No pause, blacklist or transfer tax | Yes | No such logic exists. The only restriction in the token transfer hook is the pre-graduation pair lock ([§9](#9-pre-graduation-pair-transfer-lock)), which `markGraduated()` lifts for good. |
 | Parameters cannot change | Yes | All configuration is `immutable` (set in constructors) or `constant`. No setters exist. |
 | Nation ETH is kept separate | Yes | Curve ETH is tracked per nation (`realEth`). A sell cannot pay more than that nation's `realEth`. Treasury balances are per nation. |
+| Founder-allocation tokens never reach the curve | Yes | `claimFounderTokens` reverts with `NotGraduated` before graduation, and the curve is closed after it (`test_RevertWhen_FounderTokensClaimedBeforeGraduation`). |
 
 Immutability has a cost. If a bug is found, nobody can patch the contracts, pause them, or rescue stuck funds.
 
@@ -305,8 +306,8 @@ components index and present that data. They hold no keys that control funds.
 - **Read-only toward the chain.** It reads blocks and logs over RPC and never signs or sends transactions. It waits
   `INDEXER_CONFIRMATIONS` blocks (default 2) and has reorg handling.
 - **Not authoritative.** Its database can lag, be wrong, or be rebuilt. Always check critical values against the
-  contracts. The web app's proposal state mirrors `AtlasGovernor.state()`, and the source notes that the contract
-  remains authoritative for execution.
+  contracts. The web app's proposal state mirrors `AtlasGovernor.state()` against the indexed chain clock (the
+  latest indexed block's timestamp), and the source notes that the contract remains authoritative for execution.
 - **Game state is off-chain.** The game engine (`apps/indexer/src/game/`) derives buildings, wars and alliances from
   `GameActionExecuted` and other events. That state exists only in the indexer's database and can be replayed
   deterministically from the on-chain mirror (`pnpm --filter @atlaspad/indexer rebuild-game`). The rules are in

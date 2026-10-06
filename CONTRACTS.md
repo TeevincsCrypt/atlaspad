@@ -353,11 +353,11 @@ A sell is allowed only when both of these hold:
 - `curveTokensRemaining + tokensIn ≤ curveSupply`: the curve buys back at most the amount it has sold, net.
 - `grossEth ≤ realEth`: a nation's curve never pays out more ETH than it actually holds.
 
-Together these keep each nation's ETH separate from every other nation's. Founder tokens never reach the curve:
-`claimFounderTokens` reverts with `NotGraduated` until the nation has graduated, and a graduated nation's curve is
-closed (`test_RevertWhen_FounderTokensClaimedBeforeGraduation`). Before graduation, every token outside the
-launchpad was therefore bought from the curve, and selling all of them back returns `curveTokensRemaining` to
-`curveSupply` (`test_SellingBackEverythingRestoresTheCurve`).
+Together these keep each nation's ETH separate from every other nation's. Founder-allocation tokens never reach
+the curve: `claimFounderTokens` reverts with `NotGraduated` until the nation has graduated, and a graduated
+nation's curve is closed (`test_RevertWhen_FounderTokensClaimedBeforeGraduation`). Before graduation, every token
+outside the launchpad was therefore bought from the curve, and selling all of them back returns
+`curveTokensRemaining` to `curveSupply` (`test_SellingBackEverythingRestoresTheCurve`).
 
 State update: `virtualEth −= grossEth`, `virtualTokens += tokensIn`, `realEth −= grossEth`,
 `curveTokensRemaining += tokensIn`.
@@ -755,9 +755,9 @@ alphabetical order):
 Notes on the record:
 
 - `deployedAtBlock` and `deployedAtTimestamp` are the `block.number` and `block.timestamp` the script saw before
-  broadcasting. The contracts land a few blocks later, so the script comment describes `deployedAtBlock` as a safe
-  lower bound for the indexer's `ATLAS_DEPLOY_BLOCK`; the exact blocks are in the broadcast receipts under
-  `contracts/broadcast/`. Confirm the value against those receipts or the explorer before using it.
+  broadcasting. The contracts land a few blocks later, but `block.number` semantics differ on Arbitrum-based
+  chains, so take the indexer's `ATLAS_DEPLOY_BLOCK` from the broadcast receipts under `contracts/broadcast/` (or
+  the explorer) rather than from this field.
 - A dry run never writes or overwrites `<chainId>.json`, so simulated addresses cannot end up in the deployment
   record. Always run `VerifyDeployment.s.sol` against the live chain after a broadcast.
 - **Current state:** the repository contains only `contracts/deployments/31337.json`, a local anvil deployment that

@@ -232,7 +232,7 @@ It is recomputed after every indexed block range and after every engine step tha
 | 🌎 Largest Economy | Market cap (ETH) |
 | 👥 Most Citizens | Citizen count |
 | ⚔️ Strongest Nation | Military power |
-| 📈 Fastest Growing | 24h citizen growth: `citizens / citizens 24h ago − 1`, the same measure as the Discover page. Nations with no citizens 24 h ago are not ranked. |
+| 📈 Fastest Growing | 24h citizen growth: `citizens / citizens 24h ago − 1`, the same measure and 5-citizen floor as the Discover page. Nations with fewer than 5 citizens, or none 24 h ago, are not ranked. |
 | 🔥 Most Active | 24h trading volume (ETH) |
 | 🏗️ Most Developed | Development score (ties broken by civilization score), shown as "n / 8" buildings |
 | 👑 Most Influential | Influence **resource** (not the influence score) |

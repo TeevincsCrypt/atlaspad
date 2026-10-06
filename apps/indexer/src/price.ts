@@ -2,9 +2,9 @@ import type { Ctx } from "./context";
 import { log } from "./log";
 
 /**
- * Optional ETH/USD reference price (ETH_USD_SOURCE=coinbase). Used to display USD equivalents and, in hourly
- * snapshots, by the "Millionaire Economy" achievement (which therefore can't unlock with ETH_USD_SOURCE=none and
- * depends on the price at the time it was checked). All on-chain values are denominated in ETH. When
+ * Optional ETH/USD reference price (ETH_USD_SOURCE=coinbase). Used to display USD equivalents, stored in hourly
+ * snapshots, and checked by the "Millionaire Economy" achievement during metric refreshes (so that achievement
+ * can't unlock with ETH_USD_SOURCE=none and depends on the price when it was checked). All on-chain values are denominated in ETH. When
  * unavailable, the app shows ETH values and "—" for USD.
  */
 export async function refreshEthUsd(ctx: Ctx): Promise<void> {

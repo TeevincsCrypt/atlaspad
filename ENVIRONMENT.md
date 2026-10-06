@@ -65,7 +65,7 @@ What each component does with the result:
 
 **Indexer** (`apps/indexer/src/env.ts`):
 - Any config error, including a partial set of contract addresses, makes it exit at startup.
-- With `contracts = null` it logs `AtlasPad contracts are not configured … Serving health only.` and does not index.
+- With `contracts = null` it logs `AtlasPad contracts are not configured … Not indexing; /health, /stream and /admin/status stay up.` and does not index.
 - On first sync it refuses to run in two cases:
   - The RPC chain id differs from the configured network.
   - The database was already indexed for a different chain (`indexer_state.chain_id`).
@@ -78,18 +78,18 @@ Every value below is visible to anyone. Never put a secret in a `NEXT_PUBLIC_*` 
 
 | Variable | Required? | Default | Description |
 |---|---|---|---|
-| `NEXT_PUBLIC_ATLAS_NETWORK` | No | `robinhood` (when unset) | `robinhood` or `local`. An empty or unknown value becomes a config error (banner shown, on-chain actions disabled). |
-| `NEXT_PUBLIC_RPC_URL` | No | Chain default (`https://rpc.mainnet.chain.robinhood.com`, or `http://127.0.0.1:8545` for local) | RPC for the wagmi transport in the browser. Note the name: it is `NEXT_PUBLIC_RPC_URL`, not `NEXT_PUBLIC_ATLAS_RPC_URL`. |
-| `NEXT_PUBLIC_ATLAS_LAUNCHPAD` | For on-chain actions | none | `AtlasLaunchpad` address, from `contracts/deployments/4663.json` `.launchpad`. |
-| `NEXT_PUBLIC_ATLAS_GOVERNOR` | For on-chain actions | none | `AtlasGovernor` address (`.governor`). |
-| `NEXT_PUBLIC_ATLAS_TREASURY` | For on-chain actions | none | `NationTreasury` address (`.treasury`). |
-| `NEXT_PUBLIC_ATLAS_DEPLOY_BLOCK` | No | `0` | Parsed with `BigInt`, and an invalid value is a config error. Nothing in the web app currently uses the parsed value. Keep it equal to `ATLAS_DEPLOY_BLOCK` for consistency. |
+| `NEXT_PUBLIC_ATLAS_NETWORK` | No | `robinhood` (when unset or empty) | `robinhood` or `local`. An unknown value becomes a config error (banner shown, on-chain actions disabled). |
+| `NEXT_PUBLIC_RPC_URL` | No | Chain default (`https://rpc.mainnet.chain.robinhood.com`, or `http://127.0.0.1:8545` for local), also when empty | RPC for the wagmi transport in the browser. Note the name: it is `NEXT_PUBLIC_RPC_URL`, not `NEXT_PUBLIC_ATLAS_RPC_URL`. |
+| `NEXT_PUBLIC_ATLAS_LAUNCHPAD` | For on-chain actions | none | `AtlasLaunchpad` address, from `contracts/deployments/4663.json` `.launchpad`. Set all three addresses or none: setting only one or two is a config error (banner shown, on-chain actions disabled). |
+| `NEXT_PUBLIC_ATLAS_GOVERNOR` | For on-chain actions | none | `AtlasGovernor` address (`.governor`). See `NEXT_PUBLIC_ATLAS_LAUNCHPAD`. |
+| `NEXT_PUBLIC_ATLAS_TREASURY` | For on-chain actions | none | `NationTreasury` address (`.treasury`). See `NEXT_PUBLIC_ATLAS_LAUNCHPAD`. |
+| `NEXT_PUBLIC_ATLAS_DEPLOY_BLOCK` | No | `0` | Must be digits only; anything else is a config error. Nothing in the web app currently uses the parsed value. Keep it equal to `ATLAS_DEPLOY_BLOCK` for consistency. |
 | `NEXT_PUBLIC_ATLAS_UNISWAP_V2_FACTORY` | Only for `local` | none | Ignored on `robinhood`. |
 | `NEXT_PUBLIC_ATLAS_UNISWAP_V2_ROUTER` | Only for `local` | none | Ignored on `robinhood`. |
 | `NEXT_PUBLIC_ATLAS_WETH` | Only for `local` | none | Ignored on `robinhood`. |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | No | `""` | WalletConnect Cloud project id. When empty, the WalletConnect connector is omitted. Injected (EIP-6963) wallets and Coinbase Wallet are always offered. |
 | `NEXT_PUBLIC_REALTIME_URL` | No | `""` | Public base URL of the indexer HTTP server. The browser opens `EventSource(<url>/stream)`, and a trailing `/` is stripped. When empty, realtime is "disabled" and React Query polls instead (the nav shows "Polling"). |
-| `NEXT_PUBLIC_SITE_URL` | No | `https://atlaspad.app` (when unset) | Used for `metadataBase` in `app/layout.tsx` and for the WalletConnect and Coinbase Wallet app metadata (`url`, `icons`). Must be an absolute URL. |
+| `NEXT_PUBLIC_SITE_URL` | No (set it in production) | `http://localhost:3000` (when unset or empty) | Used for `metadataBase` in `app/layout.tsx` and for the WalletConnect and Coinbase Wallet app metadata (`url`, `icons`). A trailing `/` is stripped. Must be an absolute URL. Set it to your public origin in production (for example `https://your-domain.example`); otherwise metadata points at localhost. |
 
 ## Web: server-only runtime variables
 
@@ -99,27 +99,27 @@ These are read at request time by route handlers, `src/proxy.ts`, `src/lib/admin
 |---|---|---|---|
 | `DATABASE_URL` | For live data | none | Postgres URL of the indexer database. The web app only runs `SELECT`s. Without it, `getSql()` returns `null`, every data route under `/api/*` answers `503 {"error":"data_unavailable"}`, and `/api/status` reports `database: "not_configured"`. **Secret.** |
 | `DATABASE_SSL` | No | off | Only the exact string `true` enables TLS (`ssl: "require"`). |
-| `DATABASE_POOL_MAX` | No | `3` | Size of the postgres.js pool per server process. The pool uses `prepare: false`, so it works behind PgBouncer, Neon or Supabase transaction poolers. Not validated: an empty or non-numeric value yields `0` or `NaN`. |
+| `DATABASE_POOL_MAX` | No | `3` (also when empty) | Size of the postgres.js pool per server process. The pool uses `prepare: false`, so it works behind PgBouncer, Neon or Supabase transaction poolers. Must be a positive integer: any other value makes `getSql()` throw `DATABASE_POOL_MAX must be a positive integer` when the pool is first created, so database requests fail. |
 | `ADMIN_USERNAME` | No | none | HTTP Basic user for `/admin`, `/admin/*` and `/api/admin/*`. |
-| `ADMIN_PASSWORD` | No | none | HTTP Basic password. The admin area exists **only if** both admin variables are set **and** the password is at least 12 characters. Otherwise those paths return `404`. **Secret.** |
+| `ADMIN_PASSWORD` | No | none | HTTP Basic password. The admin area exists **only if** both admin variables are set **and** the password is at least 12 characters. Otherwise those paths return `404`. A password shorter than 12 characters logs `Admin dashboard disabled: ADMIN_PASSWORD must be at least 12 characters.` once and keeps the admin area disabled. **Secret.** |
 | `INDEXER_URL` | No | none | Indexer base URL as reached **from the web server**; a private address is fine. Used only by `/api/admin/status`, which `GET`s `<INDEXER_URL>/admin/status` with an 8 s timeout. |
 | `INDEXER_ADMIN_TOKEN` | No | `""` | Sent as `Authorization: Bearer …` to the indexer's `/admin/status`. Must equal the indexer's `INDEXER_ADMIN_TOKEN`. **Secret.** |
 | `ATLAS_RPC_URL` | No | `NEXT_PUBLIC_RPC_URL`, then the chain default | Server-side RPC used only by `/api/admin/status` to read the head block and check the chain id. |
 
-## Indexer (`apps/indexer/src/env.ts`, `log.ts`, `migrate.ts`)
+## Indexer (`apps/indexer/src/env.ts`, `log.ts`, `migrate.ts`, `migrate-cli.ts`)
 
 | Variable | Required? | Default | Description |
 |---|---|---|---|
-| `ATLAS_NETWORK` | No | `robinhood` (when unset) | `robinhood` or `local`. An empty or unknown value means exit at startup. |
-| `ATLAS_RPC_URL` | No | Chain default | RPC for indexing (viem HTTP, JSON-RPC batches of 50, 3 retries, 20 s timeout). A dedicated provider is recommended. The indexer's `/admin/status` returns this URL with only the `//user:pass@` part masked; an API key in the path or query is shown. Treat it as a **secret** if it embeds an API key. |
-| `ATLAS_LAUNCHPAD` | To index | none | If any of the three contract addresses is missing, the indexer serves `/health`, `/stream` and `/admin/status` but does not index. |
+| `ATLAS_NETWORK` | No | `robinhood` (when unset or empty) | `robinhood` or `local`. An unknown value means exit at startup. |
+| `ATLAS_RPC_URL` | No | Chain default (also when empty) | RPC for indexing (viem HTTP, JSON-RPC batches of 50, 3 retries, 20 s timeout). A dedicated provider is recommended. The indexer's `/admin/status` shows it masked to `protocol//host`, followed by `/***` when the URL has a path, a query or credentials. Still treat it as a **secret** if it embeds an API key. |
+| `ATLAS_LAUNCHPAD` | To index | none | Set all three contract addresses or none. With none set, the indexer serves `/health`, `/stream` and `/admin/status` but does not index. Setting only one or two is a `ConfigError` and the indexer exits at startup. |
 | `ATLAS_GOVERNOR` | To index | none | See `ATLAS_LAUNCHPAD`. |
 | `ATLAS_TREASURY` | To index | none | See `ATLAS_LAUNCHPAD`. |
-| `ATLAS_DEPLOY_BLOCK` | Strongly recommended | `0` | Decimal block number. On first start against an empty DB, the cursor is initialised to `max(0, ATLAS_DEPLOY_BLOCK - 1)`. Changing it later does not move the stored cursor; it only affects the reorg fallback. An invalid value means exit (`BigInt` `SyntaxError`). |
+| `ATLAS_DEPLOY_BLOCK` | Strongly recommended | `0` | Decimal block number, digits only. On first start against an empty DB, the cursor is initialised to `max(0, ATLAS_DEPLOY_BLOCK - 1)`. Changing it later does not move the stored cursor; it only affects the reorg fallback. Any non-digit value is a `ConfigError` and the indexer exits at startup. |
 | `ATLAS_UNISWAP_V2_FACTORY` | Only for `local` | none | Ignored on `robinhood`. |
 | `ATLAS_UNISWAP_V2_ROUTER` | Only for `local` | none | Ignored on `robinhood`. |
 | `ATLAS_WETH` | Only for `local` | none | Ignored on `robinhood`. |
-| `DATABASE_URL` | **Yes** | none | The indexer exits with `DATABASE_URL is required` when it is missing. `migrate.ts` and `rebuild.ts` also need it. **Secret.** |
+| `DATABASE_URL` | **Yes** | none | The indexer exits with `DATABASE_URL is required` when it is missing. `migrate-cli.ts` (the `migrate` script and `dist/migrate-cli.js`) and `rebuild.ts` also need it. **Secret.** |
 | `DATABASE_SSL` | No | off | Only `true` enables TLS (`ssl: "require"`). Applies to the main pool (10 connections, fixed) and to migrations. |
 | `PORT` | No | (see `INDEXER_PORT`) | HTTP port. Takes precedence over `INDEXER_PORT`. Integer ≥ 0. |
 | `INDEXER_PORT` | No | `4100` | HTTP port when `PORT` is unset or empty. Integer ≥ 0. It is validated even when `PORT` is set. |
@@ -127,10 +127,10 @@ These are read at request time by route handlers, `src/proxy.ts`, `src/lib/admin
 | `INDEXER_BATCH_BLOCKS` | No | `2000` | Max blocks per log batch. Integer ≥ 1. Halved automatically (minimum 10) when the RPC rejects a range, then grown back. |
 | `INDEXER_POLL_MS` | No | `2000` | Sleep between polls once caught up. Integer ≥ 250. On errors it backs off exponentially up to 60 000 ms. |
 | `INDEXER_ADMIN_TOKEN` | No | none | Bearer token for `GET /admin/status`, compared in constant time. When empty, `/admin/status` returns `404`. **Secret.** |
-| `INDEXER_CORS_ORIGIN` | No | `*` | Sent verbatim as `Access-Control-Allow-Origin` on every response, including `/stream`. It is a single origin (for example `https://atlaspad.app`) or `*`, not a list. |
+| `INDEXER_CORS_ORIGIN` | No | `*` | Sent verbatim as `Access-Control-Allow-Origin` on every response, including `/stream`. It is a single origin (for example `https://your-domain.example`) or `*`, not a list. |
 | `INDEXER_RUN_MIGRATIONS` | No | on | Runs Drizzle migrations at startup unless the value is exactly `false`. |
 | `MIGRATIONS_DIR` | No | auto | Folder containing `meta/_journal.json`. If unset, the indexer searches in order: `<module dir>/drizzle` (that is `dist/drizzle` in builds), `<module dir>/../../../packages/db/drizzle`, then `<cwd>/../../packages/db/drizzle`. |
-| `ETH_USD_SOURCE` | No | `none` (when unset) | `coinbase` polls `https://api.coinbase.com/v2/prices/ETH-USD/spot` every 60 s, but only while contracts are configured. The price is stored in `indexer_state.eth_usd` and used for USD display only. `none` disables it. Any other value, including empty, means exit. |
+| `ETH_USD_SOURCE` | No | `none` (when unset or empty) | `coinbase` polls `https://api.coinbase.com/v2/prices/ETH-USD/spot` every 60 s, but only while contracts are configured. The price is stored in `indexer_state.eth_usd`. It is used for USD display, recorded in the hourly snapshots, and feeds the `MCAP_1M_USD` ("Millionaire Economy") achievement, which cannot unlock without it. `none` disables it. Any other non-empty value means exit. |
 | `EXCLUDED_ADDRESSES` | No | `""` | Comma-separated `address[:label]` entries; the label defaults to `Excluded`. These addresses are never counted as citizens and are upserted into `excluded_addresses` with `kind = protocol`. An invalid address means exit. Burn addresses, the Uniswap infrastructure (plus the known Robinhood Universal Routers, Permit2, etc.) and the AtlasPad contracts are already excluded automatically. |
 | `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn` or `error`; unknown values act as `info`. Output is JSON lines, with `warn` and `error` going to stderr. |
 
@@ -145,15 +145,17 @@ These are read at request time by route handlers, `src/proxy.ts`, `src/lib/admin
 | `UNISWAP_V2_ROUTER` | `Deploy.s.sol` | Yes | none | Robinhood: `0x89e5db8b5aa49aa85ac63f691524311aeb649eba`. Must have code. |
 | `WETH_ADDRESS` | `Deploy.s.sol` | Yes | none | Robinhood: `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73`. Must have code and equal `router.WETH()`. |
 | `PROTOCOL_FEE_RECIPIENT` | `Deploy.s.sol` | Yes | none | Non-zero. **Immutable.** It receives the creation fees and the protocol share of trade fees through `withdrawProtocolFees()`, which anyone can call. A multisig is recommended. |
-| `GRADUATION_ETH_WEI` | `Deploy.s.sol` (required); `DeployLocal.s.sol` (`vm.envOr`, default `2 ether`) | Yes for Deploy | none | Must be within 0.01–10 000 ETH. **Immutable.** It sets the curve shape for every nation. |
-| `CREATION_FEE_WEI` | `Deploy.s.sol` (required); `DeployLocal.s.sol` (`vm.envOr`, default `0`) | Yes for Deploy | none | Must be ≤ 1 ETH. **Immutable.** |
+| `GRADUATION_ETH_WEI` | `Deploy.s.sol` (`vm.envUint`) | Yes | none | Must be within 0.01–10 000 ETH. **Immutable.** It sets the curve shape for every nation. `DeployLocal.s.sol` does not read it. |
+| `CREATION_FEE_WEI` | `Deploy.s.sol` (`vm.envUint`) | Yes | none | Must be ≤ 1 ETH. **Immutable.** `DeployLocal.s.sol` does not read it. |
+| `LOCAL_GRADUATION_ETH_WEI` | `DeployLocal.s.sol` (`vm.envOr`) | No | `2000000000000000000` (2 ETH) | Graduation threshold for local anvil deployments only. |
+| `LOCAL_CREATION_FEE_WEI` | `DeployLocal.s.sol` (`vm.envOr`) | No | `0` | Creation fee for local anvil deployments only. |
 | `SMOKE_CONFIRM` | `SmokeTest.s.sol` | On any chain ≠ 31337 | `""` | Must be exactly `I_UNDERSTAND`, or the script reverts with `set SMOKE_CONFIRM=I_UNDERSTAND to spend real funds`. |
 | `SMOKE_NAME` | `SmokeTest.s.sol` | No | `Atlas Smoke Test` | The nation name: 2–32 characters from `[A-Za-z0-9 -.']`, no leading, trailing or double spaces. **Unique forever**, case-insensitive. |
 | `SMOKE_SYMBOL` | `SmokeTest.s.sol` | No | `SMOKE` | The ticker: 2–10 characters from `[A-Z0-9]`. **Unique forever.** |
 | `SMOKE_INITIAL_BUY_WEI` | `SmokeTest.s.sol` | No | `100000000000000` (0.0001 ETH) | The founder's initial curve buy, sent together with `creationFee`. |
 | `SMOKE_BUY_WEI` | `SmokeTest.s.sol` | No | `200000000000000` (0.0002 ETH) | The second buy. Half of the resulting balance is then sold back. |
 
-Because Foundry auto-loads `contracts/.env`, values there also reach `DeployLocal.s.sol`. That covers `scripts/dev-local.sh`, `seed-local.ts` and the indexer integration test, so a mainnet `GRADUATION_ETH_WEI` in `contracts/.env` changes local deployments too.
+Foundry auto-loads `contracts/.env` for every script, including `DeployLocal.s.sol`, which `scripts/dev-local.sh`, `seed-local.ts` and the indexer integration test run. `DeployLocal.s.sol` reads only `LOCAL_GRADUATION_ETH_WEI` and `LOCAL_CREATION_FEE_WEI`, so production `GRADUATION_ETH_WEI` / `CREATION_FEE_WEI` values in `contracts/.env` never leak into local deployments. `LOCAL_*` values placed there do affect all three local flows.
 
 `VerifyDeployment.s.sol` reads no environment variables. It reads `contracts/deployments/<chainId>.json`.
 
@@ -169,8 +171,6 @@ Because Foundry auto-loads `contracts/.env`, values there also reach `DeployLoca
 | `DIGEST_DIR` | integration test | unset | When the deterministic-replay digests differ, the test writes `before.json` and `after.json` here. |
 | `CHROMIUM_PATH` | `apps/web/e2e/flows.e2e.mjs` | `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` | The Chromium executable that playwright-core launches. |
 
-`seed-local.ts` also writes `NEXT_PUBLIC_ATLAS_RPC_URL` into `apps/web/.env.local`. No code reads it; the web app reads `NEXT_PUBLIC_RPC_URL`, which the seed also writes.
-
 ---
 
 ## Secrets and sensitive values
@@ -179,7 +179,7 @@ Because Foundry auto-loads `contracts/.env`, values there also reach `DeployLoca
 |---|---|---|
 | `DATABASE_URL` (web and indexer) | Contains DB credentials. | Server-side only. Consider a separate read-only role for the web app, which only runs `SELECT`s. The indexer needs write access, and DDL rights too if `INDEXER_RUN_MIGRATIONS` is on. |
 | `ADMIN_PASSWORD` (and `ADMIN_USERNAME`) | Gates the admin dashboard. | At least 12 characters, or the dashboard is disabled. Serve only over HTTPS, because Basic auth is otherwise sent in clear text. |
-| `INDEXER_ADMIN_TOKEN` | Gates the indexer's `/admin/status`. That endpoint returns the RPC URL (only `user:pass@` is masked, so path or query API keys are visible), table counts and recent error messages with stack traces. | Use a long random value (for example `openssl rand -hex 32`) and set the same value on the web server. |
+| `INDEXER_ADMIN_TOKEN` | Gates the indexer's `/admin/status`. That endpoint returns the RPC URL masked to `protocol//host` (plus `/***`), table counts, and recent error messages with stack traces. | Use a long random value (for example `openssl rand -hex 32`) and set the same value on the web server. |
 | `ATLAS_RPC_URL`, `ROBINHOOD_RPC_URL` | Provider URLs often embed an API key. | Keep them server-side or in the shell. **Never** put a key-bearing URL in `NEXT_PUBLIC_RPC_URL`, because it ships to every browser. |
 | `BLOCKSCOUT_API_KEY` | Explorer API key, if you have one. | Shell or `contracts/.env` only. |
 | Deployer key | Pays for and owns nothing after deployment: the contracts have no owner, no pause and no upgrade path. It still controls a funded mainnet account. | **No env variable reads it.** `Deploy.s.sol` calls `vm.startBroadcast()` with no argument, so the signer comes from forge CLI flags. The script header recommends an encrypted Foundry keystore: `cast wallet import deployer --interactive`, then `forge script … --account deployer` (forge prompts for the keystore password). Hardware wallets work with `--ledger` / `--trezor`. `--private-key` works but leaks the key into shell history, so avoid it on mainnet. The anvil keys hard-coded in `DeployLocal.s.sol` comments, `test/scenario.ts` and `e2e` are Foundry's public test keys and are for local use only. |

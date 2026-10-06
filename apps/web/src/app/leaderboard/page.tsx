@@ -19,9 +19,10 @@ const CATEGORIES: Cat[] = [
     key: "growing",
     label: "Fastest Growing",
     icon: "📈",
-    value: (n) => (n.citizens24hAgo && n.citizens24hAgo > 0 ? n.citizens / n.citizens24hAgo - 1 : null),
+    // Same measure and 5-citizen floor as Discover's "Fastest Growing".
+    value: (n) => (n.citizens >= 5 && n.citizens24hAgo && n.citizens24hAgo > 0 ? n.citizens / n.citizens24hAgo - 1 : null),
     fmt: (v) => formatPct(v),
-    hint: "Citizen growth over 24 hours (same measure as Discover)",
+    hint: "Citizen growth over 24 hours (nations with 5+ citizens)",
   },
   { key: "active", label: "Most Active", icon: "🔥", value: (n) => n.volume24hEth, fmt: (v) => formatEth(v), hint: "24h trading volume" },
   { key: "developed", label: "Most Developed", icon: "🏗️", value: (n) => n.developmentScore + n.civilizationScore / 1000, fmt: (v) => `${Math.round(v / 12.5)} / 8`, hint: "Completed buildings" },

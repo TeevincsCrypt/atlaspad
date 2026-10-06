@@ -119,8 +119,8 @@ contract Deploy is Script {
     ) internal {
         string memory obj = "deployment";
         vm.serializeUint(obj, "chainId", block.chainid);
-        // The block the script saw before broadcasting: a safe lower bound for ATLAS_DEPLOY_BLOCK (the contracts
-        // land a few blocks later; the broadcast receipts in broadcast/ have the exact blocks).
+        // The block number the script saw before broadcasting. Confirm ATLAS_DEPLOY_BLOCK against the broadcast
+        // receipts in broadcast/ (exact blocks); on Arbitrum-based chains block.number semantics differ.
         vm.serializeUint(obj, "deployedAtBlock", block.number);
         vm.serializeUint(obj, "deployedAtTimestamp", block.timestamp);
         vm.serializeAddress(obj, "deployer", deployer);

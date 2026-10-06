@@ -31,7 +31,7 @@ process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
 if (!env.network.contracts) {
-  log.warn("AtlasPad contracts are not configured (ATLAS_LAUNCHPAD / ATLAS_GOVERNOR / ATLAS_TREASURY). Serving health only.");
+  log.warn("AtlasPad contracts are not configured (ATLAS_LAUNCHPAD / ATLAS_GOVERNOR / ATLAS_TREASURY). Not indexing; /health, /stream and /admin/status stay up.");
 } else {
   log.info("Indexer starting", {
     network: env.network.key,

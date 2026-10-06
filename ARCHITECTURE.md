@@ -214,7 +214,7 @@ Values computed **at read time** in the web app rather than stored:
 3. Open a postgres.js pool (max 10).
 4. Create a viem public client (HTTP, JSON-RPC batch 50, 3 retries).
 5. Start the HTTP server.
-6. If no contract addresses are configured, log a warning ("Serving health only") and do not index. `/health`
+6. If no contract addresses are configured, log a warning ("Not indexing; /health, /stream and /admin/status stay up.") and do not index. `/health`
    then reports `deployed: false`.
 7. Otherwise create `ChainSync` and `GameEngine` and run the main loop:
    ```

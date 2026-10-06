@@ -25,7 +25,7 @@ Target: **Robinhood Chain mainnet**. It is an Arbitrum Orbit L2 with chain id `4
 >
 > Until the addresses are configured, the apps degrade safely:
 > - **Web.** `contracts` is `null` in `apps/web/src/lib/env.ts`, so `isDeployed` is `false`. A banner reads "AtlasPad contracts are not yet deployed on Robinhood Chain. Founding, trading and governance are disabled…". `/found` shows "Founding is not available yet", the trade panel shows "Trading is unavailable…", governance write actions are disabled, and `/api/status` returns `deployed: false`. Without `DATABASE_URL`, data routes return `503 data_unavailable`.
-> - **Indexer.** It logs `AtlasPad contracts are not configured … Serving health only.`, does not index, and `/health` reports `deployed: false`.
+> - **Indexer.** It logs `AtlasPad contracts are not configured … Not indexing; /health, /stream and /admin/status stay up.`, does not index, and `/health` reports `deployed: false`.
 
 ---
 
@@ -33,7 +33,7 @@ Target: **Robinhood Chain mainnet**. It is an Arbitrum Orbit L2 with chain id `4
 
 | Tool | Version | Notes |
 |---|---|---|
-| Node.js | `>=20.11` (from `package.json` `engines`) | `pnpm dev:indexer` and `rebuild-game` use `--env-file-if-exists`, which was introduced in Node 22.9. **Node 22 LTS is recommended.** |
+| Node.js | `>=22.9` (from the root `package.json` `engines`) | The indexer's `dev`, `migrate` and `rebuild-game` scripts use `--env-file-if-exists`, which needs Node 22.9. The indexer bundle targets `node22`. |
 | pnpm | 10 (`packageManager: pnpm@10.28.0`) | `corepack enable` picks the pinned version. |
 | Foundry | `forge`, `cast`, `anvil` | `solc 0.8.28`, `evm_version = cancun` (see `contracts/foundry.toml`). |
 | PostgreSQL | 16 | One database per network. The indexer refuses a database that was indexed for another chain id. |
@@ -78,7 +78,7 @@ Hardware wallets work too: use `--ledger` or `--trezor`, plus `--sender <address
 
 ### 4.2 Environment
 
-Put these in `contracts/.env`, which Foundry auto-loads and git ignores, or export them in the shell:
+Put these in `contracts/.env`, which Foundry auto-loads and git ignores, or export them in the shell. The `Deploy.s.sol` header points to the repository-root [`.env.example`](./.env.example) (section 4) for the full list:
 
 ```bash
 ROBINHOOD_RPC_URL=https://rpc.mainnet.chain.robinhood.com   # or your provider's URL; foundry.toml alias "robinhood"
@@ -94,7 +94,7 @@ CREATION_FEE_WEI=<0–1 ETH in wei>                           # immutable; scrip
 
 **Where the DEX values come from.** The three DEX addresses come from `packages/shared/src/chains.ts` (`ROBINHOOD_DEX`) and the `Deploy.s.sol` header. They **must** match `ROBINHOOD_DEX`, because on `robinhood` the web app and the indexer ignore `*_UNISWAP_V2_*` / `*_WETH` and always use those constants.
 
-**Effect on local runs.** `contracts/.env` is also read by `DeployLocal.s.sol`, through `GRADUATION_ETH_WEI` and `CREATION_FEE_WEI`. That affects local seeding and the integration test.
+**Effect on local runs.** Foundry also loads `contracts/.env` for `DeployLocal.s.sol`, but that script reads only `LOCAL_GRADUATION_ETH_WEI` (default 2 ETH) and `LOCAL_CREATION_FEE_WEI` (default 0), never `GRADUATION_ETH_WEI` / `CREATION_FEE_WEI`. Production values in `contracts/.env` therefore do not leak into local seeding or the integration test.
 
 ### 4.3 Optional dry run (simulation only)
 
@@ -104,7 +104,7 @@ forge script script/Deploy.s.sol --rpc-url robinhood --sender <DEPLOYER_ADDRESS>
 
 This runs the preflight against the live chain and simulates the deployment without sending anything.
 
-> ⚠ Even without `--broadcast`, the script's `record()` step **writes `contracts/deployments/4663.json`** with the simulated (predicted) addresses. Do not configure anything from a dry-run record. The real broadcast overwrites it, and `VerifyDeployment.s.sol` fails on addresses without code.
+A dry run does **not** write `contracts/deployments/4663.json`. The script detects that it is not broadcasting (`vm.isContext` is neither `ScriptBroadcast` nor `ScriptResume`), writes the predicted addresses to `contracts/deployments/4663.dry-run.json` (gitignored) and logs `DRY RUN (nothing deployed); predicted addresses at …`. Do not configure anything from the dry-run file.
 
 ### 4.4 Broadcast and verify
 
@@ -154,7 +154,7 @@ Use the same command for `src/AtlasGovernor.sol:AtlasGovernor` and `src/NationTr
 
 ### 4.6 Deployment record
 
-The script writes `contracts/deployments/<chainId>.json`, so `contracts/deployments/4663.json` on mainnet. It contains these fields:
+A broadcast run writes `contracts/deployments/<chainId>.json`, so `contracts/deployments/4663.json` on mainnet (a dry run writes only `4663.dry-run.json`, see 4.3). It contains these fields:
 - `chainId`, `deployedAtBlock`, `deployedAtTimestamp`, `deployer`
 - `launchpad`, `governor`, `treasury`, `tokenFactory`
 - `uniswapV2Factory`, `uniswapV2Router`, `weth`
@@ -164,15 +164,13 @@ Forge also writes the transaction log to `contracts/broadcast/Deploy.s.sol/4663/
 
 ### 4.7 Choosing the deploy block
 
-The record's `deployedAtBlock` is `block.number` as forge saw it during script execution, **before** the transactions were mined. Locally it was `0` while the contracts landed in blocks 1–2. On an Arbitrum Orbit chain, `block.number` semantics differ from the L2 block number, depending on how your Foundry version treats the chain.
-
-So take the indexer start block from the real receipts:
+The record's `deployedAtBlock` is the `block.number` forge saw **before** broadcasting. The contracts land a few blocks later (locally the record says `0` while the transactions landed in blocks 1–4), which makes it a lower bound for `ATLAS_DEPLOY_BLOCK` there: starting a little early only means scanning a few extra blocks. One caveat: on an Arbitrum Orbit chain the EVM's `block.number` can follow the parent chain rather than the L2 block number, depending on how your Foundry version treats the chain. So check the value against the real receipts:
 
 ```bash
 jq -r '.receipts[].blockNumber' contracts/broadcast/Deploy.s.sol/4663/run-latest.json | xargs -n1 cast to-dec | sort -n | head -1
 ```
 
-Use that number, or the explorer's creation block of the `NationTreasury` (the first contract deployed), as `ATLAS_DEPLOY_BLOCK` / `NEXT_PUBLIC_ATLAS_DEPLOY_BLOCK`. Any value ≤ the first deployment block is safe, because the indexer starts at `ATLAS_DEPLOY_BLOCK - 1`. A value that is too high silently skips events, and it cannot be changed later without resetting the database.
+Use the recorded `deployedAtBlock` if it is ≤ that number; otherwise use that number, or the explorer's creation block of the `NationTreasury` (the first contract deployed), as `ATLAS_DEPLOY_BLOCK` / `NEXT_PUBLIC_ATLAS_DEPLOY_BLOCK` (digits only). Any value ≤ the first deployment block is safe, because the indexer starts at `ATLAS_DEPLOY_BLOCK - 1`. A value that is too high silently skips events, and it cannot be changed later without resetting the database.
 
 To print the address variables:
 
@@ -192,10 +190,10 @@ This reads `deployments/<chainid>.json` and checks the following against the liv
 - Each of the three contracts has code.
 - The launchpad's factory and WETH, and the router's `factory()` and `WETH()`.
 - All cross-references, the fee recipient and the token factory.
-- Treasury solvency: `balance == totalHeld()`.
-- Launchpad solvency: `balance == Σ realEth + protocolFeesAccrued`.
+- Treasury solvency: `balance >= totalHeld()`.
+- Launchpad solvency: `balance >= Σ realEth + protocolFeesAccrued`.
 
-It prints the nation count, proposal count and treasury ETH held. You can re-run it at any time.
+The solvency checks use `>=`, so ETH force-sent to a contract (for example through `SELFDESTRUCT`) cannot make verification fail. It prints the nation count, proposal count and treasury ETH held. You can re-run it at any time.
 
 ### 4.9 Smoke test (spends real ETH and creates a permanent nation)
 
@@ -231,18 +229,19 @@ This regenerates `atlasLaunchpadAbi`, `atlasGovernorAbi`, `nationTreasuryAbi` an
 
 ### 6.1 Database and migrations
 
-Create an empty PostgreSQL 16 database for mainnet. The schema lives in `packages/db/src/schema.ts`, and the migrations in `packages/db/drizzle/`. There are two ways to apply them, both idempotent and both using the Drizzle migrator:
+Create an empty PostgreSQL 16 database for mainnet. The schema lives in `packages/db/src/schema.ts`, and the migrations in `packages/db/drizzle/`. There are three ways to apply them, all idempotent and all using the Drizzle migrator:
 - **Indexer startup (default).** The indexer applies migrations when it starts, unless `INDEXER_RUN_MIGRATIONS=false`. The indexer role then needs DDL rights. In a build, it uses the copy in `dist/drizzle` (or `MIGRATIONS_DIR`).
-- **Workspace script.** `DATABASE_URL=… [DATABASE_SSL=true] pnpm db:migrate`. It loads no `.env` file, so export the variables. This works if you set `INDEXER_RUN_MIGRATIONS=false` and run migrations with a separate owner role.
+- **Indexer migrate command.** From a build, `node apps/indexer/dist/migrate-cli.js` (with `DATABASE_URL` and optionally `DATABASE_SSL=true` exported; it loads no `.env` file) applies the migrations from `dist/drizzle` (or `MIGRATIONS_DIR`), prints `Migrations applied` and exits. From source, `pnpm --filter @atlaspad/indexer migrate` does the same and loads `apps/indexer/.env.local`, then the repo-root `.env`.
+- **Workspace script.** `DATABASE_URL=… [DATABASE_SSL=true] pnpm db:migrate`. It loads no `.env` file, so export the variables.
 
-> Do not rely on `node apps/indexer/dist/migrate.js`. In the tsup bundle, the module's "run when executed directly" check ends up inside a shared chunk, so the command exits 0 **without applying anything**. From source, `pnpm --filter @atlaspad/indexer exec tsx src/migrate.ts` does work.
+The last two work with `INDEXER_RUN_MIGRATIONS=false` when you run migrations with a separate owner role.
 
 After changing `schema.ts`, generate a new migration with `pnpm db:generate` (drizzle-kit) and commit it.
 
 ### 6.2 Build and run
 
 ```bash
-pnpm --filter @atlaspad/indexer build     # tsup → dist/main.js, dist/rebuild.js (+ chunks); copies packages/db/drizzle → dist/drizzle
+pnpm --filter @atlaspad/indexer build     # tsup (target node22) → dist/main.js, dist/rebuild.js, dist/migrate-cli.js (+ chunks); copies packages/db/drizzle → dist/drizzle
 pnpm --filter @atlaspad/indexer start     # node dist/main.js  (no .env file is loaded: set process env)
 ```
 
@@ -253,19 +252,21 @@ pnpm --filter @atlaspad/indexer start     # node dist/main.js  (no .env file is 
 ```bash
 ATLAS_NETWORK=robinhood
 ATLAS_RPC_URL=<dedicated provider URL>
-ATLAS_LAUNCHPAD / ATLAS_GOVERNOR / ATLAS_TREASURY   # from contracts/deployments/4663.json
-ATLAS_DEPLOY_BLOCK                                   # see 4.7
+ATLAS_LAUNCHPAD / ATLAS_GOVERNOR / ATLAS_TREASURY   # from contracts/deployments/4663.json (all three, or the indexer exits)
+ATLAS_DEPLOY_BLOCK                                   # see 4.7 (digits only)
 DATABASE_URL
 INDEXER_CORS_ORIGIN=https://<your web origin>
 INDEXER_ADMIN_TOKEN                                  # optional
 ```
 
+Empty values count as unset. A configuration error (an unknown network, an invalid address, only one or two of the three addresses, a non-digit deploy block, an unknown `ETH_USD_SOURCE`) makes the indexer exit at startup.
+
 The optional variables are `ETH_USD_SOURCE=coinbase`, `EXCLUDED_ADDRESSES`, `INDEXER_CONFIRMATIONS`, `INDEXER_BATCH_BLOCKS`, `INDEXER_POLL_MS`, `LOG_LEVEL`, `PORT`/`INDEXER_PORT` (default 4100) and `DATABASE_SSL`.
 
 **Endpoints:**
 - `GET /health` (public). Returns `chainId`, `deployed`, `lastIndexedBlock`, `chainHeadBlock`, `lagBlocks`, `lastSyncAt` and `subscribers`.
-- `GET /stream` (public SSE). At most 5000 clients per process, with a heartbeat every 15 s.
-- `GET /admin/status` (Bearer `INDEXER_ADMIN_TOKEN`; 404 when no token is set).
+- `GET /stream` (public SSE). At most 5000 clients per process, with a heartbeat every 15 s (one shared timer and one database query for all clients, published only while someone is subscribed).
+- `GET /admin/status` (Bearer `INDEXER_ADMIN_TOKEN`; 404 when no token is set). The RPC URL is shown as `protocol//host`, plus `/***` when it has a path, query or credentials.
 
 **Run exactly one indexer per database.** Progress is a single cursor row (`indexer_state.id = 'main'`) with no locking.
 
@@ -279,7 +280,7 @@ The optional variables are `ETH_USD_SOURCE=coinbase`, `EXCLUDED_ADDRESSES`, `IND
 Game state is a deterministic replay of the on-chain mirror. To recompute it, for example after a game-rule change, stop the indexer and run:
 
 ```bash
-pnpm --filter @atlaspad/indexer rebuild-game   # tsx; loads only the repo-root .env
+pnpm --filter @atlaspad/indexer rebuild-game   # tsx; loads apps/indexer/.env.local, then the repo-root .env (like dev)
 # or, from a build:
 node apps/indexer/dist/rebuild.js              # with the indexer's environment exported
 ```
@@ -298,16 +299,18 @@ pnpm --filter @atlaspad/web start    # next start (port 3000 by default; `next s
 
 **Build-time variables:**
 - `NEXT_PUBLIC_ATLAS_NETWORK=robinhood`
-- `NEXT_PUBLIC_ATLAS_LAUNCHPAD`, `NEXT_PUBLIC_ATLAS_GOVERNOR`, `NEXT_PUBLIC_ATLAS_TREASURY`
-- `NEXT_PUBLIC_ATLAS_DEPLOY_BLOCK`
+- `NEXT_PUBLIC_ATLAS_LAUNCHPAD`, `NEXT_PUBLIC_ATLAS_GOVERNOR`, `NEXT_PUBLIC_ATLAS_TREASURY` (all three; setting only one or two is a configuration error that shows a banner and disables on-chain actions)
+- `NEXT_PUBLIC_ATLAS_DEPLOY_BLOCK` (digits only)
 - `NEXT_PUBLIC_REALTIME_URL`
-- `NEXT_PUBLIC_SITE_URL`
+- `NEXT_PUBLIC_SITE_URL` (your public origin, for example `https://your-domain.example`; when unset or empty it defaults to `http://localhost:3000`)
 - `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` (optional)
 - `NEXT_PUBLIC_RPC_URL` (optional; it must be a public URL)
 
+Empty values count as unset.
+
 **Runtime (server) variables:**
-- `DATABASE_URL` (plus `DATABASE_SSL` and `DATABASE_POOL_MAX`)
-- `ADMIN_USERNAME` and `ADMIN_PASSWORD` (the password must be at least 12 characters)
+- `DATABASE_URL` (plus `DATABASE_SSL` and `DATABASE_POOL_MAX`, which must be a positive integer; default 3)
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD` (the password must be at least 12 characters; a shorter one logs a warning once and keeps the admin area disabled)
 - `INDEXER_URL` and `INDEXER_ADMIN_TOKEN`, used by the admin dashboard
 - `ATLAS_RPC_URL` (optional; used by admin status)
 
@@ -401,16 +404,21 @@ CHROMIUM_PATH=/path/to/chrome node apps/web/e2e/flows.e2e.mjs
 
 **Browser.** The script drives Chromium through `playwright-core` (no bundled browser). `CHROMIUM_PATH` defaults to `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
 
-**Wallet.** It injects a test EIP-6963 wallet (`apps/web/e2e/wallet.js`) bound to anvil account #9 (`0xa0Ee…9720`). That wallet forwards signing to the unlocked anvil node at `http://127.0.0.1:8545`.
+**Wallet.** It injects a test EIP-6963 wallet (`apps/web/e2e/wallet.js`) bound to anvil account #9 (`0xa0Ee…9720`). That wallet forwards signing to the unlocked anvil node at `http://127.0.0.1:8545`. Like a real wallet, it exposes no account until the page connects, and it remembers the approval in `localStorage`, so the connection survives page reloads.
 
-**Flow.** It runs these steps in order:
-1. Open the founding wizard and connect the wallet.
-2. Check name and ticker availability, then fill in the details and the token parameters.
-3. Simulate and found a new nation, named `Testopia XXXX` / `TXXXX`, so each run creates a new one.
-4. Open the nation once the indexer has picked it up.
-5. Buy, then sell 50% with a permit signature.
-6. Propose a Capitol, and check that the proposal appears through the indexer.
-7. Check the world map.
+**Flow.** It runs these 12 steps in order:
+1. Open the founding wizard.
+2. Connect the wallet (EIP-6963).
+3. Check name and ticker availability.
+4. Fill in the description, theme and symbol.
+5. Set the token parameters, with the live curve preview.
+6. Simulate, acknowledge and found a new nation, named `Testopia XXXX` / `TXXXX`, so each run creates a new one.
+7. Open the nation once the indexer has picked it up.
+8. Buy on the bonding curve.
+9. Sell 50% with a permit signature.
+10. Propose a Capitol through governance.
+11. Check that the proposal appears through the indexer.
+12. Check that the new nation appears on the world map.
 
 **Results.** Each step prints ✓ or ✗. On failure the script saves `FAILED-<step>.png` and exits with code 1.
 
@@ -432,20 +440,22 @@ This runs real contracts on anvil → indexer → Postgres → game engine. With
 - The test database (default `atlaspad_test`) is **dropped and recreated** on every run. Use a plain URL with no query string.
 - Timeouts: hooks 300 s, tests 60 s. Files run sequentially.
 
-**What it checks:**
+**What it checks** (7 tests):
 - Nations, curve state and graduation.
 - Holder balances against the chain.
 - Curve and Uniswap trades.
 - Governance and game decrees.
 - News generation.
 - Deterministic game replay. Set `DIGEST_DIR` to dump `before.json` / `after.json` when the replay differs.
+- That the shared rule constants in `packages/shared` match the deployed contracts ("shared rule constants match the deployed contracts").
 
 ### 10.4 Other checks
 
 ```bash
-pnpm --filter @atlaspad/shared test     # unit tests (curve, game, world)
+pnpm --filter @atlaspad/shared test     # unit tests: config, curve, game, world (30 tests)
+pnpm --filter @atlaspad/web test        # unit tests: admin auth, error mapping (8 tests)
 pnpm typecheck
-pnpm lint
+pnpm lint                               # ESLint, passes in every package
 ```
 
-`pnpm test` at the root runs every package's `test` script. `apps/web` has no test files yet, so `vitest run` there exits non-zero with "No test files found". Run the package tests individually until that changes.
+`pnpm test` at the root runs every package's `test` script: the shared and web unit tests, the indexer integration suite (its 7 tests are skipped without `INTEGRATION=1`), and the `db` package's placeholder.
