@@ -185,6 +185,7 @@ contract AtlasLaunchpad is ReentrancyGuard {
     error OnlyGovernor();
     error NothingToClaim();
     error NotFounder();
+    error NotGraduated();
 
     constructor(
         address uniswapV2Factory_,
@@ -415,8 +416,8 @@ contract AtlasLaunchpad is ReentrancyGuard {
     {
         if (n.graduated) revert NationGraduatedAlready();
         if (tokensIn == 0) revert ZeroAmount();
-        // Only tokens that were sold by the curve can be sold back into it. This keeps every nation's ETH
-        // reserve isolated: founder-vested tokens can never drain ETH raised from other buyers or nations.
+        // Only tokens that were sold by the curve can be sold back into it, keeping every nation's ETH reserve
+        // isolated. Founder-allocation tokens never reach the curve: they are claimable only after graduation.
         if (n.curveTokensRemaining + tokensIn > n.curveSupply) revert InsufficientCurveLiquidity();
         SellQuote memory q = _quoteSell(n, tokensIn);
         if (q.grossEth > n.realEth) revert InsufficientCurveLiquidity();
@@ -493,10 +494,13 @@ contract AtlasLaunchpad is ReentrancyGuard {
         return (n.founderAllocation * elapsed) / FOUNDER_VESTING;
     }
 
-    /// @notice Transfer the vested, unclaimed founder allocation to the founder.
+    /// @notice Transfer the vested, unclaimed founder allocation to the founder. Vesting runs from founding, but
+    /// tokens can be claimed only once the nation has graduated, so they can never be sold back into the bonding
+    /// curve against ETH paid by other buyers; after graduation they trade on Uniswap like anyone else's.
     function claimFounderTokens(uint256 nationId) external nonReentrant returns (uint256 amount) {
         Nation storage n = _nationStorage(nationId);
         if (msg.sender != n.founder) revert NotFounder();
+        if (!n.graduated) revert NotGraduated();
         amount = vestedFounderTokens(nationId) - n.founderClaimed;
         if (amount == 0) revert NothingToClaim();
         n.founderClaimed += amount;

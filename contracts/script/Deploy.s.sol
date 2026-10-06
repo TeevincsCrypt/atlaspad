@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 import {Script, console2} from "forge-std/Script.sol";
+import {VmSafe} from "forge-std/Vm.sol";
 import {AtlasLaunchpad} from "../src/AtlasLaunchpad.sol";
 import {AtlasGovernor} from "../src/AtlasGovernor.sol";
 import {NationTreasury} from "../src/NationTreasury.sol";
@@ -10,7 +11,7 @@ import {IUniswapV2Factory} from "../src/interfaces/IUniswapV2Factory.sol";
 
 /// @notice Production deployment of AtlasPad.
 ///
-/// Required environment (see ENVIRONMENT.md / contracts/.env.example):
+/// Required environment (see ENVIRONMENT.md and the repository-root .env.example; Foundry auto-loads contracts/.env):
 ///   EXPECTED_CHAIN_ID        4663 for Robinhood Chain mainnet
 ///   UNISWAP_V2_FACTORY       0x8bceaa40b9acdfaedf85adf4ff01f5ad6517937f (Robinhood Chain)
 ///   UNISWAP_V2_ROUTER        0x89e5db8b5aa49aa85ac63f691524311aeb649eba (Robinhood Chain)
@@ -118,6 +119,8 @@ contract Deploy is Script {
     ) internal {
         string memory obj = "deployment";
         vm.serializeUint(obj, "chainId", block.chainid);
+        // The block the script saw before broadcasting: a safe lower bound for ATLAS_DEPLOY_BLOCK (the contracts
+        // land a few blocks later; the broadcast receipts in broadcast/ have the exact blocks).
         vm.serializeUint(obj, "deployedAtBlock", block.number);
         vm.serializeUint(obj, "deployedAtTimestamp", block.timestamp);
         vm.serializeAddress(obj, "deployer", deployer);
@@ -131,9 +134,13 @@ contract Deploy is Script {
         vm.serializeAddress(obj, "protocolFeeRecipient", c.feeRecipient);
         vm.serializeString(obj, "graduationEthWei", vm.toString(c.graduationEth));
         string memory json = vm.serializeString(obj, "creationFeeWei", vm.toString(c.creationFee));
-        string memory path = string.concat(vm.projectRoot(), "/deployments/", vm.toString(block.chainid), ".json");
+        // Only a broadcast run records the deployment; a dry run's addresses are predictions, kept separately.
+        bool broadcast = vm.isContext(VmSafe.ForgeContext.ScriptBroadcast) || vm.isContext(VmSafe.ForgeContext.ScriptResume);
+        string memory path = string.concat(
+            vm.projectRoot(), "/deployments/", vm.toString(block.chainid), broadcast ? ".json" : ".dry-run.json"
+        );
         vm.writeJson(json, path);
-        console2.log("Deployment recorded at", path);
+        console2.log(broadcast ? "Deployment recorded at" : "DRY RUN (nothing deployed); predicted addresses at", path);
         console2.log("AtlasLaunchpad", address(launchpad));
         console2.log("AtlasGovernor ", address(governor));
         console2.log("NationTreasury", address(treasury));

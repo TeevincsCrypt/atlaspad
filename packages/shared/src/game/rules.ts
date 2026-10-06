@@ -54,7 +54,7 @@ export function validateWarDeclaration(c: WarDeclarationContext): RuleResult {
   if (c.sameAlliance) return no("Allies cannot declare war on each other.");
   if (c.activeWarBetween) return no("These nations are already at war.");
   if (c.attackerActiveWars >= WAR.maxActiveWarsPerNation) {
-    return no(`A nation may fight at most ${WAR.maxActiveWarsPerNation} wars at once.`);
+    return no(`A nation already fighting ${WAR.maxActiveWarsPerNation} wars cannot declare another.`);
   }
   if (c.lastWarBetweenEndedAt !== null && c.now - c.lastWarBetweenEndedAt < WAR.rematchCooldownSeconds) {
     return no("Peace treaty in effect: 72 hours must pass before these nations fight again.");

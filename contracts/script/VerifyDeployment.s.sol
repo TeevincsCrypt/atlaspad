@@ -40,14 +40,15 @@ contract VerifyDeployment is Script {
         require(address(governor.treasury()) == address(treasury), "governor.treasury");
         require(launchpad.protocolFeeRecipient() == json.readAddress(".protocolFeeRecipient"), "fee recipient");
         require(address(launchpad.tokenFactory()) == json.readAddress(".tokenFactory"), "token factory");
-        require(address(treasury).balance == treasury.totalHeld(), "treasury solvency");
+        // ">=": ETH can be forced into any contract (e.g. SELFDESTRUCT) without passing its accounting.
+        require(address(treasury).balance >= treasury.totalHeld(), "treasury solvency");
 
         uint256 count = launchpad.nationCount();
         uint256 reserves;
         for (uint256 i = 1; i <= count; i++) {
             reserves += launchpad.getNation(i).realEth;
         }
-        require(address(launchpad).balance == reserves + launchpad.protocolFeesAccrued(), "launchpad solvency");
+        require(address(launchpad).balance >= reserves + launchpad.protocolFeesAccrued(), "launchpad solvency");
 
         console2.log("Deployment verified on chain", block.chainid);
         console2.log("Nations founded:", count);

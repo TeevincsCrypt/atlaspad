@@ -380,20 +380,32 @@ contract AtlasLaunchpadTradingTest is BaseTest {
         launchpad.sell(id, out, 0, block.timestamp);
     }
 
-    function test_RevertWhen_SellingMoreThanCurveSold() public {
-        // Founder-vested tokens cannot be dumped into the curve beyond what the curve sold.
+    function test_RevertWhen_FounderTokensClaimedBeforeGraduation() public {
+        // Founder-vested tokens stay locked until graduation, so they can never be sold into the curve.
         AtlasLaunchpad.FoundingParams memory p = _params("Dogeland", "DOGE");
         p.founderBps = 500;
         (uint256 did, NationToken dtoken) = _foundWith(p, 0);
-        _buy(alice, did, 0.01 ether);
+        _buy(alice, did, 0.5 ether);
         vm.warp(block.timestamp + 30 days);
+        assertEq(launchpad.vestedFounderTokens(did), SUPPLY / 20);
         vm.prank(founder);
-        uint256 claimed = launchpad.claimFounderTokens(did);
-        vm.startPrank(founder);
-        dtoken.approve(address(launchpad), claimed);
-        vm.expectRevert(AtlasLaunchpad.InsufficientCurveLiquidity.selector);
-        launchpad.sell(did, claimed, 0, block.timestamp);
-        vm.stopPrank();
+        vm.expectRevert(AtlasLaunchpad.NotGraduated.selector);
+        launchpad.claimFounderTokens(did);
+        assertEq(dtoken.balanceOf(founder), 0);
+    }
+
+    function test_SellingBackEverythingRestoresTheCurve() public {
+        // Selling back every token the curve sold returns it to its untouched token reserve.
+        uint256 out = _buy(alice, id, 0.01 ether);
+        vm.prank(bob);
+        token.approve(address(launchpad), type(uint256).max);
+        vm.prank(alice);
+        token.transfer(bob, out);
+        uint256 before = launchpad.getNation(id).curveTokensRemaining;
+        assertEq(before + out, launchpad.getNation(id).curveSupply);
+        vm.prank(bob);
+        launchpad.sell(id, out, 0, block.timestamp);
+        assertEq(launchpad.getNation(id).curveTokensRemaining, launchpad.getNation(id).curveSupply);
     }
 
     function test_CurveIsolationBetweenNations() public {
@@ -572,6 +584,7 @@ contract AtlasLaunchpadFounderVestingTest is BaseTest {
     function test_LinearVesting() public {
         uint256 total = SUPPLY / 20;
         assertEq(launchpad.vestedFounderTokens(id), 0);
+        _graduate(id);
         vm.warp(block.timestamp + 15 days);
         assertEq(launchpad.vestedFounderTokens(id), total / 2);
         vm.prank(founder);
@@ -585,6 +598,7 @@ contract AtlasLaunchpadFounderVestingTest is BaseTest {
     }
 
     function test_RevertWhen_NothingVested() public {
+        _graduate(id);
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.NothingToClaim.selector);
         launchpad.claimFounderTokens(id);

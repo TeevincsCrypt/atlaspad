@@ -265,7 +265,7 @@ export function GovernmentTab({ nation, detail, onPropose }: { nation: NationSum
           <dl className="space-y-2 text-xs">
             {[
               ["Founder", <Link key="f" href={`/citizen/${nation.founder}`} className="text-gold-bright">{shortAddress(nation.founder)}</Link>],
-              ["Founder allocation", `${formatCompact(Number(detail.founderAllocation) / 1e18)} $${nation.ticker} (vesting 30 days)`],
+              ["Founder allocation", `${formatCompact(Number(detail.founderAllocation) / 1e18)} $${nation.ticker} (30-day vesting, claimable after graduation)`],
               ["Government", "Token-weighted democracy"],
               ["Proposal threshold", `${GOVERNANCE.proposalThresholdBps / 100}% of supply`],
               ["Game & symbol votes", `1 day · ${GOVERNANCE.standardQuorumBps / 100}% quorum`],
@@ -518,7 +518,7 @@ export function DiplomacyTab({ nation, detail, onPropose }: { nation: NationSumm
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-xs text-dim">Alliances of up to {ALLIANCE.maxMembers} nations share influence and fight together. Membership requires an invitation from the alliance&apos;s leading nation.</p>
+            <p className="text-xs text-dim">Alliances hold up to {ALLIANCE.maxMembers} nations. Members cannot declare war on each other, produce +{ALLIANCE.influenceBonusPctPerAlly}% influence per ally (max {ALLIANCE.maxInfluenceBonusPct}%), and add +{ALLIANCE.warScoreBonusPctPerAlly}% war score per ally (max {ALLIANCE.maxWarScoreBonusPct}%). Membership requires an invitation from the alliance&apos;s leading nation.</p>
             <Button size="sm" variant="outline" onClick={() => onPropose({ type: "alliance-create" })}>
               <Plus className="size-3.5" /> Propose founding an alliance
             </Button>

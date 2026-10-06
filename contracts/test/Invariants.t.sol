@@ -13,6 +13,7 @@ contract LaunchpadHandler is Test {
     address[] internal actors;
     uint256 public buys;
     uint256 public sells;
+    uint256 public donations;
 
     constructor(AtlasLaunchpad lp_, NationTreasury treasury_) {
         lp = lp_;
@@ -56,8 +57,10 @@ contract LaunchpadHandler is Test {
 
     function donate(uint256 nationSeed, uint256 amount) external {
         amount = bound(amount, 1, 1 ether);
+        uint256 id = _nation(nationSeed); // resolve before the prank: the external call would consume it
         vm.prank(actors[0]);
-        treasury.deposit{value: amount}(_nation(nationSeed));
+        treasury.deposit{value: amount}(id);
+        donations++;
     }
 
     function warp(uint256 secs) external {
@@ -67,7 +70,7 @@ contract LaunchpadHandler is Test {
     function claimFounder(uint256 nationSeed) external {
         uint256 id = _nation(nationSeed);
         AtlasLaunchpad.Nation memory n = lp.getNation(id);
-        if (lp.vestedFounderTokens(id) == n.founderClaimed) return;
+        if (!n.graduated || lp.vestedFounderTokens(id) == n.founderClaimed) return;
         vm.prank(n.founder);
         lp.claimFounderTokens(id);
     }

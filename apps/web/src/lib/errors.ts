@@ -21,6 +21,7 @@ export const CONTRACT_ERRORS: Record<string, string> = {
   EthTransferFailed: "An ETH transfer failed.",
   NothingToClaim: "There is nothing to claim yet.",
   NotFounder: "Only the founder can do this.",
+  NotGraduated: "Founder tokens unlock once the nation graduates to Uniswap.",
   BelowProposalThreshold: "You need at least 0.1% of this nation's voting power (at the previous second) to propose.",
   InvalidPayload: "This proposal isn't valid under the governance rules.",
   NotActive: "Voting on this proposal is closed.",

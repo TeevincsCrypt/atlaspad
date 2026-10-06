@@ -143,7 +143,7 @@ export const BUILDINGS: readonly BuildingDef[] = [
     requires: [BuildingType.Bank],
     minCitizens: 50,
     requiresGraduation: true,
-    effect: "Opens trade routes: +25% energy, +5% economic power.",
+    effect: "Opens trade routes: +25% energy, +10% materials, +5% economic power.",
   },
   {
     type: BuildingType.Monument,

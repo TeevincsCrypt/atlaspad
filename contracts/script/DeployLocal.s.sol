@@ -31,8 +31,9 @@ contract DeployLocal is Deploy {
                 router: address(router),
                 weth: address(weth),
                 feeRecipient: deployer,
-                graduationEth: vm.envOr("GRADUATION_ETH_WEI", uint256(2 ether)),
-                creationFee: vm.envOr("CREATION_FEE_WEI", uint256(0))
+                // LOCAL_* so that production values in contracts/.env never leak into local deployments.
+                graduationEth: vm.envOr("LOCAL_GRADUATION_ETH_WEI", uint256(2 ether)),
+                creationFee: vm.envOr("LOCAL_CREATION_FEE_WEI", uint256(0))
             })
         );
     }

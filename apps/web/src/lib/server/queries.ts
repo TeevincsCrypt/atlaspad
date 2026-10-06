@@ -344,6 +344,11 @@ export async function getWarDetail(sql: Sql, id: number) {
       SELECT nation_id, COALESCE(sum(eth_amount), 0) AS v FROM trades
       WHERE nation_id = ANY(${[attackerId, defenderId]}) AND timestamp >= ${Number(w.declared_at)} GROUP BY nation_id`;
     const v = new Map(vol.map((r) => [Number(r.nation_id), Number(r.v) / WAD]));
+    // Allies = other current members of the nation's alliance, exactly as the game engine counts them.
+    const allyRows = await sql`
+      SELECT g.nation_id, (SELECT count(*) FROM game_alliance_members m WHERE m.alliance_id = g.alliance_id AND m.left_at IS NULL) AS members
+      FROM game_nations g WHERE g.nation_id = ANY(${[attackerId, defenderId]}) AND g.alliance_id IS NOT NULL`;
+    const allies = new Map(allyRows.map((r) => [Number(r.nation_id), Math.max(0, Number(r.members) - 1)]));
     const side = (n: NationSummary, start: typeof aStart) => ({
       citizensStart: start.citizens,
       citizensEnd: n.citizens,
@@ -352,7 +357,7 @@ export async function getWarDetail(sql: Sql, id: number) {
       warVolumeEth: v.get(n.id) ?? 0,
       economicPowerEnd: n.economicPower,
       defensivePowerEnd: n.defensivePower,
-      allies: 0,
+      allies: allies.get(n.id) ?? 0,
     });
     const a = warScore(side(attacker, aStart), false);
     const d = warScore(side(defender, dStart), true);

@@ -275,7 +275,7 @@ export default function FoundPage() {
                         <span className="font-mono text-sm text-fg">{founderBps / 100}%</span>
                       </div>
                       <input type="range" min={0} max={500} step={25} value={founderBps} onChange={(e) => setFounderBps(Number(e.target.value))} className="w-full accent-[#d6b26e]" />
-                      <p className="mt-1 text-xs text-faint">Vests linearly to you over 30 days and is shown publicly on your nation page. It comes out of the curve allocation.</p>
+                      <p className="mt-1 text-xs text-faint">Vests linearly over 30 days and is shown publicly on your nation page. It comes out of the curve allocation and can be claimed only after the nation graduates to Uniswap, so it can never be sold back into the bonding curve.</p>
                     </div>
                     <div>
                       <div className="label mb-2">Your initial buy (optional, ETH)</div>
@@ -328,7 +328,7 @@ export default function FoundPage() {
                     <div className="rounded-xl border border-line">
                       {[
                         ["Total supply", `${formatCompact(Number(supply))} (fixed, minted once to the launchpad)`],
-                        ["Founder allocation", `${founderBps / 100}% vesting over 30 days`],
+                        ["Founder allocation", `${founderBps / 100}% · 30-day vesting · claimable after graduation`],
                         ["Initial buy", initialBuyWei ? formatEth(Number(formatEther(initialBuyWei))) : "None"],
                         ["Founding fee", formatEth(Number(formatEther(fee)))],
                         ["Trade fee on the curve", "1% (0.5% to your nation's treasury · 0.5% to the protocol)"],

@@ -1271,6 +1271,11 @@ export const atlasLaunchpadAbi = [
   },
   {
     "type": "error",
+    "name": "NotGraduated",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "NothingToClaim",
     "inputs": []
   },

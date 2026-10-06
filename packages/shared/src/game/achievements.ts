@@ -24,7 +24,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   { code: "FIRST_VICTORY", scope: "nation", icon: "⚔️", name: "First Victory", description: "Won its first war.", rarity: "rare" },
   { code: "JOINED_ALLIANCE", scope: "nation", icon: "🤝", name: "Diplomacy", description: "Joined or founded an alliance.", rarity: "common" },
   { code: "GOLDEN_AGE", scope: "nation", icon: "👑", name: "Golden Age", description: "Entered a Golden Age.", rarity: "epic" },
-  { code: "SURVIVED_CRISIS", scope: "nation", icon: "🌦️", name: "Resilient", description: "Still active 7 days after an economic crisis.", rarity: "rare" },
+  { code: "SURVIVED_CRISIS", scope: "nation", icon: "🌦️", name: "Resilient", description: "7+ days after an economic crisis: still 10+ citizens and traded in the past week.", rarity: "rare" },
   { code: "SURVIVED_30_DAYS", scope: "nation", icon: "📅", name: "Enduring", description: "Active with 10+ citizens 30 days after founding.", rarity: "common" },
   { code: "EMPIRE", scope: "nation", icon: "🏛️", name: "Empire", description: "Reached the Empire tier.", rarity: "legendary" },
   // Citizen achievements
