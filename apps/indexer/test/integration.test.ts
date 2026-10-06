@@ -6,9 +6,9 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
-import { createPublicClient, http, type Address } from "viem";
-import { anvilChain } from "@atlaspad/shared";
-import { nationTokenAbi } from "@atlaspad/shared/abis";
+import { createPublicClient, http, type Abi, type Address } from "viem";
+import { BUILDINGS, GOVERNANCE, LAUNCHPAD, THEMES, anvilChain } from "@atlaspad/shared";
+import { atlasGovernorAbi, atlasLaunchpadAbi, nationTokenAbi, nationTreasuryAbi } from "@atlaspad/shared/abis";
 import { nationSummaries, newsItems } from "@atlaspad/db/queries";
 import { createCtx } from "../src/context";
 import { loadEnv } from "../src/env";
@@ -174,4 +174,30 @@ describe.skipIf(!enabled)("indexer integration (anvil)", () => {
     }
     expect(after).toBe(before);
   }, 120_000);
+
+  it("shared rule constants match the deployed contracts", async () => {
+    const client = createPublicClient({ chain: anvilChain, transport: http(RPC) });
+    const read = (address: Address, abi: Abi, functionName: string) => client.readContract({ address, abi, functionName }) as Promise<bigint | number>;
+    const gov = (name: string) => read(deployment.governor, atlasGovernorAbi as Abi, name).then(BigInt);
+    const lp = (name: string) => read(deployment.launchpad, atlasLaunchpadAbi as Abi, name).then(BigInt);
+    expect(await gov("PROPOSAL_THRESHOLD_BPS")).toBe(BigInt(GOVERNANCE.proposalThresholdBps));
+    expect(await gov("TREASURY_QUORUM_BPS")).toBe(BigInt(GOVERNANCE.treasuryQuorumBps));
+    expect(await gov("STANDARD_QUORUM_BPS")).toBe(BigInt(GOVERNANCE.standardQuorumBps));
+    expect(await gov("TREASURY_VOTING_PERIOD")).toBe(BigInt(GOVERNANCE.treasuryVotingSeconds));
+    expect(await gov("STANDARD_VOTING_PERIOD")).toBe(BigInt(GOVERNANCE.standardVotingSeconds));
+    expect(await gov("TREASURY_TIMELOCK")).toBe(BigInt(GOVERNANCE.treasuryTimelockSeconds));
+    expect(await gov("EXECUTION_WINDOW")).toBe(BigInt(GOVERNANCE.executionWindowSeconds));
+    expect(await gov("BUILDING_TYPES")).toBe(BigInt(BUILDINGS.length));
+    expect(BigInt(await read(deployment.treasury, nationTreasuryAbi as Abi, "MAX_RELEASE_BPS"))).toBe(BigInt(GOVERNANCE.maxReleaseBps));
+    expect(await lp("TRADE_FEE_BPS")).toBe(LAUNCHPAD.TRADE_FEE_BPS);
+    expect(await lp("PROTOCOL_FEE_BPS")).toBe(LAUNCHPAD.PROTOCOL_FEE_BPS);
+    expect(await lp("TREASURY_FEE_BPS")).toBe(LAUNCHPAD.TREASURY_FEE_BPS);
+    expect(await lp("LP_RESERVE_BPS")).toBe(LAUNCHPAD.LP_RESERVE_BPS);
+    expect(await lp("MAX_FOUNDER_BPS")).toBe(LAUNCHPAD.MAX_FOUNDER_BPS);
+    expect(await lp("MAX_INITIAL_BUY_BPS")).toBe(LAUNCHPAD.MAX_INITIAL_BUY_BPS);
+    expect(await lp("FOUNDER_VESTING")).toBe(LAUNCHPAD.FOUNDER_VESTING_SECONDS);
+    expect(await lp("MIN_SUPPLY")).toBe(LAUNCHPAD.MIN_SUPPLY);
+    expect(await lp("MAX_SUPPLY")).toBe(LAUNCHPAD.MAX_SUPPLY);
+    expect(await lp("THEME_COUNT")).toBe(BigInt(THEMES.length));
+  });
 });

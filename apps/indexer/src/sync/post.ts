@@ -195,4 +195,8 @@ export async function postProcess(ctx: Ctx, cache: NationCache, r: ApplyResult, 
   }
   if (rankChanges.length) ctx.bus.publish({ kind: "ranks", ranks: rankChanges });
   for (const item of news.sort((a, b) => a.id - b.id)) ctx.bus.publish({ kind: "news", item });
+  if (r.proposalsTouched.size) {
+    const rows = await sql`SELECT id, nation_id FROM proposals WHERE id IN ${sql([...r.proposalsTouched])}`;
+    for (const p of rows) ctx.bus.publish({ kind: "proposal", proposalId: Number(p.id), nationId: Number(p.nation_id) });
+  }
 }

@@ -116,7 +116,8 @@ export function useRealtimeBridge() {
             applyNews(qc, msg.item);
             break;
           case "proposal":
-            void qc.invalidateQueries({ queryKey: queryKeys.proposals(msg.proposal.nationId) });
+            void qc.invalidateQueries({ queryKey: queryKeys.proposals(msg.nationId) });
+            void qc.invalidateQueries({ queryKey: queryKeys.proposal(msg.proposalId) });
             break;
           case "heartbeat":
             setBlock(msg.block);

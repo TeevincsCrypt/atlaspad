@@ -108,7 +108,10 @@ export class GameEngine {
       await tx`DELETE FROM game_events WHERE dedupe_key LIKE 'g:%'`;
       await tx`
         UPDATE game_nations SET influence = 0, culture = 0, energy = 0, materials = 0, war_wins = 0, war_losses = 0,
-          alliance_id = NULL, war_territory_bonus_until = NULL, statuses = '[]'::jsonb, last_fired = '{}'::jsonb`;
+          alliance_id = NULL, war_territory_bonus_until = NULL, statuses = '[]'::jsonb,
+          -- The whale-news cooldown belongs to chain sync, not to the replayed game.
+          last_fired = CASE WHEN last_fired ? 'FOREIGN_INVESTMENT'
+            THEN jsonb_build_object('FOREIGN_INVESTMENT', last_fired->'FOREIGN_INVESTMENT') ELSE '{}'::jsonb END`;
     });
     log.warn("Game state reset for replay");
   }

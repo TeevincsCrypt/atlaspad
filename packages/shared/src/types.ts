@@ -233,5 +233,6 @@ export type RealtimeMessage =
   | { kind: "trade"; nationId: number; trade: TradeDTO; priceEth: number; marketCapEth: number | null }
   | { kind: "nation"; nation: NationSummary }
   | { kind: "ranks"; ranks: { id: number; rank: number; previousRank: number | null }[] }
-  | { kind: "proposal"; proposal: ProposalDTO }
+  /** A proposal was created, voted on, executed or canceled; clients refetch it. */
+  | { kind: "proposal"; proposalId: number; nationId: number }
   | { kind: "heartbeat"; block: number | null; at: number };

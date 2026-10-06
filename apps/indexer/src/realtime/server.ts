@@ -75,14 +75,7 @@ export function startServer(ctx: Ctx) {
         let seq = 0;
         const send = (data: unknown) => res.write(`id: ${++seq}\ndata: ${JSON.stringify(data)}\n\n`);
         const unsubscribe = ctx.bus.subscribe(send);
-        const heartbeat = setInterval(async () => {
-          const h = await indexerHealth(ctx.sql).catch(() => null);
-          send({ kind: "heartbeat", block: h?.lastIndexedBlock ?? null, at: Math.floor(Date.now() / 1000) });
-        }, HEARTBEAT_MS);
-        req.on("close", () => {
-          clearInterval(heartbeat);
-          unsubscribe();
-        });
+        req.on("close", unsubscribe);
         return;
       }
 
@@ -98,8 +91,26 @@ export function startServer(ctx: Ctx) {
       if (!res.headersSent) json(res, 500, { error: "internal error" }, cors);
     }
   });
+  // One heartbeat for all stream clients: keeps connections alive through proxies and reports the indexed block.
+  const heartbeat = setInterval(async () => {
+    if (ctx.bus.subscribers === 0) return;
+    const h = await indexerHealth(ctx.sql).catch(() => null);
+    ctx.bus.publish({ kind: "heartbeat", block: h?.lastIndexedBlock ?? null, at: Math.floor(Date.now() / 1000) });
+  }, HEARTBEAT_MS);
+  server.on("close", () => clearInterval(heartbeat));
   server.listen(ctx.env.port, () => log.info("Indexer HTTP server listening", { port: ctx.env.port }));
   return server;
+}
+
+/** RPC endpoints often carry API keys in the userinfo, path or query; only the host is safe to show. */
+export function maskRpcUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    const hidden = u.username || u.password || (u.pathname && u.pathname !== "/") || u.search;
+    return `${u.protocol}//${u.host}${hidden ? "/***" : ""}`;
+  } catch {
+    return "***";
+  }
 }
 
 async function adminStatus(ctx: Ctx) {
@@ -133,7 +144,7 @@ async function adminStatus(ctx: Ctx) {
     network: {
       key: ctx.env.network.key,
       chainId: ctx.env.network.chain.id,
-      rpcUrl: ctx.env.network.rpcUrl.replace(/\/\/([^/]*@)/, "//***@"),
+      rpcUrl: maskRpcUrl(ctx.env.network.rpcUrl),
       contracts: ctx.env.network.contracts,
       dex: ctx.env.network.dex,
       deployBlock: Number(ctx.env.network.deployBlock),
