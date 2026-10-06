@@ -203,3 +203,15 @@ export const ALLIANCE = {
 
 /** A holder counts as a citizen only above this share of supply (anti-dust): 0.0001% (1e-6). */
 export const CITIZEN_MIN_SUPPLY_FRACTION = 1e-6;
+
+/** Mirrors AtlasGovernor / NationTreasury constants (verified against the contracts in tests). */
+export const GOVERNANCE = {
+  proposalThresholdBps: 10,
+  treasuryQuorumBps: 400,
+  standardQuorumBps: 100,
+  treasuryVotingSeconds: 3 * 86400,
+  standardVotingSeconds: 86400,
+  treasuryTimelockSeconds: 86400,
+  executionWindowSeconds: 7 * 86400,
+  maxReleaseBps: 2500,
+} as const;
