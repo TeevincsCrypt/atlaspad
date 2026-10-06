@@ -21,7 +21,8 @@ export const wagmiConfig = createConfig({
     ...(publicEnv.walletConnectProjectId
       ? [walletConnect({ projectId: publicEnv.walletConnectProjectId, metadata, showQrModal: true })]
       : []),
-    coinbaseWallet({ appName: metadata.name, appLogoUrl: metadata.icons[0] }),
+    // Telemetry off: the SDK otherwise reports usage to Coinbase on every page load.
+    coinbaseWallet({ appName: metadata.name, appLogoUrl: metadata.icons[0], preference: { options: "all", telemetry: false } }),
   ],
   multiInjectedProviderDiscovery: true,
   ssr: true,

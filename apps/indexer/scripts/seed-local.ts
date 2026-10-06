@@ -61,6 +61,13 @@ for (let h = 0; h < 3; h++) {
   await test.increaseTime({ seconds: 3600 });
   await test.mine({ blocks: 1 });
 }
+// Bring the chain clock up to wall time so countdowns and proposal windows read naturally in the UI.
+const chainTs = Number((await client.getBlock()).timestamp);
+const wallTs = Math.floor(Date.now() / 1000);
+if (chainTs < wallTs) {
+  await test.setNextBlockTimestamp({ timestamp: BigInt(wallTs) });
+  await test.mine({ blocks: 1 });
+}
 
 const root = resolve(import.meta.dirname, "../../..");
 const common = {

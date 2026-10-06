@@ -1,7 +1,7 @@
 {
   "name": "atlaspad",
   "private": true,
-  "description": "AtlasPad — Every token is a nation. Every holder is a citizen.",
+  "description": "AtlasPad \u2014 Every token is a nation. Every holder is a citizen.",
   "packageManager": "pnpm@10.28.0",
   "engines": {
     "node": ">=20.11"
@@ -9,10 +9,12 @@
   "scripts": {
     "dev": "pnpm --filter @atlaspad/web dev",
     "dev:indexer": "pnpm --filter @atlaspad/indexer dev",
+    "dev:local": "bash scripts/dev-local.sh",
     "build": "pnpm -r --filter=!./contracts run build",
     "typecheck": "pnpm -r run typecheck",
     "lint": "pnpm -r run lint",
     "test": "pnpm -r run test",
+    "e2e": "pnpm --filter @atlaspad/web run e2e",
     "contracts:build": "cd contracts && forge build",
     "contracts:test": "cd contracts && forge test -vv",
     "contracts:abi": "pnpm --filter @atlaspad/shared run abi",

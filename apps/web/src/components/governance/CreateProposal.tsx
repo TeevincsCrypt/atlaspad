@@ -19,6 +19,7 @@ import {
   type NationSummary,
 } from "@atlaspad/shared";
 import { contracts } from "@/lib/env";
+import { useUi } from "@/lib/store";
 import { queryKeys, useWorld, type NationDetail } from "@/lib/api";
 import { Dialog } from "../ui/Dialog";
 import { Button } from "../ui/Button";
@@ -64,6 +65,7 @@ export function CreateProposal({
   const world = useWorld();
   const qc = useQueryClient();
   const power = useVotingPower(nation.token, nation.id);
+  const setWalletOpen = useUi((s) => s.setWalletModalOpen);
   const [type, setType] = useState<ProposalPreset["type"]>(preset?.type ?? "build");
   const [building, setBuilding] = useState<number>(preset && preset.type === "build" ? preset.building ?? 0 : 0);
   const [target, setTarget] = useState<number>(preset && (preset.type === "war" || preset.type === "alliance-invite") ? preset.target ?? 0 : 0);
@@ -222,9 +224,15 @@ export function CreateProposal({
             <Button variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button variant="primary" disabled={!draft || Boolean(draft.error) || !power.canPropose || !contracts} onClick={() => setReview(true)}>
-              {power.canPropose ? "Review proposal" : "Not enough voting power"}
-            </Button>
+            {power.address ? (
+              <Button variant="primary" disabled={!draft || Boolean(draft.error) || !power.canPropose || !contracts} onClick={() => setReview(true)}>
+                {power.canPropose ? "Review proposal" : "Not enough voting power"}
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={() => setWalletOpen(true)}>
+                Connect wallet
+              </Button>
+            )}
           </div>
         </div>
       </Dialog>

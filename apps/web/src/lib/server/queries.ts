@@ -221,6 +221,16 @@ export async function getHolders(sql: Sql, id: number, limit: number): Promise<{
   return { holders, total, citizens: Number(citizens ?? 0), top10Share };
 }
 
+/**
+ * The chain's clock as last seen by the indexer: proposal states compare against block time, exactly as
+ * AtlasGovernor.state() does. Falls back to wall time before the first sync.
+ */
+async function chainNow(sql: Sql): Promise<number> {
+  const [r] = await sql`SELECT max(last_block_timestamp) AS t FROM indexer_state`;
+  const t = Number(r?.t ?? 0);
+  return t > 0 ? t : Math.floor(Date.now() / 1000);
+}
+
 function toProposal(r: Record<string, unknown>, now: number): ProposalDTO {
   const executed = Boolean(r.executed);
   const canceled = Boolean(r.canceled);
@@ -271,7 +281,7 @@ export async function getProposals(sql: Sql, opts: { nationId?: number; proposer
     WHERE (${opts.nationId ?? null}::int IS NULL OR p.nation_id = ${opts.nationId ?? null})
       AND (${opts.proposer ?? null}::text IS NULL OR p.proposer = ${opts.proposer ?? null})
     ORDER BY p.id DESC LIMIT ${opts.limit}`;
-  const now = Math.floor(Date.now() / 1000);
+  const now = await chainNow(sql);
   return rows.map((r) => toProposal(r, now));
 }
 
@@ -282,7 +292,7 @@ export async function getProposal(sql: Sql, id: number) {
   if (!r) return null;
   const votes = await sql`SELECT voter, support, weight, reason, tx_hash, timestamp FROM votes WHERE proposal_id = ${id} ORDER BY weight DESC LIMIT 200`;
   return {
-    proposal: toProposal(r, Math.floor(Date.now() / 1000)),
+    proposal: toProposal(r, await chainNow(sql)),
     votes: votes.map((v) => ({
       voter: v.voter as string,
       support: Number(v.support),
