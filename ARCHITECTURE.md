@@ -55,7 +55,7 @@ a pnpm package.
 | Path | Package | Purpose | Stack |
 |---|---|---|---|
 | `apps/web` | `@atlaspad/web` | Website, `/api` route handlers and the 3D world | Next.js 16 (App Router), React 19, Tailwind v4 (`@tailwindcss/postcss`), wagmi 2 + viem, three + @react-three/fiber/drei/postprocessing, gsap, motion, lightweight-charts, zustand, @tanstack/react-query, postgres.js, lucide-react |
-| `apps/indexer` | `@atlaspad/indexer` | Chain sync, game engine, SSE server | Node ≥20 TypeScript, viem, postgres.js, drizzle-orm (migrator only), built with tsup, run in dev with tsx |
+| `apps/indexer` | `@atlaspad/indexer` | Chain sync, game engine, SSE server | Node ≥22.9 (root `engines`) TypeScript, viem, postgres.js, drizzle-orm (migrator only), built with tsup (target `node22`), run in dev with tsx |
 | `packages/shared` | `@atlaspad/shared` | Code used by both web and indexer: chains, network config, ABIs, formatting, DTO types, game rules, world/hex math | TypeScript sources (exports `.`, `./abis`, `./game`, `./world`), viem |
 | `packages/db` | `@atlaspad/db` | Drizzle schema, SQL migrations (`packages/db/drizzle`), raw-SQL read queries shared by web and indexer | drizzle-orm, drizzle-kit, postgres.js |
 | `contracts` | — | Solidity 0.8.28 contracts, Foundry tests and scripts. Submodules: `lib/forge-std`, `lib/openzeppelin-contracts` | Foundry (`evm_version = cancun`) |
@@ -63,13 +63,17 @@ a pnpm package.
 
 The workspace packages ship TypeScript source, not compiled output. The web app compiles them through
 `transpilePackages` in `next.config.ts`. The indexer bundles them through tsup `noExternal: [/^@atlaspad\//]`.
-The indexer build also copies `packages/db/drizzle` into `dist/drizzle` so the bundle can run migrations.
+The indexer build also copies `packages/db/drizzle` into `dist/drizzle` so the bundle can run migrations. Its tsup
+entries are `src/main.ts`, `src/rebuild.ts` and `src/migrate-cli.ts` (`dist/migrate-cli.js` applies the migrations
+and exits; from source, `pnpm --filter @atlaspad/indexer migrate`).
 
-There are two lint configs:
+There are two lint configs, and `pnpm lint` passes in every package:
 
 - the root `eslint.config.mjs` (`@eslint/js` + `typescript-eslint`, root devDependencies) for `shared`, `db`
   and `indexer`
-- `apps/web/eslint.config.mjs` (`eslint-config-next`) for the web app
+- `apps/web/eslint.config.mjs` (`eslint-config-next`) for the web app. It turns off the React Compiler rules
+  `react-hooks/immutability` and `react-hooks/set-state-in-effect` only for `src/components/world/**`, the
+  imperative three.js renderer
 
 ### Root scripts (`package.json`)
 
@@ -100,7 +104,7 @@ pair (`getReserves`, `token0/1`, `Swap`, `Sync`), the router (`getAmountsOut`, `
 | Module | Contents |
 |---|---|
 | `chains.ts` | `robinhoodChain` (4663, public RPC, Blockscout explorer), `anvilChain` (31337), canonical Robinhood Uniswap V2 factory/router and WETH, `BURN_ADDRESSES` |
-| `config.ts` | `resolveNetwork()` builds an `AtlasNetworkConfig` (chain, rpcUrl, explorer, dex, `contracts \| null`, deployBlock) from raw env values. Throws `ConfigError`. Also explorer link helpers |
+| `config.ts` | `resolveNetwork()` builds an `AtlasNetworkConfig` (chain, rpcUrl, explorer, dex, `contracts \| null`, deployBlock) from raw env values. Empty values count as unset. Throws `ConfigError` for an unknown network, an invalid address, only some of the three contract addresses, a non-digit deployBlock, or missing local DEX addresses. Also explorer link helpers |
 | `abis/` | Generated and minimal ABIs (see above) |
 | `types.ts` | DTOs shared by the API and the SSE stream (`NationSummary`, `NewsItem`, `TradeDTO`, `ProposalDTO`, `WorldResponse`, `RealtimeMessage`, …). Convention: `null` = data unavailable |
 | `format.ts` | ETH/USD/percent/compact/duration/time-ago formatting, `weiToEth`, `shortAddress` |
@@ -118,7 +122,7 @@ pair (`getReserves`, `token0/1`, `Swap`, `Sync`), the router (`getAmountsOut`, `
 
 | Contract | Holds / does | Events consumed by the indexer |
 |---|---|---|
-| `AtlasLaunchpad` | Nation registry, constant-product bonding curve with virtual reserves, 1% trade fee (0.5% protocol, 0.5% to the nation treasury), founder vesting (30 days), graduation into Uniswap V2 (LP tokens minted to `0x…dEaD`). Symbol updates are allowed only from `AtlasGovernor`. No owner, no pause | `NationFounded`, `CurveInitialized`, `Trade`, `NationGraduated`, `NationSymbolUpdated` (`FounderTokensClaimed` and `ProtocolFeesWithdrawn` are decoded and ignored) |
+| `AtlasLaunchpad` | Nation registry, constant-product bonding curve with virtual reserves, 1% trade fee (0.5% protocol, 0.5% to the nation treasury), founder vesting (30 days, claimable only after graduation), graduation into Uniswap V2 (LP tokens minted to `0x…dEaD`). Symbol updates are allowed only from `AtlasGovernor`. No owner, no pause | `NationFounded`, `CurveInitialized`, `Trade`, `NationGraduated`, `NationSymbolUpdated` (`FounderTokensClaimed` and `ProtocolFeesWithdrawn` are decoded and ignored) |
 | `NationTokenFactory` | Deploys `NationToken` with CREATE2 (salt = nation id). Only the launchpad can call it | — |
 | `NationToken` | ERC20 + ERC20Permit + ERC20Votes with a timestamp clock. Fixed supply is minted to the launchpad. Holders are self-delegated automatically. Transfers to the pair revert until graduation | `Transfer` |
 | `AtlasGovernor` | Per-nation proposals of three kinds: Treasury, GameAction, Symbol. Token-weighted votes, quorum, timelock, permissionless execution | `ProposalCreated`, `VoteCast`, `ProposalCanceled`, `ProposalExecuted`, `GameActionExecuted` |
@@ -144,7 +148,7 @@ migration is `drizzle/0000_init.sql`. Storage conventions:
 |---|---|---|---|
 | **Indexer bookkeeping** | `indexer_state` | `id='main'` | chain id, `last_block` / `last_block_hash` / `last_block_timestamp`, `chain_head`, `game_cursor`, `eth_usd` |
 | | `indexed_blocks` | `number` | Hash and timestamp of recent blocks (last 512 kept) for reorg detection |
-| | `indexer_errors` | serial | Loop errors and handled reorgs |
+| | `indexer_errors` | serial | Loop errors (`loop`), handled reorgs (`reorg`) and ranges whose post-processing failed after all retries (`post-process`) |
 | | `excluded_addresses` | `address` | Burn, DEX, protocol and system addresses that can never be citizens |
 | **On-chain mirror** | `nations` | `id` | Founding params, curve state (virtual/real reserves, remaining), graduation, pool reserves, emblem |
 | | `trades` | `(tx_hash, log_index)` | Curve and Uniswap trades with post-trade price, market cap and liquidity; `venue` |
@@ -167,9 +171,12 @@ migration is `drizzle/0000_init.sql`. Storage conventions:
 
 Values computed **at read time** in the web app rather than stored:
 
-- Proposal state: mirrors `AtlasGovernor.state()`, using `indexer_state.last_block_timestamp` as "chain now".
+- Proposal state: mirrors `AtlasGovernor.state()`, using the indexed chain clock (`max(indexer_state.last_block_timestamp)`,
+  falling back to wall time before the first sync) as "chain now".
 - Candles: bucketed from `trades`.
-- Citizen XP totals: earned XP plus 5 XP per citizenship-day, capped at 30 days per nation. This uses wall-clock time.
+- Citizen XP totals: earned XP plus 5 XP per citizenship-day, capped at 30 days per nation. Days are counted
+  against the same indexed chain clock.
+- Pending alliance invitations: those younger than `ALLIANCE.inviteTtlSeconds` (14 days) by the indexed chain clock.
 - Citizen leaderboard rank.
 - Holder labels and citizen flags.
 
@@ -183,12 +190,14 @@ Values computed **at read time** in the web app rather than stored:
   - Truncates `game_snapshots`, `game_resource_ledger`, `game_actions`, `game_buildings`, `game_wars` and the
     alliance tables.
   - Deletes `game_events` whose `dedupe_key LIKE 'g:%'`.
-  - Zeroes resources, war counters, alliance, statuses and `last_fired` in `game_nations`.
+  - Zeroes resources, war counters, alliance, statuses and `last_fired` in `game_nations`, except the
+    `FOREIGN_INVESTMENT` (whale news) cooldown, which belongs to chain sync and is kept.
 
   The integration test checks that a replay produces the same digest of these tables.
 - **What `reset()` leaves untouched.** Achievements, XP and non-`g:` news are produced during forward sync
   (`sync/post.ts`, `sync/metrics.ts`). They are idempotent through their keys, but `rebuild-game` does not
-  recreate or clear them. Only a full re-index of the mirror regenerates them.
+  recreate or clear them. Only a full re-index of the mirror regenerates them. (A reorg deletes the ones recorded
+  after the fork so that re-sync can derive them again; see 4.3.)
 - **Wall-clock inputs.** `eth_usd` is a live price. It feeds the `game_snapshots.eth_usd` column and the
   `MCAP_1M_USD` achievement, so those values depend on when they were computed. Everything else uses block
   timestamps.
@@ -199,12 +208,14 @@ Values computed **at read time** in the web app rather than stored:
 
 ### 4.1 Process (`src/main.ts`, `src/context.ts`, `src/env.ts`)
 
-1. Load the environment.
+1. Load the environment. Any configuration error, including a `ConfigError` from `resolveNetwork()` (for example
+   only some of the three contract addresses set), makes the process exit at startup.
 2. Run Drizzle migrations unless `INDEXER_RUN_MIGRATIONS=false`.
 3. Open a postgres.js pool (max 10).
 4. Create a viem public client (HTTP, JSON-RPC batch 50, 3 retries).
 5. Start the HTTP server.
-6. If contracts are not configured, log a warning and serve only `/health`.
+6. If no contract addresses are configured, log a warning ("Serving health only") and do not index. `/health`
+   then reports `deployed: false`.
 7. Otherwise create `ChainSync` and `GameEngine` and run the main loop:
    ```
    loop: caughtUp = sync.step(); engine.step();
@@ -215,10 +226,10 @@ Values computed **at read time** in the web app rather than stored:
 
 | Env var | Default | Meaning |
 |---|---|---|
-| `ATLAS_NETWORK` | `robinhood` | `robinhood` or `local` |
-| `ATLAS_RPC_URL` | chain default RPC | JSON-RPC endpoint |
-| `ATLAS_LAUNCHPAD` / `ATLAS_GOVERNOR` / `ATLAS_TREASURY` | — | All three are required to index |
-| `ATLAS_DEPLOY_BLOCK` | `0` | First block to index |
+| `ATLAS_NETWORK` | `robinhood` | `robinhood` or `local` (empty = unset) |
+| `ATLAS_RPC_URL` | chain default RPC | JSON-RPC endpoint (empty = unset) |
+| `ATLAS_LAUNCHPAD` / `ATLAS_GOVERNOR` / `ATLAS_TREASURY` | — | All three are required to index. Set all three or none: a partial set is a startup error |
+| `ATLAS_DEPLOY_BLOCK` | `0` | First block to index (digits only) |
 | `ATLAS_UNISWAP_V2_FACTORY` / `_ROUTER` / `ATLAS_WETH` | — | Required only for `local` |
 | `DATABASE_URL`, `DATABASE_SSL` | — | Postgres |
 | `PORT` / `INDEXER_PORT` | `4100` | HTTP server |
@@ -227,7 +238,7 @@ Values computed **at read time** in the web app rather than stored:
 | `INDEXER_POLL_MS` | `2000` (min 250) | Idle poll interval |
 | `INDEXER_ADMIN_TOKEN` | unset | Enables `/admin/status` |
 | `INDEXER_CORS_ORIGIN` | `*` | CORS for all endpoints |
-| `ETH_USD_SOURCE` | `none` | `coinbase` or `none` |
+| `ETH_USD_SOURCE` | `none` | `coinbase` or `none` (empty = unset) |
 | `EXCLUDED_ADDRESSES` | — | `addr[:label],…`: extra non-citizen addresses |
 | `LOG_LEVEL`, `MIGRATIONS_DIR` | `info`, auto | Logging (JSON lines), migrations folder override |
 
@@ -243,6 +254,7 @@ step():
   fetchBatch   → decoded, ordered events + block hashes/timestamps
   applyBatch   → one DB transaction (mirror rows + cursor)
   postProcess  → after commit: news, XP, achievements, metrics, ranks, realtime publish
+                 (up to 5 attempts with exponential backoff; see below)
 ```
 
 **Fetch (`fetch.ts`)**
@@ -309,8 +321,15 @@ Non-citizen exclusions:
   - citizen and market-cap milestone news and achievements
 - **`recomputeRanks`** orders nations by civilization score, then market cap, then id, and returns the rank
   changes.
-- **Realtime publish:** `trade`, `nation` (fresh `NationSummary`), `ranks` and `news`. Publishing happens after
-  all writes.
+- **Realtime publish:** `trade`, `nation` (fresh `NationSummary`), `ranks`, `news`, and one
+  `{ kind: "proposal", proposalId, nationId }` for every proposal touched by a governance event in the range
+  (created, voted on, canceled, executed, or a game action executed). Publishing happens after all writes.
+
+**Retries (`ChainSync.postProcessWithRetry`).** Post-processing runs after the range's transaction has committed
+and the cursor has moved. Its writes are idempotent (dedupe keys, `ON CONFLICT DO NOTHING`), so a failure is
+retried up to 5 attempts in total, waiting 1 s, 2 s, 4 s and 8 s between them. If the last attempt fails, the
+rest of that range's post-processing is skipped, the error is logged, and a row is written to `indexer_errors`
+with scope `post-process` and details `{from, to}` (the block range) for operators.
 
 ### 4.3 Reorg handling (`ChainSync.handleReorg`)
 
@@ -322,10 +341,14 @@ with `INDEXER_CONFIRMATIONS`, this catches reorgs that reach indexed blocks.
 1. Walk back through up to 512 stored `indexed_blocks` to find the newest block whose hash still matches. That
    block is the fork point.
 2. In one transaction:
-   - delete rows with `block_number > fork` from `trades`, `transfers`, `treasury_txs`, `votes`,
-     `game_action_events` and `game_events`, plus proposals and nations created after the fork, plus
-     `indexed_blocks` after the fork
-   - rebuild `holders` from the remaining `transfers`
+   - delete rows with `block_number > fork` from `trades`, `transfers`, `treasury_txs`, `votes` and
+     `game_action_events`, plus proposals and nations created after the fork, plus `indexed_blocks` after the fork
+   - delete derived rows after the fork: `game_events` with `block_number > fork`, or with no block number and
+     `created_at` after the fork block's timestamp; `game_nation_achievements` and `game_citizen_achievements`
+     with `unlocked_at` after that timestamp; and `game_citizen_xp` with `at` after it. These are re-derived
+     (idempotently) by re-sync, metric refreshes and the game replay
+   - rebuild `holders` from the remaining `transfers`. Each holder's `first_held_at` is the start of its current
+     holding period (the last transfer that took its balance from 0 to positive), as in live sync
    - recompute vote tallies
    - set `last_block = fork` and `game_cursor = 0`
 3. Re-read each surviving nation's curve and pool state at the fork block (`getNation`, `getReserves`) and each
@@ -338,8 +361,9 @@ The game engine then replays from scratch.
 ### 4.4 ETH/USD price (`src/price.ts`)
 
 With `ETH_USD_SOURCE=coinbase`, the indexer fetches `https://api.coinbase.com/v2/prices/ETH-USD/spot` every 60 s
-(8 s timeout) into `indexer_state.eth_usd`. With `none` (the default), USD stays `null` and the UI shows ETH
-values with "—" for USD. On-chain values are always ETH.
+(8 s timeout) into `indexer_state.eth_usd`. Besides USD display, the price is stored in each hourly snapshot and
+feeds the `MCAP_1M_USD` achievement, which therefore cannot unlock without it. With `none` (the default), USD
+stays `null` and the UI shows ETH values with "—" for USD. On-chain values are always ETH.
 
 ### 4.5 Game engine (`src/game/*`)
 
@@ -391,7 +415,8 @@ Off-chain, everything time-based uses block timestamps:
 - epochs
 - 1 h / 24 h windows
 - war and building timers
-- the web's proposal-state calculation
+- the web's proposal-state calculation, citizenship-day XP and alliance-invite expiry (all against the latest
+  indexed block's timestamp)
 
 Block numbers are used only for log ordering and reorg bookkeeping.
 
@@ -403,13 +428,13 @@ single-process.
 | Endpoint | Auth | Response |
 |---|---|---|
 | `GET /health` | public | `{ok, chainId, deployed, lastIndexedBlock, chainHeadBlock, lagBlocks, lastSyncAt, subscribers}` |
-| `GET /stream` | public | Server-Sent Events. Starts with `retry: 3000`. Each message is `id: <per-connection seq>` + `data: <RealtimeMessage JSON>`. A `heartbeat` (last indexed block) is sent every 15 s per client. Returns 503 above 5,000 clients |
-| `GET /admin/status` | `Authorization: Bearer $INDEXER_ADMIN_TOKEN` (timing-safe compare). 404 when the token is unset, 401 when wrong | Read-only: network config (RPC credentials masked), RPC head/latency, DB counts/latency, indexer stats, last 10 indexed blocks, last 25 errors |
+| `GET /stream` | public | Server-Sent Events. Starts with `retry: 3000`. Each message is `id: <per-connection seq>` + `data: <RealtimeMessage JSON>`. A single 15 s timer serves all clients: it runs one `indexerHealth` query and publishes one `heartbeat` (last indexed block) on the bus, and only when there are subscribers. Returns 503 above 5,000 clients |
+| `GET /admin/status` | `Authorization: Bearer $INDEXER_ADMIN_TOKEN` (timing-safe compare). 404 when the token is unset, 401 when wrong | Read-only: network config (RPC URL masked to `protocol//host`, plus `/***` when it has a path, query or credentials), RPC head/latency, DB counts/latency, indexer stats, last 10 indexed blocks, last 25 errors |
 | `OPTIONS *` | — | 204 with CORS headers |
 | other | — | 405 (non-GET) / 404 |
 
-Messages the indexer publishes: `trade`, `nation`, `ranks`, `news` (plus server `heartbeat`). The stream has no
-replay: a client that reconnects does not receive messages it missed.
+Messages the indexer publishes: `trade`, `nation`, `ranks`, `news`, `proposal` (plus server `heartbeat`). The
+stream has no replay: a client that reconnects does not receive messages it missed.
 
 ---
 
@@ -420,8 +445,8 @@ replay: a client that reconnects does not receive messages it missed.
 - Every page component is a client component (`"use client"`). Pages read data with React Query hooks
   (`src/lib/api.ts`) that call the app's own `/api/*` route handlers.
 - Route handlers read Postgres through `src/lib/server/*`:
-  - `db.ts`: a shared `server-only` postgres.js pool, `DATABASE_POOL_MAX` (default 3), `prepare: false` for
-    transaction-mode poolers.
+  - `db.ts`: a shared `server-only` postgres.js pool, `DATABASE_POOL_MAX` (default 3; anything other than a
+    positive integer makes `getSql()` throw), `prepare: false` for transaction-mode poolers.
   - `http.ts`: JSON helpers.
   - `queries.ts`: plus shared readers from `@atlaspad/db/queries`.
 - The only other server-side DB read is `generateMetadata` in `app/nation/[id]/layout.tsx`.
@@ -477,7 +502,7 @@ It never returns fabricated data. Cached responses send
 | `ranks` | patch `rank` / `previousRank` in `["world"]` | — |
 | `trade` | prepend to `["trades", id]` (dedupe by tx + log, cap 100); invalidate `["candles", id]` | `effects.emit({kind:"trade"})` |
 | `news` | prepend into matching `["news", nation, severity]` lists (cap 200). For structural types (wars, alliances, buildings, founding), invalidate `["world"]` and the nations involved. Always invalidate that nation's proposals | If newer than 15 min: cinematic for `GOLDEN_AGE`, `ECONOMIC_CRISIS`, `WAR_DECLARED`, `WAR_ENDED`; sound cues |
-| `proposal` | invalidate `["proposals", nationId]` (handled, but the indexer never publishes it) | — |
+| `proposal` | invalidate the nation's proposal list `["proposals", nationId]` and the detail `["proposal", proposalId]`, so tallies and states refresh after every vote, cancel or execution | — |
 | `heartbeat` | store last block | — |
 
 `effects` is a module-level listener set (`trade`, `cinematic`, `burst`, `focus`, and `founding-preview`, which
@@ -495,7 +520,7 @@ Consumers:
 `src/proxy.ts` is the Next 16 proxy. Its matcher is `/admin`, `/admin/:path*` and `/api/admin/:path*`.
 
 - It returns **404** unless `ADMIN_USERNAME` and `ADMIN_PASSWORD` are set and the password has at least 12
-  characters.
+  characters. A shorter password logs a warning once and keeps the admin area disabled.
 - Otherwise it requires HTTP Basic credentials (`src/lib/admin-auth.ts`, constant-time compare). Missing or
   wrong credentials get **401** with `WWW-Authenticate`.
 - Responses get `Cache-Control: no-store` and `X-Robots-Tag: noindex`.
@@ -513,9 +538,13 @@ The dashboard polls every 10 s and is read-only.
 `src/lib/env.ts` reads the `NEXT_PUBLIC_*` variables by literal name, because Next inlines them at build time.
 It passes them to `resolveNetwork()` (`packages/shared/src/config.ts`):
 
-- `contracts` is non-null only when all three addresses are valid.
+- Empty values count as unset (network, RPC URL, addresses, deploy block).
+- `contracts` is non-null only when all three addresses are set and valid. Setting only one or two of them is a
+  `ConfigError`, as is a deploy block that is not all digits.
 - `local` additionally requires the DEX addresses.
-- On a `ConfigError`, the app falls back to Robinhood Chain without contracts and exposes `configError`.
+- On a `ConfigError`, the app falls back to Robinhood Chain without contracts and exposes `configError`: the
+  `StatusBanner` shows "Configuration error: … On-chain actions are disabled." and every on-chain action is
+  disabled.
 - `isDeployed = contracts !== null && configError === null`.
 
 | Variable | Used for |
@@ -523,9 +552,9 @@ It passes them to `resolveNetwork()` (`packages/shared/src/config.ts`):
 | `NEXT_PUBLIC_ATLAS_NETWORK`, `NEXT_PUBLIC_RPC_URL` | Chain selection, wagmi transport |
 | `NEXT_PUBLIC_ATLAS_LAUNCHPAD` / `_GOVERNOR` / `_TREASURY` / `_DEPLOY_BLOCK` | Contract addresses |
 | `NEXT_PUBLIC_ATLAS_UNISWAP_V2_FACTORY` / `_ROUTER` / `NEXT_PUBLIC_ATLAS_WETH` | Local network only |
-| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Enables the WalletConnect connector |
-| `NEXT_PUBLIC_REALTIME_URL` | Indexer base URL for SSE |
-| `NEXT_PUBLIC_SITE_URL` | Metadata / wallet metadata |
+| `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | Enables the WalletConnect connector (empty = unset) |
+| `NEXT_PUBLIC_REALTIME_URL` | Indexer base URL for SSE (empty = unset) |
+| `NEXT_PUBLIC_SITE_URL` | Metadata / wallet metadata. Defaults to `http://localhost:3000` when unset or empty |
 | `DATABASE_URL`, `DATABASE_SSL`, `DATABASE_POOL_MAX` | Server-side read pool |
 | `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `INDEXER_URL`, `INDEXER_ADMIN_TOKEN`, `ATLAS_RPC_URL` | Admin dashboard |
 
@@ -538,7 +567,8 @@ It passes them to `resolveNetwork()` (`packages/shared/src/config.ts`):
 | No `NEXT_PUBLIC_REALTIME_URL` / SSE down | Realtime `disabled` / `offline`. React Query polling fallback |
 | No WebGL | `WorldStage` renders a gradient and a text fallback |
 | `ETH_USD_SOURCE=none` | `ethUsd: null`. USD shown as "—" |
-| Indexer without contracts | Serves `/health` only (`deployed: false`) |
+| Indexer without contracts | Does not index. The HTTP server still runs and `/health` reports `deployed: false` |
+| Indexer with a `ConfigError` (for example only some contract addresses set) | Exits at startup |
 
 `contracts/deployments/` currently contains only the local `31337.json` (gitignored, regenerated by
 `DeployLocal`). There is no recorded Robinhood deployment in the repo.
@@ -570,6 +600,8 @@ Confirm ─► [buildCall? sign EIP-712 permit (awaiting_signature) → prepare(
 - The dialog cannot be dismissed while a transaction is in flight.
 - Irreversible actions can require an acknowledgment checkbox.
 - `onConfirmed` callers invalidate the relevant React Query keys (nation, world, proposals).
+- Forms that need an account offer a connect action instead of a dead button. For example, `CreateProposal`
+  shows a "Connect wallet" button (opening the wallet modal) when no wallet is connected.
 - The founding wizard (`/found`) uses `useAtlasTx` directly and decodes `NationFounded` from the receipt to get
   the new id.
 
@@ -616,8 +648,10 @@ overwritten in place.
 **Globe ↔ map morph.** Positions and normals are computed on the GPU. GSAP tweens `uMorph`, along with `uReveal`
 (reveal sweep by rank), `uRouteOpacity` and `uAtmosphere`.
 
-**Nation data texture.** `uNationTex` is a 4096 × 1 RGBA float `DataTexture`, indexed by `aNationIdx` (index
-1…4095, clamped). Each frame, `NationFx` writes:
+**Nation data texture.** `uNationTex` is a 4096 × 1 RGBA float `DataTexture` (`NATION_TEX_SIZE = 4096` in
+`model.ts`), indexed by `aNationIdx`: the i-th nation in id order gets slot i, clamped to 4095. **Known limit:**
+nations beyond the 4,095th share the last slot, so their live map effects (pulses, status, highlight) are mixed
+together. Each frame, `NationFx` writes:
 
 | Channel | Value |
 |---|---|
@@ -686,11 +720,11 @@ are computed in the shaders, so all 20,000 cells are always drawn.
 
 | Layer | Location | Command | Requires |
 |---|---|---|---|
-| Contracts | `contracts/test`: `AtlasLaunchpad`, `AtlasGovernor`, `NationToken`, `NationTreasury`, `Invariants` (handler-based), `Base`, `mocks/` (Uniswap V2 port, WETH9) | `pnpm contracts:test` (`forge test -vv`). Fuzz runs: 512 default, 4096 with `FOUNDRY_PROFILE=ci` | Foundry + submodules |
-| Shared unit | `packages/shared/test`: `curve.test.ts` (bigint curve port), `game.test.ts` (stats, market events, rules, emblem), `world.test.ts` (deterministic terrain, wrap, stable capitals, territory size) | `pnpm --filter @atlaspad/shared test` (vitest) | — |
-| Web unit | `apps/web/test`: `admin-auth.test.ts` (Basic-auth gate), `errors.test.ts` (error map vs ABIs, revert/rejection mapping). `vitest.config.ts` includes `test/**/*.test.ts` and aliases `@` | `pnpm --filter @atlaspad/web test` (vitest) | — |
-| Indexer integration | `apps/indexer/test/integration.test.ts` + `scenario.ts` | `INTEGRATION=1 TEST_DATABASE_URL=postgresql://…/atlaspad_test pnpm --filter @atlaspad/indexer test` (skipped without `INTEGRATION=1`) | `anvil`, `forge`, Postgres (the test DB is dropped and recreated) |
-| Browser E2E | `apps/web/e2e/flows.e2e.mjs` + `e2e/wallet.js` | `pnpm e2e` (optional args: base URL, screenshot dir) | Running local stack (`scripts/dev-local.sh`), Chromium at `CHROMIUM_PATH` |
+| Contracts | `contracts/test` (107 tests): `AtlasLaunchpad`, `AtlasGovernor`, `NationToken`, `NationTreasury`, `Invariants` (handler-based), `Base`, `mocks/` (Uniswap V2 port, WETH9) | `pnpm contracts:test` (`forge test -vv`). Fuzz runs: 512 default, 4096 with `FOUNDRY_PROFILE=ci` | Foundry + submodules |
+| Shared unit | `packages/shared/test` (30 tests): `config.test.ts` (`resolveNetwork`: defaults, empty values as unset, complete and partial deployments, invalid addresses/block numbers/networks, local DEX requirement), `curve.test.ts` (bigint curve port), `game.test.ts` (stats, market events, rules, emblem), `world.test.ts` (deterministic terrain, wrap, stable capitals, territory size) | `pnpm --filter @atlaspad/shared test` (vitest) | — |
+| Web unit | `apps/web/test` (8 tests): `admin-auth.test.ts` (Basic-auth gate), `errors.test.ts` (error map vs ABIs, revert/rejection mapping). `vitest.config.ts` includes `test/**/*.test.ts` and aliases `@` | `pnpm --filter @atlaspad/web test` (vitest) | — |
+| Indexer integration | `apps/indexer/test/integration.test.ts` (7 tests) + `scenario.ts` | `INTEGRATION=1 TEST_DATABASE_URL=postgresql://…/atlaspad_test pnpm --filter @atlaspad/indexer test` (skipped without `INTEGRATION=1`) | `anvil`, `forge`, Postgres (the test DB is dropped and recreated) |
+| Browser E2E | `apps/web/e2e/flows.e2e.mjs` (12 steps) + `e2e/wallet.js` | `pnpm e2e` (optional args: base URL, screenshot dir) | Running local stack (`scripts/dev-local.sh`), Chromium at `CHROMIUM_PATH` |
 | DB package | — | `test` script only echoes "covered by indexer integration tests" | — |
 
 **Indexer integration test.**
@@ -707,21 +741,28 @@ are computed in the shaders, so all 20,000 cells are always drawn.
   - news types
   - snapshot and XP counts
   - that a game replay (`game_cursor = 0`) reproduces an identical digest
+  - that the shared rule constants (`GOVERNANCE`, `LAUNCHPAD`, building and theme counts) match the deployed
+    contracts ("shared rule constants match the deployed contracts")
 
 **Browser E2E.**
 
 - `playwright-core` drives Chromium with SwiftShader WebGL.
 - `wallet.js` injects an EIP-1193 provider announced over EIP-6963 that forwards requests to anvil (account
-  #9).
-- Steps:
-  1. Open the wizard and connect the wallet.
-  2. Check name and ticker availability, then fill the description, theme, symbol and token parameters.
-  3. Simulate and found a nation.
-  4. Open the indexed nation.
-  5. Buy on the curve, then sell 50% with a permit.
-  6. Propose a Capitol.
-  7. Wait for the proposal to appear via the indexer.
-  8. Check the nation appears on the world map.
+  #9). Like a real wallet it exposes no accounts until the user connects, and the approval is kept in
+  `localStorage`, so it persists across page reloads.
+- 12 steps, all passing against the local stack:
+  1. Open the founding wizard.
+  2. Connect the wallet (EIP-6963).
+  3. Check name and ticker availability.
+  4. Fill the description, theme and symbol.
+  5. Set the token parameters, with the live curve preview.
+  6. Simulate, acknowledge and found the nation.
+  7. Open the new nation once indexed.
+  8. Buy on the bonding curve.
+  9. Sell 50% with a permit signature.
+  10. Propose a Capitol through governance.
+  11. Wait for the proposal to appear via the indexer.
+  12. Check the nation appears on the world map.
 - Screenshots go to `e2e/screenshots/`, which is gitignored.
 
 **Local stack (`scripts/dev-local.sh`).**

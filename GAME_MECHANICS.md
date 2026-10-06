@@ -59,7 +59,7 @@ This document describes the AtlasPad game rules **as they are implemented**. Eve
 | Symbol (ticker) | 2–10 characters from `A–Z 0–9`. Unique. |
 | Description / metadata URI | ≤ 280 bytes / ≤ 200 bytes |
 | Total supply | 1,000,000 to 1,000,000,000,000 whole tokens. Fixed and minted once to the launchpad. No mint, owner, pause, blacklist, transfer tax or upgrade path. |
-| Founder allocation | 0–5% of supply, vested linearly over 30 days. Held by the launchpad until claimed. |
+| Founder allocation | 0–5% of supply, vesting linearly over 30 days from founding and claimable only after graduation (the UI shows "30-day vesting, claimable after graduation"). Held by the launchpad until claimed, so founder tokens can never be sold back into the bonding curve. |
 | Founder's initial buy | Any ETH sent above the creation fee is used to buy on the curve. It may not exceed 10% of supply. |
 | Creation fee | Immutable per deployment (may be zero). Paid to the protocol, not to the treasury. |
 | Theme | One of 8: Medieval, Cyberpunk, Space, Ocean, Jungle, Meme, AI, Fantasy. **Cosmetic only.** No game formula reads it. |
@@ -70,6 +70,8 @@ This document describes the AtlasPad game rules **as they are implemented**. Eve
 - It is required to build the **Port** and the **Spaceport**.
 - It is required for the **National Emergency** event.
 - It unlocks the **World Markets** achievement.
+
+Graduation also makes the founder's vested allocation claimable (`claimFounderTokens` reverts with `NotGraduated` before it).
 
 **Market metrics used by the game** (`apps/indexer/src/sync/nations.ts`, `apply.ts`):
 
@@ -230,7 +232,7 @@ It is recomputed after every indexed block range and after every engine step tha
 | 🌎 Largest Economy | Market cap (ETH) |
 | 👥 Most Citizens | Citizen count |
 | ⚔️ Strongest Nation | Military power |
-| 📈 Fastest Growing | 24h price change |
+| 📈 Fastest Growing | 24h citizen growth: `citizens / citizens 24h ago − 1`, the same measure as the Discover page. Nations with no citizens 24 h ago are not ranked. |
 | 🔥 Most Active | 24h trading volume (ETH) |
 | 🏗️ Most Developed | Development score (ties broken by civilization score), shown as "n / 8" buildings |
 | 👑 Most Influential | Influence **resource** (not the influence score) |
@@ -327,7 +329,7 @@ Buildings are proposed through governance ([section 10](#10-governance-proposing
 | Factory | Materials production ×(+25%), military ×(+10%) |
 | University | Influence production ×(+25%) |
 | Stadium | +10 culture per hour; governance culture (`5 × votes`) ×1.25 |
-| Port | Energy production ×(+25%), economic power ×(+5%), **and materials production ×(+10%)**. The in-game effect text does not mention the materials bonus. |
+| Port | Energy production ×(+25%), materials production ×(+10%), economic power ×(+5%) |
 | Monument | +10 culture per hour, defense ×(+10%) |
 | Spaceport | Civilization score ×1.1. The "spacefaring capital" is a visual change in the capital view. |
 
@@ -401,7 +403,7 @@ Wars are 48-hour contests decided **deterministically** by measurable metrics. N
 | Target | Must exist, and cannot be yourself |
 | Alliances | Members of the same alliance cannot declare war on each other |
 | Duplicates | No new war while one is already active between the pair (in either direction) |
-| Active-war limit | The **attacker** may have at most **2** active wars (as attacker or defender) when declaring. The defender's count is not checked. |
+| Active-war limit | The limit applies only to the declaring nation: it may not declare while it already has **2** active wars, counting wars it attacks or defends. The defender's count is not checked. The rejection reason is "A nation already fighting 2 wars cannot declare another." |
 | Rematch cooldown ("peace treaty") | 72 hours after the last war between the same pair ended |
 | Duration | 48 hours from the execution timestamp |
 
@@ -437,7 +439,7 @@ A side with no change and no activity therefore scores 10 (growth) + 8.33 (momen
 | Winner | Gains the spoils as influence, gets +1 war win (which feeds military power), and gets **+10% territory for 7 days** (the window restarts from the most recent win). First win unlocks **First Victory**. |
 | Loser | Loses `floor(spoils / 2)` influence (never below 0) and gets +1 war loss |
 
-The final score breakdown is stored and published in a WAR ENDED news item. The war page shows a live *projection* while a war is active. That projection uses live summary values and leaves out the alliance bonus, so only the engine's final resolution counts.
+The final score breakdown is stored and published in a WAR ENDED news item. The war page shows a live *projection* while a war is active. That projection uses live summary values and counts allies the way the engine does (current alliance members − 1), but it is only an estimate: only the engine's final resolution counts.
 
 ---
 
@@ -519,7 +521,7 @@ Every news item is a row in `game_events`. Each has a type, a severity (`minor`,
 | SYMBOL_CHANGED | NEW NATIONAL SYMBOL | minor | chain sync | Executed Symbol proposal |
 | ACHIEVEMENT | ACHIEVEMENT | minor | chain sync or engine | A **nation** achievement unlocked. Citizen achievements are not published. |
 
-`PROPOSAL_EXECUTED` ("DECREE ENACTED") is defined as a type, but no code currently emits it.
+There is no news item for an executed proposal as such. Executions show up through their effects (for example SYMBOL_CHANGED, TREASURY_RELEASE, or the engine's news for an applied or rejected decree).
 
 Engine-generated items use `g:`-prefixed dedupe keys, which are rebuilt on replay:
 
@@ -542,7 +544,7 @@ Citizens (wallet addresses) earn **XP** for participation. XP is never bought, a
 | Create a proposal | 50 | proposal |
 | Your proposal is executed on-chain (any kind) | 100 | proposal |
 | Unlock a citizen achievement | 100 | address × achievement |
-| Citizenship days | 5 per full day, up to 30 days (150 XP) per nation | Computed when profiles and leaderboards are read, over *current* citizenships, from when the address started holding that token |
+| Citizenship days | 5 per full day, up to 30 days (150 XP) per nation | Computed when profiles and leaderboards are read, over *current* citizenships, from the start of the address's current holding period for that token, measured against the indexed chain time (the latest indexed block's timestamp) |
 
 The "proposal executed" XP is paid when the governor executes the proposal, including a GameAction the engine later rejects.
 
@@ -629,8 +631,8 @@ The engine reads only the indexed mirror of chain events (`trades`, `transfers`,
 **Reorgs.** The indexer stays `INDEXER_CONFIRMATIONS` blocks (default 2) behind the head. If a stored block hash no longer matches the chain, it:
 
 1. finds the fork point;
-2. deletes mirror rows after it;
-3. rebuilds holder balances from the remaining transfers;
+2. deletes mirror rows after it, plus the news, nation and citizen achievements and XP recorded after it (they are re-derived by re-sync, metric refreshes and the game replay);
+3. rebuilds holder balances from the remaining transfers, with each holder's start date set to the start of its current holding period, as in live sync;
 4. restores curve and pool state from the chain;
 5. sets the game cursor to 0, which forces a full deterministic replay.
 
@@ -646,7 +648,7 @@ This sets `game_cursor = 0` and steps the engine until the cursor reaches `last_
 | --- | --- |
 | `game_snapshots`, `game_resource_ledger`, `game_actions`, `game_buildings`, `game_wars`, `game_alliances`, `game_alliance_members`, `game_alliance_invites` | Nation and citizen achievements, citizen XP |
 | All `g:`-keyed news | Chain-sync news (founding, graduation, proposals, releases, symbols, whales, milestones, achievement news) |
-| Each nation's resources, war wins and losses, alliance, war territory bonus, statuses and event cooldowns | |
+| Each nation's resources, war wins and losses, alliance, war territory bonus, statuses and market-event cooldowns | The Foreign Investment (whale news) cooldown, which belongs to chain sync |
 
 The untouched items are insert-once and idempotent. The replay re-attempts engine achievements, which are no-ops if they already exist. The integration test `game state replays deterministically` checks that a full replay reproduces identical resources, war results, snapshots and engine news.
 
@@ -687,4 +689,4 @@ Selling the whole curve allocation leaves `virtualTokens = C·L/(C − L)` and `
 
 With no founder allocation, the opening market cap is 31.25% of `R` and the graduation market cap is 5 × `R` (verified in `packages/shared/test/curve.test.ts`).
 
-Trades pay a 1% ETH fee, split 0.5% to the treasury and 0.5% to the protocol. A buy that would overshoot the remaining curve supply is capped and the excess ETH is refunded, which triggers graduation. Only tokens that the curve itself sold can be sold back into it.
+Trades pay a 1% ETH fee, split 0.5% to the treasury and 0.5% to the protocol. A buy that would overshoot the remaining curve supply is capped and the excess ETH is refunded, which triggers graduation. Only tokens that the curve itself sold can be sold back into it; founder tokens cannot be claimed until after graduation, when the curve is closed.

@@ -36,7 +36,7 @@ value or profit.
 
 ## 1. Audit status and scope
 
-- **No external audit.** All assurance so far comes from the project's own Foundry test suite: 106 tests (unit,
+- **No external audit.** All assurance so far comes from the project's own Foundry test suite: 107 tests (unit,
   fuzz and stateful invariant tests) that all pass as of 2026-10-06. Tests are not a substitute for an audit.
 - **On-chain scope:** `contracts/src/AtlasLaunchpad.sol`, `NationTokenFactory.sol`, `NationToken.sol`,
   `NationTreasury.sol`, `AtlasGovernor.sol` and `contracts/src/interfaces/*`.
@@ -74,7 +74,7 @@ Immutability has a cost. If a bug is found, nobody can patch the contracts, paus
 | Protocol fee recipient | `protocolFeeRecipient`, an immutable address chosen at deployment | Receive accrued protocol fees (creation fees and the protocol half of curve fees) when **anyone** calls `withdrawProtocolFees()` | Call any restricted function. Its address is never checked as `msg.sender` anywhere. It cannot change fees or parameters, touch curve reserves, treasuries or tokens, or redirect fees elsewhere. |
 | AtlasGovernor (contract) | Immutable reference in the launchpad and treasury | Call `NationTreasury.release` (max 25% of a nation's balance per call) and `AtlasLaunchpad.setNationSymbol`, and only while executing a passed proposal | Mint tokens, move user tokens, touch curve ETH or protocol fees, change any parameter |
 | AtlasLaunchpad (contract) | Immutable reference in tokens, factory, treasury and governor | Call `NationToken.markGraduated()` (once per token) and `NationTokenFactory.deploy`, and deposit into the treasury | Release treasury funds or mint tokens beyond the constructor mint |
-| Nation founder | `msg.sender` of `foundNation`, fixed forever | Claim their vested founder allocation | Change nation parameters, take curve ETH except by selling tokens like anyone else, or transfer the founder role |
+| Nation founder | `msg.sender` of `foundNation`, fixed forever | Claim their vested founder allocation, once the nation has graduated | Claim before graduation (`NotGraduated`), sell founder tokens into the bonding curve, change nation parameters, take curve ETH except by selling curve-bought tokens like anyone else, or transfer the founder role |
 | Proposer | Account that created a proposal | Cancel their own proposal while voting is open | Cancel anyone else's proposal, or cancel after voting ends |
 | Deployer | Account that runs `Deploy.s.sol` | Choose the immutable parameters once: Uniswap factory, WETH, fee recipient, `graduationEth` (0.01–10,000 ETH) and `creationFee` (≤ 1 ETH) | Do anything after deployment |
 
@@ -110,9 +110,13 @@ The `Trade` event records the total fee of every curve trade. `NationTreasury.De
 
 - **Cap:** at most 5% of supply (`founderBps ≤ MAX_FOUNDER_BPS = 500`). It is taken out of the curve supply, not
   minted on top. It is published in `CurveInitialized.founderAllocation` and `getNation(id).founderAllocation`.
-- **Vesting:** linear over 30 days (`FOUNDER_VESTING`) from the founding timestamp, whether or not the nation has
-  graduated. Vested tokens can be claimed at any time with `claimFounderTokens`. Claims emit
-  `FounderTokensClaimed`. Check with `vestedFounderTokens(id)` and `getNation(id).founderClaimed`.
+- **Vesting:** accrues linearly over 30 days (`FOUNDER_VESTING`) from the founding timestamp, whether or not the
+  nation has graduated. Check with `vestedFounderTokens(id)` and `getNation(id).founderClaimed`.
+- **Claimable only after graduation:** `claimFounderTokens` reverts with `NotGraduated` until the nation has
+  graduated (`test_RevertWhen_FounderTokensClaimedBeforeGraduation`). After graduation, everything vested so far can
+  be claimed at once, and the rest as it vests. Claims emit `FounderTokensClaimed`. Because the curve is closed by
+  the time founder tokens can be claimed, they can never be sold back into the bonding curve against ETH paid by
+  other buyers. The app labels the allocation "30-day vesting, claimable after graduation".
 - **Unvested and unclaimed tokens** stay in the launchpad, which is never delegated, so they carry no voting power.
 - **Founding buy:** ETH sent above the creation fee becomes the founder's initial curve buy in the same transaction.
   It pays the normal 1% fee and may not deliver more than 10% of supply (`MAX_INITIAL_BUY_BPS`). As the first buyer
@@ -120,8 +124,8 @@ The `Trade` event records the total fee of every curve trade. `NationTreasury.De
 - **What is not limited:**
   - The 10% cap applies only to the founding transaction. The founder, or anyone else, can buy more later from any
     address.
-  - Claimed founder tokens are ordinary tokens. They can be sold on the curve (within the curve's buy-back limit,
-    see [§10](#10-known-limitations-and-risks)) or on Uniswap after graduation.
+  - Claimed founder tokens are ordinary tokens. Once claimed, after graduation, they can be sold on the Uniswap V2
+    pool (or anywhere else) like any other holder's tokens.
   - The founder role cannot be transferred. If the founder loses access to that address, unclaimed tokens stay in
     the launchpad permanently.
 
@@ -264,9 +268,10 @@ pools for a nation token, on other DEXes or with other quote assets, at any time
    limit or refund mechanism. Until then, the curve is the only AtlasPad venue, and its buy-back is limited as
    described below.
 5. **Curve buy-back limits.** The curve buys back at most the amount it has sold, net
-   (`curveTokensRemaining + tokensIn ≤ curveSupply`), and never more ETH than the nation's `realEth`. It does not
-   distinguish token origin. Claimed founder tokens sold to the curve use up buy-back capacity, so later sellers may
-   hit `InsufficientCurveLiquidity` and have to wait for graduation.
+   (`curveTokensRemaining + tokensIn ≤ curveSupply`), and never more ETH than the nation's `realEth`; otherwise a
+   sell reverts with `InsufficientCurveLiquidity`. Founder tokens cannot use up this capacity: they can be claimed
+   only after graduation, when the curve is closed. Before graduation every token outside the launchpad was bought
+   from the curve, and selling all of them back restores the curve (`test_SellingBackEverythingRestoresTheCurve`).
 6. **Governance risks.** See [§6](#6-governance-protections): capture by large holders, no veto, quorum measured
    against total supply, proposal spam.
 7. **Timestamps, not block numbers.** On Arbitrum Orbit chains such as Robinhood Chain, the EVM `block.number` tracks
@@ -285,10 +290,7 @@ pools for a nation token, on other DEXes or with other quote assets, at any time
 11. **User-supplied strings.** Nation descriptions, metadata URIs, proposal descriptions, vote reasons and alliance
     names are arbitrary on-chain data, checked only for length and, for names and symbols, character set. Treat
     them as untrusted when displaying them.
-12. **Strict equality in VerifyDeployment.** `VerifyDeployment.s.sol` checks that contract balances exactly equal
-    their internal accounting. ETH forced into a contract (for example through `SELFDESTRUCT`) would make that check
-    fail without affecting the contracts' internal accounting.
-13. **No recovery paths.** Because nothing can be upgraded or administered, funds or tokens stuck through user error
+12. **No recovery paths.** Because nothing can be upgraded or administered, funds or tokens stuck through user error
     (for example tokens sent to the token contract or another unrelated address) cannot be recovered by anyone.
 
 ---
@@ -315,17 +317,19 @@ components index and present that data. They hold no keys that control funds.
 - **Admin endpoint.** `GET /admin/status` requires `Authorization: Bearer <INDEXER_ADMIN_TOKEN>`.
   - The token is compared with `crypto.timingSafeEqual` after a length check.
   - If `INDEXER_ADMIN_TOKEN` is not set, the endpoint returns 404.
-  - It is read-only (RPC, database and indexer health, counts, recent errors and blocks) and masks credentials
-    embedded in the RPC URL. There are no admin controls.
+  - It is read-only (RPC, database and indexer health, counts, recent errors and blocks). It shows the RPC URL as
+    only `protocol//host`, followed by `/***` when the URL has a path, a query or credentials, so API keys in any of
+    those parts are not returned. There are no admin controls.
 - **Optional price feed.** With `ETH_USD_SOURCE=coinbase`, the indexer fetches an ETH/USD spot price from the
-  Coinbase public API. It is used only to display USD equivalents.
+  Coinbase public API. It is used to display USD equivalents, is stored in the hourly snapshots, and feeds the
+  `MCAP_1M_USD` ("Millionaire Economy") achievement. It never affects on-chain values.
 
 ### Web app (`apps/web`)
 
 - **Admin dashboard.** `/admin`, `/admin/*` and `/api/admin/*` are protected by HTTP Basic auth in
   `apps/web/src/proxy.ts`, using `apps/web/src/lib/admin-auth.ts`.
   - The dashboard is disabled (404) unless `ADMIN_USERNAME` and `ADMIN_PASSWORD` are both set and the password is at
-    least 12 characters long.
+    least 12 characters long. A shorter password logs a warning once and keeps the dashboard disabled.
   - Credentials are compared in a loop that does not exit early.
   - Responses carry `Cache-Control: no-store` and `X-Robots-Tag: noindex`.
   - `/api/admin/status` checks authorization again, is read-only, and calls the indexer's admin endpoint with the
@@ -377,8 +381,8 @@ The scripts automate some of these checks. The rest are manual. The full operato
      called; checks the parameter bounds.
    - **address prediction:** requires each deployed address to match its CREATE prediction.
    - **post-flight:** checks every cross-reference and parameter, and that `nationCount() == 0`.
-   - **record:** writes `contracts/deployments/4663.json`. This happens on any run of the script, including runs
-     without `--broadcast`, so a record alone does not prove a deployment.
+   - **record:** writes `contracts/deployments/4663.json` only when broadcasting. A dry run (no `--broadcast`) writes
+     its predicted addresses to the gitignored `contracts/deployments/4663.dry-run.json` and logs `DRY RUN`.
 5. **Verify on-chain.** Run `forge script script/VerifyDeployment.s.sol --rpc-url robinhood`. It re-checks code
    presence, wiring, the DEX configuration, and treasury and launchpad solvency against the live chain. Confirm the
    source verification on https://robinhoodchain.blockscout.com.

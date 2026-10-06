@@ -20,20 +20,18 @@ These are defined in `packages/shared/src/chains.ts`.
 |---|---|---|
 | Web (`apps/web`) | `next dev` / `next build` / `next start` | Next.js loads `.env`, `.env.local`, `.env.<NODE_ENV>` and `.env.<NODE_ENV>.local` from **`apps/web/`**, and shell variables win over all of them. It does **not** load the repo-root `.env`. `NEXT_PUBLIC_*` values are inlined into the browser bundle **at build time**. |
 | Indexer, dev | `pnpm dev:indexer` → `tsx watch --env-file-if-exists=.env.local --env-file-if-exists=../../.env src/main.ts` | `apps/indexer/.env.local`, then the repo-root `.env`. The later file wins, so **the root `.env` overrides `.env.local`**. Shell variables win over both. |
-| Indexer, game rebuild | `pnpm --filter @atlaspad/indexer rebuild-game` → `tsx --env-file-if-exists=../../.env src/rebuild.ts` | Only the repo-root `.env`. It does **not** load `apps/indexer/.env.local`. |
+| Indexer, game rebuild | `pnpm --filter @atlaspad/indexer rebuild-game` → `tsx --env-file-if-exists=.env.local --env-file-if-exists=../../.env src/rebuild.ts` | Same as dev: `apps/indexer/.env.local`, then the repo-root `.env` (which wins). |
+| Indexer, migrations | `pnpm --filter @atlaspad/indexer migrate` → `tsx --env-file-if-exists=.env.local --env-file-if-exists=../../.env src/migrate-cli.ts` | Same as dev. From a build, `node dist/migrate-cli.js` loads no file. |
 | Indexer, production | `pnpm --filter @atlaspad/indexer start` → `node dist/main.js` | No file. Set real process environment variables (or run `node --env-file=<file> dist/main.js` yourself). |
 | `scripts/dev-local.sh` | starts the indexer with `npx tsx --env-file=.env.local src/main.ts` | Only `apps/indexer/.env.local`, which `seed-local.ts` writes. |
 | DB migrations | `pnpm db:migrate` → `tsx src/migrate.ts` (in `packages/db`) | No file. Export `DATABASE_URL` in the shell. |
 | Contracts | `forge script …` (run from `contracts/`) | The shell environment. Foundry also auto-loads **`contracts/.env`** (the Foundry project root). It does not load the repo-root `.env`. |
 
-> `--env-file-if-exists` is newer than the repo's minimum `node >=20.11`: it was introduced in Node 22.9. If your Node rejects the flag, use Node 22 LTS, or export the variables and run `tsx src/main.ts` directly.
+> The `--env-file-if-exists` flag needs Node 22.9 or newer, which is the repo's minimum (`engines.node >=22.9` in the root `package.json`).
 
-> **Empty is not always "unset".** Most variables treat an empty string as missing. Five do not:
-> - `NEXT_PUBLIC_ATLAS_NETWORK` / `ATLAS_NETWORK`: empty raises `Unknown ATLAS network ""`.
-> - `NEXT_PUBLIC_SITE_URL`: empty breaks `new URL()` in the root layout.
-> - `DATABASE_POOL_MAX`: empty becomes a pool of 0.
-> - `ETH_USD_SOURCE`: empty is a startup error.
+> **Empty means "unset" in the apps.** The web app and the indexer treat an empty value like a missing one, so a blank line in an `.env` file falls back to the default. That includes `NEXT_PUBLIC_ATLAS_NETWORK` / `ATLAS_NETWORK`, the RPC URLs, the contract addresses and deploy block, `ETH_USD_SOURCE`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_REALTIME_URL`, `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` and `DATABASE_POOL_MAX`. The exceptions are outside the apps:
 > - `SMOKE_NAME` / `SMOKE_SYMBOL`: empty becomes an empty string and the founding transaction reverts.
+> - The local tooling defaults written with `??` (`LOCAL_RPC_URL`, `TEST_DATABASE_URL`, `CHROMIUM_PATH`, and `DATABASE_URL` when `seed-local.ts` runs on its own) use an empty value as is.
 >
 > Either give these a real value or leave them out entirely.
 
@@ -43,20 +41,20 @@ These are defined in `packages/shared/src/chains.ts`.
 
 The web app (`NEXT_PUBLIC_ATLAS_*`) and the indexer (`ATLAS_*`) both pass their raw values to `resolveNetwork`:
 
-1. **Network key.** It is `"robinhood"` when unset. Anything other than `robinhood` or `local` throws `ConfigError`.
+1. **Network key.** It is `"robinhood"` when unset or empty. Anything other than `robinhood` or `local` throws `ConfigError`.
 2. **DEX addresses.**
    - `robinhood`: the Uniswap V2 factory, the router and WETH always come from `ROBINHOOD_DEX` in `packages/shared/src/chains.ts`. The `*_UNISWAP_V2_FACTORY`, `*_UNISWAP_V2_ROUTER` and `*_WETH` variables are **ignored**.
    - `local`: all three variables are **required**. Otherwise it throws `Local network requires uniswapV2Factory, uniswapV2Router and weth.`
 3. **Contracts.**
-   - Each of launchpad, governor and treasury is validated as an address when set. An invalid address throws `ConfigError`.
-   - `contracts` is non-null only when **all three** are set. If one or two are missing, the config is silently treated as "not deployed" and no error is raised.
+   - Each of launchpad, governor and treasury is validated as an address when set (non-empty). An invalid address throws `ConfigError`.
+   - Set **all three or none**. `contracts` is non-null only when all three are set; none set means "not deployed". Setting only one or two throws `ConfigError` (`Set all three contract addresses (launchpad, governor, treasury) or none.`) instead of silently disabling the app.
 4. **RPC URL.** It is the RPC env var if non-empty, otherwise the chain's default RPC.
-5. **Deploy block.** It is `BigInt(deployBlock)` if non-empty, otherwise `0`.
+5. **Deploy block.** If non-empty it must be digits only (otherwise `ConfigError`: `deployBlock must be a block number`) and is parsed with `BigInt`; when unset or empty it is `0`.
 
 What each component does with the result:
 
 **Web** (`apps/web/src/lib/env.ts`):
-- Any error is caught and stored in `configError`. The app then falls back to Robinhood Chain with `contracts = null`.
+- Any error, including a partial set of contract addresses, is caught and stored in `configError`. The app then falls back to Robinhood Chain with `contracts = null`, shows the configuration-error banner and disables every on-chain action.
 - `isDeployed = contracts !== null && configError === null`.
 - When not deployed, these parts of the UI change:
   - The banner reads "AtlasPad contracts are not yet deployed on Robinhood Chain. Founding, trading and governance are disabled…", or "Configuration error: … On-chain actions are disabled." when there is a config error.
@@ -66,7 +64,7 @@ What each component does with the result:
   - `/api/status` returns `deployed: false`.
 
 **Indexer** (`apps/indexer/src/env.ts`):
-- Any config error makes it exit at startup.
+- Any config error, including a partial set of contract addresses, makes it exit at startup.
 - With `contracts = null` it logs `AtlasPad contracts are not configured … Serving health only.` and does not index.
 - On first sync it refuses to run in two cases:
   - The RPC chain id differs from the configured network.

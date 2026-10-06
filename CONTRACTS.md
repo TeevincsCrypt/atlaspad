@@ -12,8 +12,8 @@ document and the code disagree, the code is authoritative.
 > - **No external audit.** The contracts have not been externally audited. See [SECURITY.md](SECURITY.md).
 > - **Not deployed to mainnet.** The Robinhood Chain mainnet deployment has not been performed. It could not be
 >   run from the development sandbox because the sandbox's network egress could not reach the Robinhood Chain
->   RPC. No mainnet addresses are recorded yet. When the deployment runs, `script/Deploy.s.sol` records the
->   addresses in `contracts/deployments/4663.json` (see [Deployment](#12-deployment)).
+>   RPC. No mainnet addresses are recorded yet. When the deployment is broadcast, `script/Deploy.s.sol` records
+>   the addresses in `contracts/deployments/4663.json` (see [Deployment](#12-deployment)).
 
 ## Contents
 
@@ -37,7 +37,7 @@ document and the code disagree, the code is authoritative.
 
 | Contract | Source | Instances | Role |
 |---|---|---|---|
-| `AtlasLaunchpad` | `src/AtlasLaunchpad.sol` | 1 | Founds nations, runs each nation's bonding curve, vests founder allocations, graduates nations to Uniswap V2 and accrues protocol fees. |
+| `AtlasLaunchpad` | `src/AtlasLaunchpad.sol` | 1 | Founds nations, runs each nation's bonding curve, vests founder allocations (claimable after graduation), graduates nations to Uniswap V2 and accrues protocol fees. |
 | `NationTokenFactory` | `src/NationTokenFactory.sol` | 1, created by the launchpad's constructor | Deploys `NationToken` contracts with CREATE2. Only the launchpad can call it. |
 | `NationToken` | `src/NationToken.sol` | 1 per nation | Fixed-supply ERC-20 with EIP-2612 permit and ERC20Votes (timestamp clock). |
 | `NationTreasury` | `src/NationTreasury.sol` | 1, shared by all nations | Holds every nation's ETH treasury in separate per-nation accounts. |
@@ -133,7 +133,7 @@ a deployment by constructor arguments.
 | Graduation threshold | *immutable* `graduationEth`, from 0.01 ETH to 10,000 ETH | AtlasLaunchpad constructor |
 | LP reserve | 20% of supply (`LP_RESERVE_BPS = 2_000`) | AtlasLaunchpad |
 | Max founder allocation | 5% of supply (`MAX_FOUNDER_BPS = 500`) | AtlasLaunchpad |
-| Founder vesting | Linear over 30 days from founding (`FOUNDER_VESTING = 30 days`) | AtlasLaunchpad |
+| Founder vesting | Linear over 30 days from founding (`FOUNDER_VESTING = 30 days`); vested tokens can be claimed only after graduation | AtlasLaunchpad |
 | Max initial buy in the founding transaction | 10% of supply (`MAX_INITIAL_BUY_BPS = 1_000`) | AtlasLaunchpad |
 | Total supply bounds | 1,000,000 to 1,000,000,000,000 tokens (`MIN_SUPPLY`, `MAX_SUPPLY`); 18 decimals; must be a whole number of tokens | AtlasLaunchpad |
 | Themes | 8 (`THEME_COUNT`), ids 0 to 7 | AtlasLaunchpad |
@@ -150,8 +150,8 @@ a deployment by constructor arguments.
 
 The mainnet values of `graduationEth` and `creationFee` are chosen when the deployment runs, through the
 `GRADUATION_ETH_WEI` and `CREATION_FEE_WEI` environment variables. The `Deploy.s.sol` header gives `2 ETH` and `0` as
-examples, and `DeployLocal.s.sol` uses them as defaults. Read the deployed values on-chain with `graduationEth()`
-and `creationFee()`.
+examples. `DeployLocal.s.sol` reads separate variables, `LOCAL_GRADUATION_ETH_WEI` and `LOCAL_CREATION_FEE_WEI`, which
+default to `2 ETH` and `0`. Read the deployed values on-chain with `graduationEth()` and `creationFee()`.
 
 ---
 
@@ -244,7 +244,7 @@ Names and symbols are reserved permanently once a nation is founded. Nothing fre
 | `buy(uint256 nationId, uint256 minTokensOut, uint256 deadline) payable returns (uint256 tokensOut)` | Anyone; `nonReentrant` | Reverts with `Expired` if `block.timestamp > deadline`. Buys on the curve with `msg.value` (see [§5](#5-bonding-curve-math)) and reverts with `Slippage` if `tokensOut < minTokensOut`. If the buy sells out the curve, it is capped at the remaining curve supply, the unused ETH is refunded, and the nation graduates in the same transaction. |
 | `sell(uint256 nationId, uint256 tokensIn, uint256 minEthOut, uint256 deadline) returns (uint256 ethOut)` | Anyone; `nonReentrant` | Reverts with `Expired` after the deadline. Requires an ERC-20 allowance to the launchpad. Sells `tokensIn` back to the curve, reverting with `Slippage` if `ethOut < minEthOut`. |
 | `sellWithPermit(uint256 nationId, uint256 tokensIn, uint256 minEthOut, uint256 deadline, uint8 v, bytes32 r, bytes32 s) returns (uint256 ethOut)` | Anyone; `nonReentrant` | Calls `permit(msg.sender, launchpad, tokensIn, deadline, v, r, s)` inside `try/catch`, then sells. If the permit fails (for example because it was already used), the failure is ignored and the sell goes through as long as the existing allowance covers it. |
-| `claimFounderTokens(uint256 nationId) returns (uint256 amount)` | Nation founder only (`NotFounder`); `nonReentrant` | Transfers vested, unclaimed founder tokens to the founder. Reverts with `NothingToClaim` if the amount is zero. |
+| `claimFounderTokens(uint256 nationId) returns (uint256 amount)` | Nation founder only (`NotFounder`); `nonReentrant` | Reverts with `NotGraduated` until the nation has graduated. Then transfers vested, unclaimed founder tokens to the founder. Reverts with `NothingToClaim` if the amount is zero. Because claims open only after graduation, when the curve is closed, founder tokens can never be sold back into the bonding curve against ETH paid by other buyers. |
 | `setNationSymbol(uint256 nationId, uint256 emblem, string metadataURI)` | `governor` only (`OnlyGovernor`) | Sets the emblem and metadata URI (≤ 200 bytes). Emits `NationSymbolUpdated`. Only reachable through a passed Symbol proposal. |
 | `withdrawProtocolFees()` | Anyone; `nonReentrant` | Sends all of `protocolFeesAccrued` to the immutable `protocolFeeRecipient`. Reverts with `NothingToClaim` if there is nothing to send, or `EthTransferFailed` if the recipient rejects ETH. |
 | `vestedFounderTokens(uint256 nationId) view` | n/a | Founder allocation vested so far, whether claimed or not. |
@@ -286,6 +286,7 @@ Names and symbols are reserved permanently once a nation is founded. Nothing fre
 | `OnlyGovernor()` | `setNationSymbol` called by anyone other than the governor |
 | `NothingToClaim()` | No vested founder tokens to claim, or no protocol fees to withdraw |
 | `NotFounder()` | `claimFounderTokens` called by anyone other than the founder |
+| `NotGraduated()` | `claimFounderTokens` called by the founder before the nation has graduated |
 
 ---
 
@@ -352,10 +353,11 @@ A sell is allowed only when both of these hold:
 - `curveTokensRemaining + tokensIn ≤ curveSupply`: the curve buys back at most the amount it has sold, net.
 - `grossEth ≤ realEth`: a nation's curve never pays out more ETH than it actually holds.
 
-Together these keep each nation's ETH separate from every other nation's. The curve does not care where tokens
-came from. Claimed founder tokens are ordinary tokens and can be sold to the curve within these limits, which
-uses up buy-back capacity that other holders could otherwise use (`test_RevertWhen_SellingMoreThanCurveSold`
-covers the over-limit case).
+Together these keep each nation's ETH separate from every other nation's. Founder tokens never reach the curve:
+`claimFounderTokens` reverts with `NotGraduated` until the nation has graduated, and a graduated nation's curve is
+closed (`test_RevertWhen_FounderTokensClaimedBeforeGraduation`). Before graduation, every token outside the
+launchpad was therefore bought from the curve, and selling all of them back returns `curveTokensRemaining` to
+`curveSupply` (`test_SellingBackEverythingRestoresTheCurve`).
 
 State update: `virtualEth −= grossEth`, `virtualTokens += tokensIn`, `realEth −= grossEth`,
 `curveTokensRemaining += tokensIn`.
@@ -442,8 +444,9 @@ After graduation:
 - `buy`, `sell` and `sellWithPermit` revert with `NationGraduatedAlready`. `quoteBuy` and `quoteSell` return zeros.
 - Trading happens on the Uniswap V2 pair, for example through the Router02. AtlasPad contracts take no fee on
   those trades.
-- Founder vesting continues (`test_VestingContinuesAfterGraduation`). For that nation the launchpad then holds only
-  the unclaimed founder allocation.
+- Founder tokens become claimable. Whatever has vested since founding can be claimed at once, and vesting continues
+  until 30 days after founding (`test_VestingContinuesAfterGraduation`). For that nation the launchpad then holds
+  only the unclaimed founder allocation.
 
 ---
 
@@ -512,7 +515,7 @@ ERC-6372 uses timestamps. The source comment explains that on Robinhood Chain, a
 ## 8. NationTokenFactory
 
 `src/NationTokenFactory.sol` exists so that `NationToken`'s creation code does not count against the launchpad's
-24 KB runtime size limit. According to `forge build --sizes`, the launchpad's runtime size is 12,730 bytes.
+24 KB runtime size limit. According to `forge build --sizes`, the launchpad's runtime size is 12,774 bytes.
 
 | Item | Detail |
 |---|---|
@@ -661,9 +664,10 @@ at `DEAD`.
 |---|---|
 | Founder address | `NationFounded.founder` (indexed) and `getNation(id).founder`. Set to `msg.sender` of `foundNation`; cannot be changed or transferred. |
 | Allocation size | `CurveInitialized.founderAllocation` and `getNation(id).founderAllocation`. At most 5% of supply (`founderBps ≤ 500`). The allocation is taken out of the curve supply, not added on top. |
-| Vesting | Linear from `createdAt` over 30 days, whether or not the nation has graduated: `vested = founderAllocation × min(elapsed, 30 days) / 30 days`. Read it with `vestedFounderTokens(id)`. |
+| Vesting | Accrues linearly from `createdAt` over 30 days, whether or not the nation has graduated: `vested = founderAllocation × min(elapsed, 30 days) / 30 days`. Read it with `vestedFounderTokens(id)`. |
+| Claiming | `claimFounderTokens(id)`, by the founder only and only after graduation (`NotGraduated` before). Claimed tokens therefore can never be sold back into the bonding curve against other buyers' ETH; after graduation they trade on Uniswap like any other tokens. The app shows this as "30-day vesting, claimable after graduation". |
 | Claimed so far | `getNation(id).founderClaimed` and the `FounderTokensClaimed` events |
-| Custody before claim | The tokens stay in the launchpad, which never delegates, so unclaimed founder tokens carry no votes |
+| Custody before claim | The tokens stay in the launchpad (always until graduation), which never delegates, so unclaimed founder tokens carry no votes |
 | Initial buy | Any ETH above `creationFee` in `foundNation` is an ordinary curve buy by the founder, visible as a `Trade` event in the founding transaction. It pays the 1% fee and is capped at 10% of supply. The cap applies only to that founding buy. Nothing stops the founder from buying more later, like any other buyer. |
 
 If the founder loses access to the founder address, unclaimed tokens stay in the launchpad permanently. No
@@ -681,14 +685,15 @@ Environment variables for every component are listed in [ENVIRONMENT.md](ENVIRON
 
 | Script | Purpose |
 |---|---|
-| `script/Deploy.s.sol` | Production deployment. Runs pre-flight checks, deploys Treasury, Governor and Launchpad with predicted addresses, runs post-flight wiring checks, and writes the deployment record. |
-| `script/DeployLocal.s.sol` | Local anvil only: refuses to run unless `block.chainid == 31337`. Deploys mock WETH9, UniswapV2Factory and Router02, then runs `Deploy.deploy` with the deployer as fee recipient, `GRADUATION_ETH_WEI` defaulting to 2 ETH and `CREATION_FEE_WEI` defaulting to 0. |
+| `script/Deploy.s.sol` | Production deployment. Runs pre-flight checks, deploys Treasury, Governor and Launchpad with predicted addresses, runs post-flight wiring checks, and writes the deployment record (a broadcast run writes `deployments/<chainId>.json`; a dry run writes `deployments/<chainId>.dry-run.json`). |
+| `script/DeployLocal.s.sol` | Local anvil only: refuses to run unless `block.chainid == 31337`. Deploys mock WETH9, UniswapV2Factory and Router02, then runs `Deploy.deploy` with the deployer as fee recipient, `LOCAL_GRADUATION_ETH_WEI` defaulting to 2 ETH and `LOCAL_CREATION_FEE_WEI` defaulting to 0. It deliberately does not read `GRADUATION_ETH_WEI` / `CREATION_FEE_WEI`, so production values in `contracts/.env` never leak into local deployments. |
 | `script/VerifyDeployment.s.sol` | Read-only check of `deployments/<chainId>.json` against the live chain (see below). |
 | `script/SmokeTest.s.sol` | Founds a real nation with small amounts, buys, and sells half back. Spends real ETH on any chain other than anvil, and requires `SMOKE_CONFIRM=I_UNDERSTAND` there. |
 
 ### Production deployment (`Deploy.s.sol`)
 
-Required environment variables:
+Required environment variables (the script header points to [ENVIRONMENT.md](ENVIRONMENT.md) and the repository-root
+[`.env.example`](.env.example); Foundry auto-loads `contracts/.env`):
 
 | Variable | Robinhood Chain value or note |
 |---|---|
@@ -721,9 +726,12 @@ What the script checks:
 
 ### Deployment record
 
-`Deploy.s.sol` writes `contracts/deployments/<chainId>.json` with `vm.writeJson` (`foundry.toml` grants read-write
-access to `./deployments`). On Robinhood Chain mainnet the file is **`contracts/deployments/4663.json`**. Keys
-(Foundry writes them in alphabetical order):
+`Deploy.s.sol` writes the record with `vm.writeJson` (`foundry.toml` grants read-write access to `./deployments`).
+Only a broadcast run (`vm.isContext` reports `ScriptBroadcast` or `ScriptResume`) writes
+`contracts/deployments/<chainId>.json`, which on Robinhood Chain mainnet is **`contracts/deployments/4663.json`**. A
+run without `--broadcast` writes the predicted addresses to `contracts/deployments/<chainId>.dry-run.json` instead
+(gitignored) and logs `DRY RUN (nothing deployed); predicted addresses at …`. Keys (Foundry writes them in
+alphabetical order):
 
 ```json
 {
@@ -746,11 +754,12 @@ access to `./deployments`). On Robinhood Chain mainnet the file is **`contracts/
 
 Notes on the record:
 
-- `deployedAtBlock` and `deployedAtTimestamp` are the `block.number` and `block.timestamp` the script saw while
-  executing. Before setting the indexer's `ATLAS_DEPLOY_BLOCK`, confirm the actual deployment block on the
-  explorer.
-- `record()` runs as part of script execution, so a run without `--broadcast` also writes the file, using
-  simulated addresses. Always run `VerifyDeployment.s.sol` against the live chain after a broadcast.
+- `deployedAtBlock` and `deployedAtTimestamp` are the `block.number` and `block.timestamp` the script saw before
+  broadcasting. The contracts land a few blocks later, so the script comment describes `deployedAtBlock` as a safe
+  lower bound for the indexer's `ATLAS_DEPLOY_BLOCK`; the exact blocks are in the broadcast receipts under
+  `contracts/broadcast/`. Confirm the value against those receipts or the explorer before using it.
+- A dry run never writes or overwrites `<chainId>.json`, so simulated addresses cannot end up in the deployment
+  record. Always run `VerifyDeployment.s.sol` against the live chain after a broadcast.
 - **Current state:** the repository contains only `contracts/deployments/31337.json`, a local anvil deployment that
   `.gitignore` excludes. **No `4663.json` exists. The mainnet deployment has not been performed, and no mainnet
   addresses are recorded.**
@@ -764,12 +773,12 @@ without sending transactions:
 - the launchpad's factory and WETH match the record, and `router.factory()` and `router.WETH()` match
 - all cross-references between launchpad, treasury and governor are correct, and the fee recipient and token
   factory match the record
-- **treasury solvency**: `treasury.balance == totalHeld()`
-- **launchpad solvency**: `launchpad.balance == Σ getNation(i).realEth + protocolFeesAccrued()` over every nation
+- **treasury solvency**: `treasury.balance >= totalHeld()`
+- **launchpad solvency**: `launchpad.balance >= Σ getNation(i).realEth + protocolFeesAccrued()` over every nation
 
-It then logs the nation count, proposal count and treasury ETH held. The solvency checks use strict equality, so
-ETH forced into either contract (for example through `SELFDESTRUCT`) would make them fail even though the
-contracts' internal accounting is unaffected.
+It then logs the nation count, proposal count and treasury ETH held. The solvency checks use `>=` because ETH can
+be forced into any contract (for example through `SELFDESTRUCT`) without passing through its accounting, so
+force-sent ETH cannot make verification fail.
 
 ### `SmokeTest.s.sol`
 
@@ -828,25 +837,25 @@ matched the compiled output.
 
 ### Test results
 
-`forge test` on 2026-10-06: **106 tests passed, 0 failed, 0 skipped** across 10 test suites in 6 files.
+`forge test` on 2026-10-06: **107 tests passed, 0 failed, 0 skipped** across 10 test suites in 6 files.
 
 | File | Suite | Tests | Coverage |
 |---|---|---|---|
 | `test/AtlasLaunchpad.t.sol` | `AtlasLaunchpadDeploymentTest` | 5 | Immutable wiring; constructor bounds (zero addresses, graduation bounds, creation fee cap); factory is launchpad-only |
 | | `AtlasLaunchpadFoundingTest` | 18 | Founding state and events; curve shape against the derivation; founder allocation; initial buy, its 10% cap and slippage; creation fee; case-insensitive name and symbol uniqueness; name, symbol, theme, supply and text validation; minimum and maximum supply (graduation at max supply); founding when the pair was pre-created |
-| | `AtlasLaunchpadTradingTest` | 17 | Buys match quotes; fee split; `Trade` event; price increases; sells and fees; `sellWithPermit`; deadline, slippage and zero-amount reverts; unknown nation; selling without approval; selling more than the curve sold; isolation between nations; protocol fee withdrawal; `setNationSymbol` access; 2 fuzz tests (round trip never profits, quote matches execution) |
+| | `AtlasLaunchpadTradingTest` | 18 | Buys match quotes; fee split; `Trade` event; price increases; sells and fees; `sellWithPermit`; deadline, slippage and zero-amount reverts; unknown nation; selling without approval; founder tokens cannot be claimed (and so cannot be sold into the curve) before graduation; selling back everything the curve sold restores the curve; isolation between nations; protocol fee withdrawal; `setNationSymbol` access; 2 fuzz tests (round trip never profits, quote matches execution) |
 | | `AtlasLaunchpadGraduationTest` | 7 | Uniswap seeding, LP burned to `DEAD`, price continuity; refund on the graduating buy; `NationGraduated` event; curve closed after graduation; Uniswap trading after graduation; donated WETH only raises the price; pool seeding blocked before graduation |
-| | `AtlasLaunchpadFounderVestingTest` | 4 | Linear vesting and claims; nothing vested; only the founder can claim; vesting continues after graduation |
+| | `AtlasLaunchpadFounderVestingTest` | 4 | Linear vesting and claims (the claim tests graduate the nation first); nothing vested; only the founder can claim; vesting continues after graduation |
 | | `AtlasLaunchpadSecurityTest` | 5 | Re-entrancy on sell and on the graduation refund blocked; no minting possible; name collisions; price monotonic and `k` never decreasing |
 | `test/AtlasGovernor.t.sol` | `AtlasGovernorTest` | 28 | Snapshot and quorum recording; Treasury timing; threshold (including tokens acquired in the same second); unknown nation; invalid, unknown and malformed payloads; description length; vote weights; double voting; tokens bought or transferred after the snapshot; support and reason validation; voting closed; defeat by missing quorum and by tie; abstain counts toward quorum; full Treasury lifecycle with timelock; release cap at execution; expiry; Symbol proposals; game action events; alliance lifecycle; cancel; unknown proposal; threshold view; flash buys cannot vote |
 | `test/NationTreasury.t.sol` | `NationTreasuryTest` | 10 | Trade fees accrue; donations; unknown nation and zero deposit; direct ETH transfers rejected; release restricted to the governor; release cap and accounting; invalid recipient and amount; recipient rejecting ETH; isolation between nations |
 | `test/NationToken.t.sol` | `NationTokenTest` | 8 | Metadata and timestamp clock; system addresses never delegated; auto-delegation; explicit delegation kept; past votes by timestamp; `markGraduated` only once; pair lock lifted after graduation; fuzz test of supply and vote conservation on transfers |
-| `test/Invariants.t.sol` | `InvariantsTest` | 4 | Stateful invariants over three nations of different sizes and founder shares, driven by `LaunchpadHandler` (buy, sell, donate, warp, claimFounder): `invariant_EthSolvency`, `invariant_TreasurySolvency`, `invariant_TokenCustody`, `invariant_RealEthMatchesVirtual` |
+| `test/Invariants.t.sol` | `InvariantsTest` | 4 | Stateful invariants over three nations of different sizes and founder shares, driven by `LaunchpadHandler` (buy, sell, donate, warp, claimFounder; `claimFounder` claims only for graduated nations): `invariant_EthSolvency`, `invariant_TreasurySolvency`, `invariant_TokenCustody`, `invariant_RealEthMatchesVirtual` |
 
 Supporting files: `test/Base.t.sol` (shared fixture that mirrors the address prediction in `Deploy.s.sol`; 2 ETH
 graduation, 0.001 ETH creation fee, 1,000,000,000 supply), `test/mocks/WETH9.sol` and `test/mocks/UniswapV2.sol`
 (local Uniswap V2 port).
 
-Note on the invariant run: Foundry's call table for `InvariantsTest` currently shows every `LaunchpadHandler.donate`
-call as reverted, so the invariant run does not exercise voluntary donations. Treasury deposits from trade fees are
-exercised, and donations are covered by the unit tests in `NationTreasury.t.sol`.
+Note on the invariant run: in Foundry's call table for `InvariantsTest`, every handler action (`buy`, `sell`,
+`donate`, `warp`, `claimFounder`) executes with 0 reverts, so the invariant run exercises voluntary treasury donations
+as well as trade-fee deposits.
