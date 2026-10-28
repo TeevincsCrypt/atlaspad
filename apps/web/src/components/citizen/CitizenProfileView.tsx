@@ -7,7 +7,7 @@ import {
   CITIZEN_RANKS,
   formatCompact,
   formatDate,
-  formatEth,
+  formatWif,
   formatInt,
   shortAddress,
   timeAgo,
@@ -188,7 +188,7 @@ export function CitizenProfileView({ address }: { address: string }) {
                 <span className={t.side === "buy" ? "text-up" : "text-down"}>
                   {t.side.toUpperCase()} {byId(t.nationId)?.ticker ? `$${byId(t.nationId)?.ticker}` : `#${t.nationId}`}
                 </span>
-                <span className="text-dim">{formatEth(t.ethAmount)}</span>
+                <span className="text-dim">{formatWif(t.wifAmount)}</span>
                 <ExplorerLink kind="tx" value={t.txHash} className="text-faint">
                   {timeAgo(t.timestamp)}
                 </ExplorerLink>

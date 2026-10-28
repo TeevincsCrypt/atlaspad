@@ -136,6 +136,7 @@ contract Deploy is Script {
         vm.serializeAddress(obj, "uniswapV2Factory", c.factory);
         vm.serializeAddress(obj, "uniswapV2Router", c.router);
         vm.serializeAddress(obj, "wif", c.wif);
+        vm.serializeAddress(obj, "weth", IUniswapV2Router02(c.router).WETH());
         vm.serializeAddress(obj, "protocolFeeRecipient", c.feeRecipient);
         vm.serializeString(obj, "graduationWif", vm.toString(c.graduationWif));
         string memory json = vm.serializeString(obj, "creationFeeWif", vm.toString(c.creationFee));

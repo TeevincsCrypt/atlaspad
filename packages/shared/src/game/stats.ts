@@ -1,10 +1,10 @@
-import { BuildingType, TIERS } from "./constants";
+import { BuildingType, TIERS, toMarketUnits } from "./constants";
 
-/** Market + population inputs for one nation at one point in time. All ETH values in ETH (not wei). */
+/** Market + population inputs for one nation at one point in time. $WIF values in whole WIF (not base units). */
 export interface NationMetrics {
-  marketCapEth: number;
-  liquidityEth: number;
-  volume24hEth: number;
+  marketCapWif: number;
+  liquidityWif: number;
+  volume24hWif: number;
   citizens: number;
 }
 
@@ -40,9 +40,9 @@ const round1 = (x: number) => Math.round(x * 10) / 10;
 
 export function economicPower(m: NationMetrics, s: NationGameState): number {
   const base =
-    0.5 * logScore(m.marketCapEth, 0.01, 10_000) +
-    0.3 * logScore(m.liquidityEth, 0.01, 5_000) +
-    0.2 * logScore(m.volume24hEth, 0.001, 2_000);
+    0.5 * logScore(toMarketUnits(m.marketCapWif), 0.01, 10_000) +
+    0.3 * logScore(toMarketUnits(m.liquidityWif), 0.01, 5_000) +
+    0.2 * logScore(toMarketUnits(m.volume24hWif), 0.001, 2_000);
   const mult = 1 + 0.1 * has(s, BuildingType.Bank) + 0.05 * has(s, BuildingType.Port);
   return round1(clamp(100 * base * mult, 0, 100));
 }

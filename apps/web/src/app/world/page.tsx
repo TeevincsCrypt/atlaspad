@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { Layers, Newspaper, Search, X } from "lucide-react";
-import { formatCompact, formatEth, formatInt, TIERS, type NationSummary } from "@atlaspad/shared";
+import { formatCompact, formatWif, formatInt, TIERS, type NationSummary } from "@atlaspad/shared";
 import { useNews, useWorld } from "@/lib/api";
 import { effects } from "@/lib/effects";
 import { useUi, type MapFilterKey } from "@/lib/store";
@@ -43,8 +43,8 @@ export default function WorldPage() {
     () => ({
       nations: nations.length,
       citizens: nations.reduce((s, n) => s + n.citizens, 0),
-      gdp: nations.reduce((s, n) => s + (n.marketCapEth ?? 0), 0),
-      volume: nations.reduce((s, n) => s + (n.volume24hEth ?? 0), 0),
+      gdp: nations.reduce((s, n) => s + (n.marketCapWif ?? 0), 0),
+      volume: nations.reduce((s, n) => s + (n.volume24hWif ?? 0), 0),
       wars: world.data?.wars.filter((w) => w.status === "active").length ?? 0,
       alliances: world.data?.alliances.length ?? 0,
     }),
@@ -136,8 +136,8 @@ export default function WorldPage() {
                   [
                     ["Nations", formatInt(totals.nations)],
                     ["Citizens", formatCompact(totals.citizens)],
-                    ["World GDP", formatEth(totals.gdp)],
-                    ["24h volume", formatEth(totals.volume)],
+                    ["World GDP", formatWif(totals.gdp)],
+                    ["24h volume", formatWif(totals.volume)],
                     ["Wars", formatInt(totals.wars)],
                     ["Alliances", formatInt(totals.alliances)],
                   ].map(([k, v]) => (
@@ -205,7 +205,7 @@ function NationCardBody({ n }: { n: NationSummary }) {
       <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
         <div>
           <div className="label">Market cap</div>
-          <div className="font-mono text-fg">{formatEth(n.marketCapEth)}</div>
+          <div className="font-mono text-fg">{formatWif(n.marketCapWif)}</div>
         </div>
         <div>
           <div className="label">24h</div>

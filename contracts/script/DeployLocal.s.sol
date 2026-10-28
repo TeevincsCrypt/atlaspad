@@ -53,7 +53,7 @@ contract DeployLocal is Deploy {
                 wif: address(wif),
                 feeRecipient: deployer,
                 // LOCAL_* so that production values in contracts/.env never leak into local deployments.
-                graduationWif: vm.envOr("LOCAL_GRADUATION_WIF", uint256(100_000 ether)),
+                graduationWif: vm.envOr("LOCAL_GRADUATION_WIF", uint256(200_000 ether)),
                 creationFee: vm.envOr("LOCAL_CREATION_FEE_WIF", uint256(100 ether))
             })
         );

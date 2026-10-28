@@ -211,9 +211,9 @@ export class ChainSync {
         args: [BigInt(n.id)],
         blockNumber: BigInt(fork),
       });
-      n.virtualEth = onChain.virtualEth;
+      n.virtualWif = onChain.virtualWif;
       n.virtualTokens = onChain.virtualTokens;
-      n.realEth = onChain.realEth;
+      n.realWif = onChain.realWif;
       n.curveTokensRemaining = onChain.curveTokensRemaining;
       n.graduated = onChain.graduated;
       n.emblem = onChain.emblem.toString();
@@ -221,7 +221,7 @@ export class ChainSync {
         n.graduatedAt = null;
         n.graduationTx = null;
         n.poolTokenReserve = null;
-        n.poolWethReserve = null;
+        n.poolWifReserve = null;
       } else {
         const [r0, r1] = await client.readContract({
           address: n.pair as Address,
@@ -230,14 +230,14 @@ export class ChainSync {
           blockNumber: BigInt(fork),
         });
         n.poolTokenReserve = n.tokenIsToken0 ? r0 : r1;
-        n.poolWethReserve = n.tokenIsToken0 ? r1 : r0;
+        n.poolWifReserve = n.tokenIsToken0 ? r1 : r0;
       }
       await sql`
-        UPDATE nations SET virtual_eth = ${n.virtualEth.toString()}, virtual_tokens = ${n.virtualTokens.toString()},
-          real_eth = ${n.realEth.toString()}, curve_tokens_remaining = ${n.curveTokensRemaining.toString()},
+        UPDATE nations SET virtual_wif = ${n.virtualWif.toString()}, virtual_tokens = ${n.virtualTokens.toString()},
+          real_wif = ${n.realWif.toString()}, curve_tokens_remaining = ${n.curveTokensRemaining.toString()},
           graduated = ${n.graduated}, graduated_at = ${n.graduatedAt}, graduation_tx = ${n.graduationTx},
           emblem = ${n.emblem}, pool_token_reserve = ${n.poolTokenReserve?.toString() ?? null},
-          pool_weth_reserve = ${n.poolWethReserve?.toString() ?? null}
+          pool_wif_reserve = ${n.poolWifReserve?.toString() ?? null}
         WHERE id = ${n.id}`;
     }
     // Restore proposal execution / cancellation flags at the fork.

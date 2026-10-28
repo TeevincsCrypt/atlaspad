@@ -10,7 +10,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "address"
       },
       {
-        "name": "weth_",
+        "name": "wif_",
         "type": "address",
         "internalType": "address"
       },
@@ -30,7 +30,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "address"
       },
       {
-        "name": "graduationEth_",
+        "name": "graduationWif_",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -45,6 +45,19 @@ export const atlasLaunchpadAbi = [
   {
     "type": "function",
     "name": "BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "BURN_FEE_BPS",
     "inputs": [],
     "outputs": [
       {
@@ -109,6 +122,19 @@ export const atlasLaunchpadAbi = [
   },
   {
     "type": "function",
+    "name": "MAX_GRADUATION_WIF",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_INITIAL_BUY_BPS",
     "inputs": [],
     "outputs": [
@@ -123,6 +149,19 @@ export const atlasLaunchpadAbi = [
   {
     "type": "function",
     "name": "MAX_SUPPLY",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "MIN_GRADUATION_WIF",
     "inputs": [],
     "outputs": [
       {
@@ -208,6 +247,11 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       },
       {
+        "name": "wifIn",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
         "name": "minTokensOut",
         "type": "uint256",
         "internalType": "uint256"
@@ -225,7 +269,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       }
     ],
-    "stateMutability": "payable"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -309,6 +353,11 @@ export const atlasLaunchpadAbi = [
             "internalType": "uint16"
           },
           {
+            "name": "initialBuyWif",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
             "name": "minTokensOut",
             "type": "uint256",
             "internalType": "uint256"
@@ -328,7 +377,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "address"
       }
     ],
-    "stateMutability": "payable"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -412,12 +461,12 @@ export const atlasLaunchpadAbi = [
             "internalType": "uint256"
           },
           {
-            "name": "initialVirtualEth",
+            "name": "initialVirtualWif",
             "type": "uint256",
             "internalType": "uint256"
           },
           {
-            "name": "virtualEth",
+            "name": "virtualWif",
             "type": "uint256",
             "internalType": "uint256"
           },
@@ -427,7 +476,7 @@ export const atlasLaunchpadAbi = [
             "internalType": "uint256"
           },
           {
-            "name": "realEth",
+            "name": "realWif",
             "type": "uint256",
             "internalType": "uint256"
           },
@@ -456,7 +505,7 @@ export const atlasLaunchpadAbi = [
   },
   {
     "type": "function",
-    "name": "graduationEth",
+    "name": "graduationWif",
     "inputs": [],
     "outputs": [
       {
@@ -611,7 +660,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "ethIn",
+        "name": "wifIn",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -628,14 +677,14 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "ethUsed",
+        "name": "wifUsed",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "refund",
-        "type": "uint256",
-        "internalType": "uint256"
+        "name": "graduates",
+        "type": "bool",
+        "internalType": "bool"
       }
     ],
     "stateMutability": "view"
@@ -657,7 +706,7 @@ export const atlasLaunchpadAbi = [
     ],
     "outputs": [
       {
-        "name": "ethOut",
+        "name": "wifOut",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -684,7 +733,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "minEthOut",
+        "name": "minWifOut",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -696,7 +745,7 @@ export const atlasLaunchpadAbi = [
     ],
     "outputs": [
       {
-        "name": "ethOut",
+        "name": "wifOut",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -718,7 +767,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "minEthOut",
+        "name": "minWifOut",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -745,7 +794,7 @@ export const atlasLaunchpadAbi = [
     ],
     "outputs": [
       {
-        "name": "ethOut",
+        "name": "wifOut",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -847,6 +896,32 @@ export const atlasLaunchpadAbi = [
   },
   {
     "type": "function",
+    "name": "totalWifBurned",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalWifLocked",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "treasury",
     "inputs": [],
     "outputs": [
@@ -892,13 +967,51 @@ export const atlasLaunchpadAbi = [
   },
   {
     "type": "function",
-    "name": "weth",
+    "name": "wif",
     "inputs": [],
     "outputs": [
       {
         "name": "",
         "type": "address",
-        "internalType": "address"
+        "internalType": "contract IERC20"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "wifBurnedOf",
+    "inputs": [
+      {
+        "name": "nationId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "wifToGraduate",
+    "inputs": [
+      {
+        "name": "nationId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -951,7 +1064,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "virtualEth",
+        "name": "virtualWif",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1068,7 +1181,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "address"
       },
       {
-        "name": "ethLiquidity",
+        "name": "wifLiquidity",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1155,7 +1268,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "bool"
       },
       {
-        "name": "ethAmount",
+        "name": "wifAmount",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1173,7 +1286,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "virtualEth",
+        "name": "virtualWif",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1185,7 +1298,7 @@ export const atlasLaunchpadAbi = [
         "internalType": "uint256"
       },
       {
-        "name": "realEth",
+        "name": "realWif",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1200,9 +1313,29 @@ export const atlasLaunchpadAbi = [
     "anonymous": false
   },
   {
-    "type": "error",
-    "name": "EthTransferFailed",
-    "inputs": []
+    "type": "event",
+    "name": "WifBurned",
+    "inputs": [
+      {
+        "name": "nationId",
+        "type": "uint256",
+        "indexed": true,
+        "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "creationFee",
+        "type": "bool",
+        "indexed": false,
+        "internalType": "bool"
+      }
+    ],
+    "anonymous": false
   },
   {
     "type": "error",
@@ -1212,11 +1345,6 @@ export const atlasLaunchpadAbi = [
   {
     "type": "error",
     "name": "InitialBuyTooLarge",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "InsufficientCreationFee",
     "inputs": []
   },
   {
@@ -1318,6 +1446,11 @@ export const atlasLaunchpadAbi = [
   {
     "type": "error",
     "name": "UnknownNation",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnsupportedToken",
     "inputs": []
   },
   {
@@ -2048,13 +2181,14 @@ export const nationTreasuryAbi = [
         "name": "governor_",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "wif_",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "receive",
-    "stateMutability": "payable"
   },
   {
     "type": "function",
@@ -2072,6 +2206,19 @@ export const nationTreasuryAbi = [
   {
     "type": "function",
     "name": "MAX_RELEASE_BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "RELEASE_WINDOW",
     "inputs": [],
     "outputs": [
       {
@@ -2109,10 +2256,15 @@ export const nationTreasuryAbi = [
         "name": "nationId",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "outputs": [],
-    "stateMutability": "payable"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -2152,7 +2304,7 @@ export const nationTreasuryAbi = [
       {
         "name": "to",
         "type": "address",
-        "internalType": "address payable"
+        "internalType": "address"
       },
       {
         "name": "amount",
@@ -2181,6 +2333,35 @@ export const nationTreasuryAbi = [
     "outputs": [
       {
         "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "releaseWindow",
+    "inputs": [
+      {
+        "name": "nationId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "start",
+        "type": "uint64",
+        "internalType": "uint64"
+      },
+      {
+        "name": "base",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "released",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -2234,6 +2415,19 @@ export const nationTreasuryAbi = [
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "wif",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "contract IERC20"
       }
     ],
     "stateMutability": "view"
@@ -2302,16 +2496,6 @@ export const nationTreasuryAbi = [
   },
   {
     "type": "error",
-    "name": "DirectTransferNotAllowed",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "EthTransferFailed",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "ExceedsReleaseCap",
     "inputs": []
   },
@@ -2337,7 +2521,23 @@ export const nationTreasuryAbi = [
   },
   {
     "type": "error",
+    "name": "SafeERC20FailedOperation",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "UnknownNation",
+    "inputs": []
+  },
+  {
+    "type": "error",
+    "name": "UnsupportedToken",
     "inputs": []
   },
   {
@@ -2382,7 +2582,7 @@ export const nationTokenAbi = [
         "internalType": "address"
       },
       {
-        "name": "weth",
+        "name": "wif",
         "type": "address",
         "internalType": "address"
       }

@@ -11,7 +11,7 @@ export interface IndexerEnv {
   pollMs: number;
   adminToken: string | null;
   corsOrigin: string;
-  ethUsdSource: "coinbase" | "none";
+  wifUsdSource: "dexscreener" | "none";
   extraExcluded: { address: Address; label: string }[];
   runMigrations: boolean;
 }
@@ -35,6 +35,7 @@ export function loadEnv(): IndexerEnv {
     uniswapV2Factory: process.env.ATLAS_UNISWAP_V2_FACTORY,
     uniswapV2Router: process.env.ATLAS_UNISWAP_V2_ROUTER,
     weth: process.env.ATLAS_WETH,
+    wif: process.env.ATLAS_WIF,
   });
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required");
@@ -49,8 +50,8 @@ export function loadEnv(): IndexerEnv {
       return { address: getAddress(address), label: label.join(":") || "Excluded" };
     });
 
-  const source = process.env.ETH_USD_SOURCE || "none";
-  if (source !== "coinbase" && source !== "none") throw new Error('ETH_USD_SOURCE must be "coinbase" or "none"');
+  const source = process.env.WIF_USD_SOURCE || "none";
+  if (source !== "dexscreener" && source !== "none") throw new Error('WIF_USD_SOURCE must be "dexscreener" or "none"');
 
   return {
     network,
@@ -62,7 +63,7 @@ export function loadEnv(): IndexerEnv {
     pollMs: int("INDEXER_POLL_MS", 2000, 250),
     adminToken: process.env.INDEXER_ADMIN_TOKEN || null,
     corsOrigin: process.env.INDEXER_CORS_ORIGIN || "*",
-    ethUsdSource: source,
+    wifUsdSource: source,
     extraExcluded,
     runMigrations: process.env.INDEXER_RUN_MIGRATIONS !== "false",
   };

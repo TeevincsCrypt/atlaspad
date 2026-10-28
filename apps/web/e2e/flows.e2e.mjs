@@ -73,7 +73,8 @@ await step("wizard: description, theme, symbol", async () => {
 });
 
 await step("wizard: token parameters with live curve preview", async () => {
-  await page.getByPlaceholder("0.0").fill("0.01");
+  // $WIF amounts. Local deployments graduate at 200,000 WIF (2 market units) and mint 10M WIF per anvil account.
+  await page.getByPlaceholder("0.0").fill("1000");
   await page.getByText(/of supply\) at the opening price/).waitFor({ timeout: 10000 });
   await shot("01-token-parameters");
   await page.getByRole("button", { name: /Continue/ }).click();
@@ -81,12 +82,22 @@ await step("wizard: token parameters with live curve preview", async () => {
   await page.getByRole("button", { name: /Continue/ }).click();
 });
 
-await step("launch: simulate, acknowledge, found", async () => {
+await step("launch: approve $WIF, simulate, acknowledge, found", async () => {
   await page.getByText("Estimated network fee").waitFor();
-  await page.waitForFunction(() => !document.body.innerText.includes("Simulating…"), null, { timeout: 30000 });
   await page.getByRole("checkbox").check();
   await shot("02-launch-review");
-  await page.getByRole("button", { name: new RegExp(`Found ${NAME}`) }).click();
+  // The launchpad pulls the burned founding fee + the initial buy in $WIF, so the founder approves it first
+  // (skipped when an earlier approval still covers it — the seeded anvil accounts approve the launchpad).
+  const approve = page.getByRole("button", { name: /Approve .* WIF/ });
+  if (await approve.isVisible()) await approve.click();
+  const found = page.getByRole("button", { name: new RegExp(`Found ${NAME}`) });
+  await found.waitFor({ timeout: 60000 });
+  await page.waitForFunction(() => !document.body.innerText.includes("Simulating…"), null, { timeout: 30000 });
+  await page.waitForFunction((n) => {
+    const b = [...document.querySelectorAll("button")].find((x) => x.textContent?.includes(`Found ${n}`));
+    return b && !b.disabled;
+  }, NAME, { timeout: 30000 });
+  await found.click();
   await page.getByText(/Welcome to/i).waitFor({ timeout: 60000 });
   await page.waitForTimeout(1200);
   await shot("03-welcome");
@@ -100,11 +111,28 @@ await step("open the new nation (indexed)", async () => {
   await page.getByRole("heading", { name: NAME, exact: false }).waitFor({ timeout: 60000 });
 });
 
-await step("buy on the bonding curve", async () => {
+await step("approve $WIF for the curve (if needed)", async () => {
   const panel = page.locator("aside");
-  await panel.getByPlaceholder("0.0").fill("0.005");
+  await panel.getByPlaceholder("0.0").fill("500");
   await panel.getByText(/Price impact/).waitFor({ timeout: 20000 });
-  await panel.getByRole("button", { name: new RegExp(`Buy \\$${TICKER}`) }).click();
+  // The panel re-reads the allowance when clicked, so the dialog decides: approval first, or straight to the buy.
+  await panel.getByRole("button", { name: new RegExp(`Approve \\$WIF|Buy \\$${TICKER}`) }).click();
+  await page.getByRole("dialog").waitFor();
+  if (!(await page.getByRole("dialog").getByText("the AtlasPad launchpad").first().isVisible())) {
+    await page.getByRole("dialog").getByRole("button", { name: "Cancel" }).click();
+    return;
+  }
+  await page.getByRole("dialog").getByText("the AtlasPad launchpad").first().waitFor();
+  await page.waitForFunction(() => !document.body.innerText.includes("Simulating…"), null, { timeout: 30000 });
+  await page.getByRole("dialog").getByRole("button", { name: /Confirm in wallet/ }).click();
+  await page.getByRole("dialog").getByText(/Transaction confirmed/i).first().waitFor({ timeout: 60000 });
+  await page.getByRole("dialog").getByRole("button", { name: "Done" }).click();
+});
+
+await step("buy on the bonding curve with $WIF", async () => {
+  const panel = page.locator("aside");
+  await panel.getByRole("button", { name: new RegExp(`Buy \\$${TICKER} with \\$WIF`) }).click();
+  await page.getByRole("dialog").getByText("$WIF burned by this trade").waitFor();
   await page.getByRole("dialog").getByText("Expected to receive").waitFor();
   await page.waitForFunction(() => !document.body.innerText.includes("Simulating…"), null, { timeout: 30000 });
   await page.getByRole("dialog").getByRole("button", { name: /Confirm in wallet/ }).click();
@@ -151,6 +179,14 @@ await step("world map shows the new nation", async () => {
   await page.getByRole("button", { name: new RegExp(NAME) }).first().waitFor({ timeout: 60000 });
   await page.waitForTimeout(3000);
   await shot("06-world");
+});
+
+await step("landing page shows the live $WIF flywheel", async () => {
+  await page.goto(BASE);
+  await page.getByText("Every nation runs on $WIF.").scrollIntoViewIfNeeded({ timeout: 60000 });
+  await page.getByText("$WIF burned", { exact: true }).waitFor({ timeout: 30000 });
+  await page.waitForTimeout(1500);
+  await shot("07-flywheel");
 });
 
 console.log(errors.length ? `Page errors:\n${errors.join("\n")}` : "No page errors");

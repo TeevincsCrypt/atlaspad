@@ -2,7 +2,7 @@
 import { use } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { ALLIANCE, formatDate, formatEth, formatInt, timeAgo } from "@atlaspad/shared";
+import { ALLIANCE, formatDate, formatWif, formatInt, timeAgo } from "@atlaspad/shared";
 import { useAlliance } from "@/lib/api";
 import { Flag } from "@/components/emblem/Flag";
 import { Badge } from "@/components/ui/Badge";
@@ -38,7 +38,7 @@ export default function AlliancePage({ params }: { params: Promise<{ id: string 
       </div>
       <div className="grid gap-4 sm:grid-cols-4">
         {[
-          ["Combined GDP", formatEth(sum((n) => n.marketCapEth ?? 0))],
+          ["Combined GDP", formatWif(sum((n) => n.marketCapWif ?? 0))],
           ["Combined citizens", formatInt(sum((n) => n.citizens))],
           ["Combined influence", formatInt(sum((n) => n.resources.influence))],
           ["Alliance score", sum((n) => n.civilizationScore).toFixed(1)],

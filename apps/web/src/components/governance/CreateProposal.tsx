@@ -13,7 +13,7 @@ import {
   encodeTreasuryPayload,
   formatCompact,
   formatDuration,
-  formatEth,
+  formatWif,
   validateBuild,
   type BuildingType,
   type NationSummary,
@@ -45,7 +45,7 @@ const TYPES: { key: ProposalPreset["type"]; label: string; hint: string }[] = [
   { key: "alliance-invite", label: "Invite to alliance", hint: "Leader only — invite another nation" },
   { key: "alliance-join", label: "Join an alliance", hint: "Accept a pending invitation" },
   { key: "alliance-leave", label: "Leave alliance", hint: "Withdraw from the current alliance" },
-  { key: "treasury", label: "Treasury spending", hint: "Send ETH from the national treasury (max 25%)" },
+  { key: "treasury", label: "Treasury spending", hint: "Send $WIF from the national treasury (max 25% per week)" },
   { key: "symbol", label: "Change national symbol", hint: "Update the on-chain flag" },
 ];
 
@@ -79,7 +79,7 @@ export function CreateProposal({
   const [review, setReview] = useState(false);
 
   const others = useMemo(() => (world.data?.nations ?? []).filter((n) => n.id !== nation.id).sort((a, b) => a.name.localeCompare(b.name)), [world.data, nation.id]);
-  const releaseCap = (nation.treasuryEth * GOVERNANCE.maxReleaseBps) / 10_000;
+  const releaseCap = (nation.treasuryWif * GOVERNANCE.maxReleaseBps) / 10_000;
 
   const built = new Set(detail.buildings.filter((b) => b.status === "complete").map((b) => b.type as BuildingType));
   const constructing = new Set(detail.buildings.filter((b) => b.status === "constructing").map((b) => b.type as BuildingType));
@@ -119,7 +119,7 @@ export function CreateProposal({
           if (!isAddress(recipient)) return { kind: ProposalKind.Treasury, payload: "0x", summary: "", error: "Enter a valid recipient address." };
           const wei = parseEther((amount || "0") as `${number}`);
           if (wei <= 0n) return { kind: ProposalKind.Treasury, payload: "0x", summary: "", error: "Enter an amount." };
-          return { kind: ProposalKind.Treasury, payload: encodeTreasuryPayload(recipient as Address, wei), summary: `Send ${formatEth(Number(amount))} from the treasury`, error: null };
+          return { kind: ProposalKind.Treasury, payload: encodeTreasuryPayload(recipient as Address, wei), summary: `Send ${formatWif(Number(amount))} from the treasury`, error: null };
         }
         case "symbol":
           return { kind: ProposalKind.Symbol, payload: encodeSymbolPayload(emblem, ""), summary: "Adopt a new national symbol", error: null };
@@ -184,7 +184,7 @@ export function CreateProposal({
           {type === "war" && (
             <p className="text-xs leading-relaxed text-dim">
               Wars last 48 hours. The winner is decided deterministically from population growth, market momentum, trading activity and economic
-              power (plus a defensive bonus for the defender). No tokens or ETH change hands — the winner earns influence and territory.
+              power (plus a defensive bonus for the defender). No tokens or $WIF change hands — the winner earns influence and territory.
             </p>
           )}
           {type === "alliance-create" && <input value={allianceName} onChange={(e) => setAllianceName(e.target.value)} maxLength={32} placeholder="Alliance name" className={input} />}
@@ -201,9 +201,9 @@ export function CreateProposal({
           {type === "treasury" && (
             <div className="space-y-2">
               <input value={recipient} onChange={(e) => setRecipient(e.target.value.trim())} placeholder="Recipient address (0x…)" className={`${input} font-mono`} />
-              <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="Amount in ETH" className={input} inputMode="decimal" />
+              <input value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="Amount in $WIF" className={input} inputMode="decimal" />
               <p className="text-xs text-dim">
-                Treasury: {formatEth(nation.treasuryEth)} · a single proposal can release at most 25% ({formatEth(releaseCap)}) at execution time. 3-day vote, 4%
+                Treasury: {formatWif(nation.treasuryWif)} · a single proposal can release at most 25% ({formatWif(releaseCap)}) at execution time. 3-day vote, 4%
                 quorum, then a 1-day timelock.
               </p>
             </div>

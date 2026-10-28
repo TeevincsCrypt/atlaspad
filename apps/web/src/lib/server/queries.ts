@@ -1,6 +1,6 @@
 import "server-only";
 import type postgres from "postgres";
-import { allianceSummaries, indexerHealth, nationSummaries, newsItems, warSummaries } from "@atlaspad/db/queries";
+import { allianceSummaries, flywheelStats, indexerHealth, nationSummaries, newsItems, warSummaries } from "@atlaspad/db/queries";
 import {
   ACHIEVEMENT_BY_CODE,
   ALLIANCE,
@@ -29,18 +29,20 @@ const WAD = 1e18;
 const num = (v: unknown) => (v === null || v === undefined ? null : Number(v));
 
 export async function getWorld(sql: Sql): Promise<WorldResponse> {
-  const [nations, wars, alliances, health] = await Promise.all([
+  const [nations, wars, alliances, health, flywheel] = await Promise.all([
     nationSummaries(sql),
     warSummaries(sql, { limit: 300 }),
     allianceSummaries(sql, { activeOnly: true }),
     indexerHealth(sql),
+    flywheelStats(sql),
   ]);
   return {
     network: { chainId: network.chain.id, name: network.chain.name, deployed: network.contracts !== null },
     nations,
+    flywheel,
     wars,
     alliances,
-    ethUsd: health.ethUsd,
+    wifUsd: health.wifUsd,
     indexer: {
       lastIndexedBlock: health.lastIndexedBlock,
       lastIndexedAt: health.lastIndexedAt,
@@ -64,13 +66,13 @@ export interface NationDetail {
   curve: {
     curveSupply: string;
     curveTokensRemaining: string;
-    realEth: number;
-    virtualEth: string;
+    realWif: number;
+    virtualWif: string;
     virtualTokens: string;
     lpReserve: string;
-    graduationEth: number | null;
+    graduationWif: number | null;
   };
-  ethUsd: number | null;
+  wifUsd: number | null;
 }
 
 export async function getNationDetail(sql: Sql, id: number): Promise<NationDetail | null> {
@@ -119,23 +121,23 @@ export async function getNationDetail(sql: Sql, id: number): Promise<NationDetai
     curve: {
       curveSupply: String(raw!.curve_supply),
       curveTokensRemaining: String(raw!.curve_tokens_remaining),
-      realEth: Number(raw!.real_eth) / WAD,
-      virtualEth: String(raw!.virtual_eth),
+      realWif: Number(raw!.real_wif) / WAD,
+      virtualWif: String(raw!.virtual_wif),
       virtualTokens: String(raw!.virtual_tokens),
       lpReserve: String(raw!.lp_reserve),
-      graduationEth: raw!.graduation_eth === null ? null : Number(raw!.graduation_eth) / WAD,
+      graduationWif: raw!.graduation_wif === null ? null : Number(raw!.graduation_wif) / WAD,
     },
-    ethUsd: health.ethUsd,
+    wifUsd: health.wifUsd,
   };
 }
 
 export async function getCandles(sql: Sql, id: number, interval: number): Promise<CandleDTO[]> {
   const rows = await sql`
     SELECT (timestamp / ${interval}) * ${interval} AS bucket,
-      (array_agg(price_eth ORDER BY timestamp, log_index))[1] AS open,
-      max(price_eth) AS high, min(price_eth) AS low,
-      (array_agg(price_eth ORDER BY timestamp DESC, log_index DESC))[1] AS close,
-      COALESCE(sum(eth_amount), 0) AS volume
+      (array_agg(price_wif ORDER BY timestamp, log_index))[1] AS open,
+      max(price_wif) AS high, min(price_wif) AS low,
+      (array_agg(price_wif ORDER BY timestamp DESC, log_index DESC))[1] AS close,
+      COALESCE(sum(wif_amount), 0) AS volume
     FROM trades WHERE nation_id = ${id}
     GROUP BY bucket ORDER BY bucket DESC LIMIT 500`;
   const candles = rows.reverse().map((r) => ({
@@ -159,16 +161,16 @@ export async function getCandles(sql: Sql, id: number, interval: number): Promis
 export async function getSeries(sql: Sql, id: number, days: number) {
   const since = Math.floor(Date.now() / 1000) - days * 86400;
   const rows = await sql`
-    SELECT epoch, price_eth, market_cap_eth, liquidity_eth, volume_1h_eth, citizens, treasury_eth, civilization_score, economic_power
+    SELECT epoch, price_wif, market_cap_wif, liquidity_wif, volume_1h_wif, citizens, treasury_wif, civilization_score, economic_power
     FROM game_snapshots WHERE nation_id = ${id} AND epoch >= ${since} ORDER BY epoch`;
   return rows.map((r) => ({
     time: Number(r.epoch),
-    priceEth: num(r.price_eth),
-    marketCapEth: num(r.market_cap_eth),
-    liquidityEth: num(r.liquidity_eth),
-    volumeEth: Number(r.volume_1h_eth),
+    priceWif: num(r.price_wif),
+    marketCapWif: num(r.market_cap_wif),
+    liquidityWif: num(r.liquidity_wif),
+    volumeWif: Number(r.volume_1h_wif),
     citizens: Number(r.citizens),
-    treasuryEth: Number(r.treasury_eth),
+    treasuryWif: Number(r.treasury_wif),
     civilizationScore: Number(r.civilization_score),
     economicPower: Number(r.economic_power),
   }));
@@ -186,9 +188,9 @@ export async function getTrades(sql: Sql, opts: { nationId?: number; trader?: st
     logIndex: Number(r.log_index),
     trader: r.trader as string,
     side: r.is_buy ? "buy" : "sell",
-    ethAmount: Number(r.eth_amount) / WAD,
+    wifAmount: Number(r.wif_amount) / WAD,
     tokenAmount: Number(r.token_amount) / WAD,
-    priceEth: Number(r.price_eth),
+    priceWif: Number(r.price_wif),
     venue: r.venue as TradeDTO["venue"],
     timestamp: Number(r.timestamp),
   }));
@@ -306,7 +308,7 @@ export async function getProposal(sql: Sql, id: number) {
   };
 }
 
-export async function getTreasury(sql: Sql, id: number): Promise<{ balanceEth: number; receivedEth: number; releasedEth: number; txs: TreasuryTxDTO[] }> {
+export async function getTreasury(sql: Sql, id: number): Promise<{ balanceWif: number; receivedWif: number; releasedWif: number; txs: TreasuryTxDTO[] }> {
   const rows = await sql`SELECT * FROM treasury_txs WHERE nation_id = ${id} ORDER BY timestamp DESC, log_index DESC LIMIT 100`;
   const [agg] = await sql`
     SELECT COALESCE(sum(amount) FILTER (WHERE direction = 'in'), 0) AS rin, COALESCE(sum(amount) FILTER (WHERE direction = 'out'), 0) AS rout
@@ -314,12 +316,12 @@ export async function getTreasury(sql: Sql, id: number): Promise<{ balanceEth: n
   const received = Number(agg?.rin ?? 0) / WAD;
   const released = Number(agg?.rout ?? 0) / WAD;
   return {
-    balanceEth: received - released,
-    receivedEth: received,
-    releasedEth: released,
+    balanceWif: received - released,
+    receivedWif: received,
+    releasedWif: released,
     txs: rows.map((r) => ({
       direction: r.direction as TreasuryTxDTO["direction"],
-      amountEth: Number(r.amount) / WAD,
+      amountWif: Number(r.amount) / WAD,
       counterparty: r.counterparty as string,
       kind: r.kind as TreasuryTxDTO["kind"],
       proposalId: num(r.proposal_id),
@@ -338,12 +340,12 @@ export async function getWarDetail(sql: Sql, id: number) {
     list.find((n) => n.id === attackerId)!,
     list.find((n) => n.id === defenderId)!,
   ]);
-  const aStart = w.attacker_start as { citizens: number; marketCapEth: number };
-  const dStart = w.defender_start as { citizens: number; marketCapEth: number };
+  const aStart = w.attacker_start as { citizens: number; marketCapWif: number };
+  const dStart = w.defender_start as { citizens: number; marketCapWif: number };
   let projection: { attacker: ReturnType<typeof warScore>; defender: ReturnType<typeof warScore>; leader: number } | null = null;
   if (w.status === "active" && attacker && defender) {
     const vol = await sql`
-      SELECT nation_id, COALESCE(sum(eth_amount), 0) AS v FROM trades
+      SELECT nation_id, COALESCE(sum(wif_amount), 0) AS v FROM trades
       WHERE nation_id = ANY(${[attackerId, defenderId]}) AND timestamp >= ${Number(w.declared_at)} GROUP BY nation_id`;
     const v = new Map(vol.map((r) => [Number(r.nation_id), Number(r.v) / WAD]));
     // Allies = other current members of the nation's alliance, exactly as the game engine counts them.
@@ -354,9 +356,9 @@ export async function getWarDetail(sql: Sql, id: number) {
     const side = (n: NationSummary, start: typeof aStart) => ({
       citizensStart: start.citizens,
       citizensEnd: n.citizens,
-      marketCapStartEth: start.marketCapEth,
-      marketCapEndEth: n.marketCapEth ?? start.marketCapEth,
-      warVolumeEth: v.get(n.id) ?? 0,
+      marketCapStartWif: start.marketCapWif,
+      marketCapEndWif: n.marketCapWif ?? start.marketCapWif,
+      warVolumeWif: v.get(n.id) ?? 0,
       economicPowerEnd: n.economicPower,
       defensivePowerEnd: n.defensivePower,
       allies: allies.get(n.id) ?? 0,

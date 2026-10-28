@@ -33,16 +33,16 @@ export async function citizenCountAsOf(db: Db, nationId: number, t: number, thre
 /** Last trade at or before `t`: price, market cap and liquidity after that trade. */
 export async function lastTradeAsOf(db: Db, nationId: number, t: number) {
   const [r] = await db`
-    SELECT price_eth, market_cap_eth, liquidity_eth FROM trades
+    SELECT price_wif, market_cap_wif, liquidity_wif FROM trades
     WHERE nation_id = ${nationId} AND timestamp <= ${t}
     ORDER BY timestamp DESC, log_index DESC LIMIT 1`;
   if (!r) return null;
-  return { priceEth: Number(r.price_eth), marketCapEth: Number(r.market_cap_eth), liquidityEth: Number(r.liquidity_eth) };
+  return { priceWif: Number(r.price_wif), marketCapWif: Number(r.market_cap_wif), liquidityWif: Number(r.liquidity_wif) };
 }
 
 export async function volumeBetween(db: Db, nationId: number, from: number, to: number): Promise<{ eth: number; trades: number }> {
   const [r] = await db`
-    SELECT COALESCE(sum(eth_amount), 0) AS v, count(*)::int AS c FROM trades
+    SELECT COALESCE(sum(wif_amount), 0) AS v, count(*)::int AS c FROM trades
     WHERE nation_id = ${nationId} AND timestamp >= ${from} AND timestamp < ${to}`;
   return { eth: Number(r?.v ?? 0) / WAD, trades: Number(r?.c ?? 0) };
 }

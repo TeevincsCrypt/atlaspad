@@ -7,6 +7,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import {
+  maxUint256,
   createPublicClient,
   createTestClient,
   createWalletClient,
@@ -26,6 +27,7 @@ import {
   encodeGameActionPayload,
   encodeSymbolPayload,
   encodeTreasuryPayload,
+  WIF_MARKET_UNIT,
 } from "@atlaspad/shared";
 
 /** Anvil's well-known development keys (public test mnemonic). */
@@ -51,6 +53,7 @@ export interface LocalDeployment {
   uniswapV2Factory: Address;
   uniswapV2Router: Address;
   weth: Address;
+  wif: Address;
 }
 
 const contractsDir = resolve(import.meta.dirname, "../../../contracts");
@@ -74,6 +77,8 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
   const addr = (i: number) => accounts[i]!.address;
   const now = async () => Number((await pub.getBlock()).timestamp);
   const wait = (hash: Hex) => pub.waitForTransactionReceipt({ hash });
+  /** Scenario amounts are written in game market units (2 units graduate a nation); this converts to $WIF. */
+  const units = (u: string) => parseEther((Number(u) * WIF_MARKET_UNIT).toFixed(6));
   const advance = async (seconds: number, blocks = 1) => {
     await test.increaseTime({ seconds });
     for (let i = 0; i < blocks; i++) await test.mine({ blocks: 1 });
@@ -89,6 +94,7 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
       emblem: encodeEmblem({ glyph: glyph as never, pattern: "chevron", primary: colors[0], secondary: colors[1], accent: colors[2] }),
       totalSupply: parseEther("1000000000"),
       founderBps,
+      initialBuyWif: units(initialBuy),
       minTokensOut: 0n,
     };
     const hash = await wallet(i).writeContract({
@@ -96,20 +102,18 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
       abi: atlasLaunchpadAbi,
       functionName: "foundNation",
       args: [params],
-      value: parseEther(initialBuy),
     });
     await wait(hash);
     const id = await pub.readContract({ address: d.launchpad, abi: atlasLaunchpadAbi, functionName: "nationCount" });
     log(`Founded ${name} (#${id})`);
     return Number(id);
   };
-  const buy = async (i: number, id: number, eth: string) => {
+  const buy = async (i: number, id: number, amount: string) => {
     const hash = await wallet(i).writeContract({
       address: d.launchpad,
       abi: atlasLaunchpadAbi,
       functionName: "buy",
-      args: [BigInt(id), 0n, BigInt((await now()) + 600)],
-      value: parseEther(eth),
+      args: [BigInt(id), units(amount), 0n, BigInt((await now()) + 600)],
     });
     await wait(hash);
   };
@@ -146,16 +150,23 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
   const execute = async (pid: number) =>
     wait(await wallet(0).writeContract({ address: d.governor, abi: atlasGovernorAbi, functionName: "execute", args: [BigInt(pid)] }));
 
+  // Every account approves the launchpad and the Uniswap router to spend its $WIF (DeployLocal mints it).
+  for (let i = 0; i < accounts.length; i++) {
+    for (const spender of [d.launchpad, d.uniswapV2Router]) {
+      await wait(await wallet(i).writeContract({ address: d.wif, abi: nationTokenAbi, functionName: "approve", args: [spender, maxUint256] }));
+    }
+  }
+
   // --- Founding ---------------------------------------------------------------------------------
   const pepe = await found(1, "Pepeland", "PEPE", 5, "frog", ["#3fa34d", "#ffd23f", "#0d1f0f"], "0.03", 300);
   const doge = await found(2, "Dogeland", "DOGE", 5, "dog", ["#c99a2e", "#f4e2b8", "#2a1d08"], "0.02");
-  const wif = await found(3, "Wifia", "WIF", 3, "wave", ["#d98bb5", "#2bb3c0", "#1a0f1f"], "0.01");
+  const hat = await found(3, "Hatland", "HAT", 3, "wave", ["#d98bb5", "#2bb3c0", "#1a0f1f"], "0.01");
   const bonk = await found(4, "Bonkistan", "BONK", 1, "bolt", ["#ff7a1a", "#ffe066", "#1f0f00"], "0.005");
 
   // --- Early trading ----------------------------------------------------------------------------
   for (const [i, id, eth] of [
-    [5, pepe, "0.05"], [6, pepe, "0.04"], [7, doge, "0.06"], [8, doge, "0.02"], [5, wif, "0.03"],
-    [6, bonk, "0.01"], [7, pepe, "0.03"], [8, wif, "0.02"],
+    [5, pepe, "0.05"], [6, pepe, "0.04"], [7, doge, "0.06"], [8, doge, "0.02"], [5, hat, "0.03"],
+    [6, bonk, "0.01"], [7, pepe, "0.03"], [8, hat, "0.02"],
   ] as const) {
     await buy(i, id, eth);
     await advance(300);
@@ -174,9 +185,8 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
     await wallet(5).writeContract({
       address: d.uniswapV2Router,
       abi: uniswapV2RouterAbi,
-      functionName: "swapExactETHForTokens",
-      args: [0n, [d.weth, pepeToken], addr(5), BigInt((await now()) + 600)],
-      value: parseEther("0.2"),
+      functionName: "swapExactTokensForTokens",
+      args: [units("0.2"), 0n, [d.wif, pepeToken], addr(5), BigInt((await now()) + 600)],
     }),
   );
   const bal9 = await pub.readContract({ address: pepeToken, abi: nationTokenAbi, functionName: "balanceOf", args: [addr(9)] });
@@ -186,8 +196,8 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
     await wallet(9).writeContract({
       address: d.uniswapV2Router,
       abi: uniswapV2RouterAbi,
-      functionName: "swapExactTokensForETH",
-      args: [sellAmt, 0n, [pepeToken, d.weth], addr(9), BigInt((await now()) + 600)],
+      functionName: "swapExactTokensForTokens",
+      args: [sellAmt, 0n, [pepeToken, d.wif], addr(9), BigInt((await now()) + 600)],
     }),
   );
   // Spread citizenship
@@ -200,8 +210,8 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
   // --- Governance --------------------------------------------------------------------------------
   const build = await propose(9, pepe, ProposalKind.GameAction, encodeGameActionPayload(GameAction.Build, BigInt(BuildingType.Capitol)), "Build a Capitol\nThe seat of Pepeland's government.");
   const alliance = await propose(7, doge, ProposalKind.GameAction, encodeGameActionPayload(GameAction.CreateAlliance, 0n, "Meme Alliance"), "Found the Meme Alliance");
-  const war = await propose(9, pepe, ProposalKind.GameAction, encodeGameActionPayload(GameAction.DeclareWar, BigInt(wif)), "Declare war on Wifia");
-  const symbol = await propose(5, wif, ProposalKind.Symbol, encodeSymbolPayload(encodeEmblem({ glyph: "anchor", pattern: "horizontal", primary: "#2bb3c0", secondary: "#ffffff", accent: "#0a2a33" }), ""), "Adopt the anchor");
+  const war = await propose(9, pepe, ProposalKind.GameAction, encodeGameActionPayload(GameAction.DeclareWar, BigInt(hat)), "Declare war on Hatland");
+  const symbol = await propose(5, hat, ProposalKind.Symbol, encodeSymbolPayload(encodeEmblem({ glyph: "anchor", pattern: "horizontal", primary: "#2bb3c0", secondary: "#ffffff", accent: "#0a2a33" }), ""), "Adopt the anchor");
   const spend = await propose(9, pepe, ProposalKind.Treasury, encodeTreasuryPayload(addr(1), 1_000_000_000_000n), "Fund the space program");
   for (const [i, pid] of [[9, build], [5, build], [7, alliance], [8, alliance], [9, war], [5, symbol], [8, symbol], [9, spend]] as const) {
     await vote(i, pid, 1);
@@ -210,7 +220,7 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
   // Let a day of epochs pass (hourly blocks) so resources accrue, then enact.
   for (let h = 0; h < 25; h++) {
     await advance(3600);
-    if (h % 6 === 0) await buy(5 + (h % 4), [doge, wif, bonk, doge][h % 4]!, "0.005");
+    if (h % 6 === 0) await buy(5 + (h % 4), [doge, hat, bonk, doge][h % 4]!, "0.005");
   }
   await execute(alliance);
   await execute(symbol);
@@ -233,5 +243,5 @@ export async function runScenario(rpcUrl: string, d: LocalDeployment, opts: { lo
   await execute(spend);
   await advance(3600);
   log("Scenario complete");
-  return { pepe, doge, wif, bonk, proposals: { build, alliance, war, symbol, spend, invite, join } };
+  return { pepe, doge, hat, bonk, proposals: { build, alliance, war, symbol, spend, invite, join } };
 }

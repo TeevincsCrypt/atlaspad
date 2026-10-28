@@ -62,8 +62,8 @@ export async function processTimed(g: GameCtx, t: number): Promise<void> {
     const a = g.cache.byId.get(attackerId);
     const d = g.cache.byId.get(defenderId);
     if (!a || !d) continue;
-    const aStart = w.attacker_start as { citizens: number; marketCapEth: number };
-    const dStart = w.defender_start as { citizens: number; marketCapEth: number };
+    const aStart = w.attacker_start as { citizens: number; marketCapWif: number };
+    const dStart = w.defender_start as { citizens: number; marketCapWif: number };
     const aEnd = await sideStats(g, attackerId, at);
     const dEnd = await sideStats(g, defenderId, at);
     const aVol = await volumeBetween(sql, attackerId, Number(w.declared_at), at);
@@ -71,9 +71,9 @@ export async function processTimed(g: GameCtx, t: number): Promise<void> {
     const side = (start: typeof aStart, end: typeof aEnd, vol: number) => ({
       citizensStart: start.citizens,
       citizensEnd: end.citizens,
-      marketCapStartEth: start.marketCapEth,
-      marketCapEndEth: end.marketCapEth,
-      warVolumeEth: vol,
+      marketCapStartWif: start.marketCapWif,
+      marketCapEndWif: end.marketCapWif,
+      warVolumeWif: vol,
       economicPowerEnd: end.stats.economicPower,
       defensivePowerEnd: end.stats.defensivePower,
       allies: end.allies,

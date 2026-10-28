@@ -3,11 +3,11 @@ import {
   EVENT_RULES,
   ProposalKind,
   XP,
-  formatEth,
+  formatWif,
   formatCompact,
   isWhaleBuy,
   shortAddress,
-  weiToEth,
+  unitsToWif,
   type NewsItem,
 } from "@atlaspad/shared";
 import type { Ctx } from "../context";
@@ -55,8 +55,8 @@ export async function postProcess(ctx: Ctx, cache: NationCache, r: ApplyResult, 
         type: "GRADUATED",
         nationId: g.nationId,
         title: `🌐 ${upper(name(g.nationId))} joined the world markets.`,
-        body: `The founding curve sold out. ${formatEth(weiToEth(g.ethLiquidity))} of liquidity is now permanently locked in a Uniswap V2 pool for $${ticker(g.nationId)}.`,
-        data: { ethLiquidity: weiToEth(g.ethLiquidity) },
+        body: `The founding curve sold out. ${formatWif(unitsToWif(g.wifLiquidity))} of liquidity is now permanently locked in a Uniswap V2 pool for $${ticker(g.nationId)}.`,
+        data: { wifLiquidity: unitsToWif(g.wifLiquidity) },
         txHash: g.txHash,
         blockNumber: g.blockNumber,
         createdAt: g.timestamp,
@@ -69,8 +69,8 @@ export async function postProcess(ctx: Ctx, cache: NationCache, r: ApplyResult, 
   // Foreign investment (whales) — evaluated per buy with a per-nation cooldown.
   for (const t of r.trades) {
     if (!t.isBuy) continue;
-    const eth = weiToEth(t.ethAmount);
-    if (!isWhaleBuy(eth, t.marketCapBeforeEth ?? t.marketCapEth)) continue;
+    const eth = unitsToWif(t.wifAmount);
+    if (!isWhaleBuy(eth, t.marketCapBeforeWif ?? t.marketCapWif)) continue;
     const [g] = await sql`SELECT last_fired FROM game_nations WHERE nation_id = ${t.nationId}`;
     const last = ((g?.last_fired as Record<string, number>) ?? {}).FOREIGN_INVESTMENT;
     if (last !== undefined && t.timestamp - last < (EVENT_RULES.cooldowns.FOREIGN_INVESTMENT ?? 3600)) continue;
@@ -78,8 +78,8 @@ export async function postProcess(ctx: Ctx, cache: NationCache, r: ApplyResult, 
       type: "FOREIGN_INVESTMENT",
       nationId: t.nationId,
       title: `🐋 A whale invested heavily in ${upper(name(t.nationId))}.`,
-      body: `${shortAddress(t.trader)} bought ${formatEth(eth)} of $${ticker(t.nationId)}.`,
-      data: { trader: t.trader, ethAmount: eth, venue: t.venue },
+      body: `${shortAddress(t.trader)} bought ${formatWif(eth)} of $${ticker(t.nationId)}.`,
+      data: { trader: t.trader, wifAmount: eth, venue: t.venue },
       txHash: t.txHash,
       blockNumber: t.blockNumber,
       createdAt: t.timestamp,
@@ -143,9 +143,9 @@ export async function postProcess(ctx: Ctx, cache: NationCache, r: ApplyResult, 
       await createEvent(sql, {
         type: "TREASURY_RELEASE",
         nationId: rel.nationId,
-        title: `🏦 ${upper(name(rel.nationId))} spent ${formatEth(weiToEth(rel.amount))} from its treasury.`,
+        title: `🏦 ${upper(name(rel.nationId))} spent ${formatWif(unitsToWif(rel.amount))} from its treasury.`,
         body: `Sent to ${shortAddress(rel.to)} by proposal #${rel.proposalId}.`,
-        data: { proposalId: rel.proposalId, to: rel.to, amountEth: weiToEth(rel.amount) },
+        data: { proposalId: rel.proposalId, to: rel.to, amountWif: unitsToWif(rel.amount) },
         txHash: rel.txHash,
         blockNumber: rel.blockNumber,
         createdAt: rel.timestamp,
@@ -175,16 +175,16 @@ export async function postProcess(ctx: Ctx, cache: NationCache, r: ApplyResult, 
     ctx.bus.publish({
       kind: "trade",
       nationId: t.nationId,
-      priceEth: t.priceEth,
-      marketCapEth: t.marketCapEth,
+      priceWif: t.priceWif,
+      marketCapWif: t.marketCapWif,
       trade: {
         txHash: t.txHash,
         logIndex: t.logIndex,
         trader: t.trader,
         side: t.isBuy ? "buy" : "sell",
-        ethAmount: weiToEth(t.ethAmount),
-        tokenAmount: weiToEth(t.tokenAmount),
-        priceEth: t.priceEth,
+        wifAmount: unitsToWif(t.wifAmount),
+        tokenAmount: unitsToWif(t.tokenAmount),
+        priceWif: t.priceWif,
         venue: t.venue,
         timestamp: t.timestamp,
       },

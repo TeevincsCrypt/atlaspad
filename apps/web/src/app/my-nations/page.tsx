@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useAccount } from "wagmi";
-import { formatCompact, formatEth, formatInt, TIERS } from "@atlaspad/shared";
+import { formatCompact, formatWif, formatInt, TIERS } from "@atlaspad/shared";
 import { useCitizen, useWorld } from "@/lib/api";
 import { useUi } from "@/lib/store";
 import { Flag } from "@/components/emblem/Flag";
@@ -66,7 +66,7 @@ export default function MyNationsPage() {
                         </div>
                       </div>
                       <div className="text-right">
-                        <div className="font-mono text-sm text-fg">{formatEth(n.marketCapEth)}</div>
+                        <div className="font-mono text-sm text-fg">{formatWif(n.marketCapWif)}</div>
                         <ChangePill value={n.change24h} />
                       </div>
                     </Link>

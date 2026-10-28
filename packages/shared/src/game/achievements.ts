@@ -1,3 +1,5 @@
+import { WIF_MARKET_UNIT } from "./constants";
+
 /** Achievements and citizen progression. Earned through participation, never purchasable. */
 
 export interface AchievementDef {
@@ -16,7 +18,7 @@ export const ACHIEVEMENTS: readonly AchievementDef[] = [
   { code: "CITIZENS_1000", scope: "nation", icon: "🏙️", name: "Thriving City", description: "Reached 1,000 citizens.", rarity: "rare" },
   { code: "CITIZENS_10000", scope: "nation", icon: "🌆", name: "Great Nation", description: "Reached 10,000 citizens.", rarity: "epic" },
   { code: "GRADUATED", scope: "nation", icon: "🌐", name: "World Markets", description: "Sold out the founding curve and joined Uniswap.", rarity: "rare" },
-  { code: "MCAP_100_ETH", scope: "nation", icon: "💰", name: "Economic Power", description: "Reached a 100 ETH market cap.", rarity: "epic" },
+  { code: "MCAP_100_UNITS", scope: "nation", icon: "💰", name: "Economic Power", description: `Reached a ${(100 * WIF_MARKET_UNIT).toLocaleString("en-US")} $WIF market cap.`, rarity: "epic" },
   { code: "MCAP_1M_USD", scope: "nation", icon: "💎", name: "Millionaire Economy", description: "Reached a $1M market cap.", rarity: "epic" },
   { code: "FIRST_BUILDING", scope: "nation", icon: "🏗️", name: "First Stone", description: "Completed its first building.", rarity: "common" },
   { code: "FIRST_MONUMENT", scope: "nation", icon: "🗼", name: "Wonder of the World", description: "Built its first monument.", rarity: "rare" },

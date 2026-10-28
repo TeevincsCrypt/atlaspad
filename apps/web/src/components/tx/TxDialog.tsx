@@ -4,7 +4,7 @@ import { useAccount } from "wagmi";
 import { motion } from "motion/react";
 import { AlertTriangle, Check, ChevronDown, Loader2, ShieldAlert, XCircle } from "lucide-react";
 import type { TransactionReceipt } from "viem";
-import { formatEth } from "@atlaspad/shared";
+import { formatWif } from "@atlaspad/shared";
 import { network } from "@/lib/env";
 import { PHASE_LABEL, useAtlasTx, type ContractCall, type TxPhase } from "@/lib/tx";
 import { useUi } from "@/lib/store";
@@ -130,7 +130,7 @@ export function TxDialog(props: TxDialogProps) {
                       <Loader2 className="size-3 animate-spin" /> Simulating…
                     </span>
                   ) : tx.gasWei !== null ? (
-                    formatEth(Number(tx.gasWei) / 1e18)
+                    formatWif(Number(tx.gasWei) / 1e18)
                   ) : previewCall ? (
                     <span className="text-faint">Unavailable</span>
                   ) : (

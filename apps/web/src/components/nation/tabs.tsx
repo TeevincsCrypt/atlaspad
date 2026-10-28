@@ -15,7 +15,7 @@ import {
   formatCompact,
   formatDate,
   formatDuration,
-  formatEth,
+  formatWif,
   formatInt,
   formatSmall,
   shortAddress,
@@ -64,8 +64,8 @@ export function EconomyTab({ nation }: { nation: NationSummary }) {
   return (
     <div className="space-y-4">
       <Panel
-        label="Price · ETH per token"
-        title={nation.priceEth ? `${formatSmall(nation.priceEth)} ETH` : "—"}
+        label="Price · WIF per token"
+        title={nation.priceWif ? `${formatSmall(nation.priceWif)} WIF` : "—"}
         actions={<Tabs tabs={INTERVALS.map((i) => ({ key: i.key, label: i.label }))} value={interval} onChange={setInterval} size="sm" />}
         bodyClassName="p-2 sm:p-3"
       >
@@ -81,11 +81,11 @@ export function EconomyTab({ nation }: { nation: NationSummary }) {
       </Panel>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {[
-          { label: "Market cap (ETH)", data: pts((p) => p.marketCapEth), color: "#d6b26e", fmt: (v: number) => formatEth(v, { symbol: false }) },
+          { label: "Market cap (WIF)", data: pts((p) => p.marketCapWif), color: "#d6b26e", fmt: (v: number) => formatWif(v, { symbol: false }) },
           { label: "Citizens", data: pts((p) => p.citizens), color: "#6ea8ff", fmt: (v: number) => formatInt(v) },
-          { label: "Liquidity (ETH)", data: pts((p) => p.liquidityEth), color: "#35d29a", fmt: (v: number) => formatEth(v, { symbol: false }) },
-          { label: "Hourly volume (ETH)", data: pts((p) => p.volumeEth), color: "#ffb547", fmt: (v: number) => formatEth(v, { symbol: false }) },
-          { label: "Treasury (ETH)", data: pts((p) => p.treasuryEth), color: "#e8c47a", fmt: (v: number) => formatEth(v, { symbol: false }) },
+          { label: "Liquidity (WIF)", data: pts((p) => p.liquidityWif), color: "#35d29a", fmt: (v: number) => formatWif(v, { symbol: false }) },
+          { label: "Hourly volume (WIF)", data: pts((p) => p.volumeWif), color: "#ffb547", fmt: (v: number) => formatWif(v, { symbol: false }) },
+          { label: "Treasury (WIF)", data: pts((p) => p.treasuryWif), color: "#e8c47a", fmt: (v: number) => formatWif(v, { symbol: false }) },
           { label: "Civilization score", data: pts((p) => p.civilizationScore), color: "#9d8cff", fmt: (v: number) => v.toFixed(1) },
         ].map((c) => (
           <Panel key={c.label} label="30 days · hourly" title={c.label} bodyClassName="p-2">
@@ -104,7 +104,7 @@ export function EconomyTab({ nation }: { nation: NationSummary }) {
               <thead className="label">
                 <tr className="border-b border-line">
                   <th className="py-2 pr-3 font-normal">Side</th>
-                  <th className="py-2 pr-3 font-normal">ETH</th>
+                  <th className="py-2 pr-3 font-normal">WIF</th>
                   <th className="py-2 pr-3 font-normal">${nation.ticker}</th>
                   <th className="py-2 pr-3 font-normal">Price</th>
                   <th className="py-2 pr-3 font-normal">Trader</th>
@@ -116,9 +116,9 @@ export function EconomyTab({ nation }: { nation: NationSummary }) {
                 {trades.data.map((t) => (
                   <tr key={`${t.txHash}-${t.logIndex}`} className="border-b border-line/60">
                     <td className={`py-2 pr-3 ${t.side === "buy" ? "text-up" : "text-down"}`}>{t.side.toUpperCase()}</td>
-                    <td className="py-2 pr-3 text-fg">{formatEth(t.ethAmount, { symbol: false })}</td>
+                    <td className="py-2 pr-3 text-fg">{formatWif(t.wifAmount, { symbol: false })}</td>
                     <td className="py-2 pr-3 text-dim">{formatCompact(t.tokenAmount)}</td>
-                    <td className="py-2 pr-3 text-dim">{formatSmall(t.priceEth)}</td>
+                    <td className="py-2 pr-3 text-dim">{formatSmall(t.priceWif)}</td>
                     <td className="py-2 pr-3">
                       <Link href={`/citizen/${t.trader}`} className="text-dim hover:text-gold-bright">
                         {shortAddress(t.trader)}
@@ -461,7 +461,7 @@ export function MilitaryTab({ nation, detail, onPropose }: { nation: NationSumma
         <p className="text-xs leading-relaxed text-dim">
           Each side scores up to 30 points for population growth, 25 for market-cap momentum, 25 for trading activity during the war, and 20 for
           economic power at the end. The defender adds up to 10 for defensive power; allies add 2% each (max 10%). The higher score wins; ties go to
-          the defender. The winner gains influence (10% of the loser&apos;s, minimum 50) and +10% territory for 7 days. No tokens or ETH are at stake
+          the defender. The winner gains influence (10% of the loser&apos;s, minimum 50) and +10% territory for 7 days. No tokens or $WIF are at stake
           and nobody can bet on outcomes.
         </p>
       </Panel>
@@ -617,10 +617,10 @@ export function TreasuryTab({ nation, onPropose }: { nation: NationSummary; onPr
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-4">
         {[
-          ["Balance", t.data ? formatEth(t.data.balanceEth) : "—"],
-          ["Total received", t.data ? formatEth(t.data.receivedEth) : "—"],
-          ["Total spent", t.data ? formatEth(t.data.releasedEth) : "—"],
-          ["Max per proposal (25%)", t.data ? formatEth(t.data.balanceEth * 0.25) : "—"],
+          ["Balance", t.data ? formatWif(t.data.balanceWif) : "—"],
+          ["Total received", t.data ? formatWif(t.data.receivedWif) : "—"],
+          ["Total spent", t.data ? formatWif(t.data.releasedWif) : "—"],
+          ["Max per proposal (25%)", t.data ? formatWif(t.data.balanceWif * 0.25) : "—"],
         ].map(([k, v]) => (
           <div key={k} className="panel-flat px-4 py-3">
             <div className="label mb-1">{k}</div>
@@ -638,11 +638,11 @@ export function TreasuryTab({ nation, onPropose }: { nation: NationSummary; onPr
         }
       >
         <p className="mb-4 text-xs leading-relaxed text-dim">
-          Funded by 0.5% of every bonding-curve trade plus voluntary donations. Funds are real ETH held in the{" "}
+          Funded by 0.5% of every bonding-curve trade plus voluntary donations. Funds are real $WIF held in the{" "}
           {network.contracts ? <ExplorerLink kind="address" value={network.contracts.treasury}>NationTreasury contract</ExplorerLink> : "NationTreasury contract"}{" "}
-          and can only leave through a passed, timelocked proposal of this nation. Nobody — including AtlasPad — can withdraw them otherwise.
+          and can only leave through a passed, timelocked proposal of this nation — at most 25% per 7-day window, however many proposals pass. Nobody, including AtlasPad, can withdraw them otherwise.
         </p>
-        {(series.data?.length ?? 0) > 1 && <AreaChart points={(series.data ?? []).map((p) => ({ time: p.time, value: p.treasuryEth }))} color="#e8c47a" format={(v) => formatEth(v, { symbol: false })} />}
+        {(series.data?.length ?? 0) > 1 && <AreaChart points={(series.data ?? []).map((p) => ({ time: p.time, value: p.treasuryWif }))} color="#e8c47a" format={(v) => formatWif(v, { symbol: false })} />}
         {t.isError ? (
           <DataUnavailable />
         ) : !t.data ? (
@@ -665,7 +665,7 @@ export function TreasuryTab({ nation, onPropose }: { nation: NationSummary; onPr
                 {t.data.txs.map((x, i) => (
                   <tr key={i} className="border-b border-line/60">
                     <td className={`py-2 pr-3 ${x.direction === "in" ? "text-up" : "text-down"}`}>{x.direction === "in" ? "IN" : "OUT"}</td>
-                    <td className="py-2 pr-3 text-fg">{formatEth(x.amountEth)}</td>
+                    <td className="py-2 pr-3 text-fg">{formatWif(x.amountWif)}</td>
                     <td className="py-2 pr-3 text-dim">{x.kind === "trade_fee" ? "Trade fee" : x.kind === "donation" ? "Donation" : `Proposal #${x.proposalId}`}</td>
                     <td className="py-2 pr-3">
                       <ExplorerLink kind="address" value={x.counterparty} />

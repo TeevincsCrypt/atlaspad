@@ -15,6 +15,17 @@ export const THEMES = [
 ] as const;
 export type ThemeKey = (typeof THEMES)[number]["key"];
 
+/**
+ * How much $WIF one "market unit" is worth to the game engine. Every market-driven game rule (economic power,
+ * energy production, war trading activity, world events, milestones) is calibrated in market units, so the game
+ * stays balanced whatever $WIF trades at. Recommended deployment: GRADUATION_WIF = 2 market units, which makes
+ * the curve's opening market cap ≈ 0.6 units and the graduation market cap ≈ 10 units.
+ */
+export const WIF_MARKET_UNIT = 100_000;
+
+/** Converts a $WIF amount (whole tokens, not base units) into game market units. */
+export const toMarketUnits = (wif: number): number => wif / WIF_MARKET_UNIT;
+
 /** Mirrors AtlasGovernor.GameAction. */
 export enum GameAction {
   Build = 0,
@@ -214,4 +225,6 @@ export const GOVERNANCE = {
   treasuryTimelockSeconds: 86400,
   executionWindowSeconds: 7 * 86400,
   maxReleaseBps: 2500,
+  /** Releases are capped at maxReleaseBps of the balance per rolling window (NationTreasury.RELEASE_WINDOW). */
+  releaseWindowSeconds: 7 * 24 * 3600,
 } as const;

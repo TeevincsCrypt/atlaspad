@@ -1,3 +1,5 @@
+import { WIF_MARKET_UNIT } from "./constants";
+
 /**
  * World event rules. Every event is derived from indexed on-chain data; nothing is random.
  */
@@ -38,12 +40,12 @@ export type EventSeverity = "minor" | "notable" | "major";
 /** Snapshot of a nation's market state at an epoch boundary. */
 export interface MarketSnapshot {
   at: number; // unix seconds
-  priceEth: number;
-  marketCapEth: number;
-  liquidityEth: number;
+  priceWif: number;
+  marketCapWif: number;
+  liquidityWif: number;
   citizens: number;
-  volume1hEth: number;
-  volume24hEth: number;
+  volume1hWif: number;
+  volume24hWif: number;
   trades1h: number;
 }
 
@@ -51,10 +53,10 @@ export interface MarketEventContext {
   now: MarketSnapshot;
   hourAgo: MarketSnapshot | null;
   dayAgo: MarketSnapshot | null;
-  /** All-time high market cap before `now` (ETH). */
-  previousAthMarketCapEth: number;
-  /** All-time high liquidity before `now` (ETH). */
-  athLiquidityEth: number;
+  /** All-time high market cap before `now` ($WIF). */
+  previousAthMarketCapWif: number;
+  /** All-time high liquidity before `now` ($WIF). */
+  athLiquidityWif: number;
   graduated: boolean;
   /** Unix seconds each event type last fired for this nation. */
   lastFired: Partial<Record<EventType, number>>;
@@ -76,13 +78,13 @@ export const EVENT_RULES = {
   populationGrowth24h: 0.25,
   populationMinGain: 25,
   festivalVolumeMultiple: 5,
-  festivalMinVolumeEth: 0.25,
+  festivalMinVolumeWif: 0.25 * WIF_MARKET_UNIT,
   bankingCrisisLiquidityDrop: 0.5,
-  bankingCrisisMinLiquidityEth: 0.1,
+  bankingCrisisMinLiquidityWif: 0.1 * WIF_MARKET_UNIT,
   emergencyLiquidityFraction: 0.1,
-  emergencyMinAthLiquidityEth: 0.5,
-  minMarketCapEth: 0.1,
-  whaleMinEth: 0.25,
+  emergencyMinAthLiquidityWif: 0.5 * WIF_MARKET_UNIT,
+  minMarketCapWif: 0.1 * WIF_MARKET_UNIT,
+  whaleMinWif: 0.25 * WIF_MARKET_UNIT,
   whaleMcapFraction: 0.03,
   cooldowns: {
     ECONOMIC_BOOM: 6 * 3600,
@@ -126,22 +128,22 @@ export function detectMarketEvents(ctx: MarketEventContext): DetectedEvent[] {
     const statusSeconds = EVENT_RULES.statusSeconds[type];
     out.push(statusSeconds ? { type, data, statusSeconds } : { type, data });
   };
-  const bigEnough = now.marketCapEth >= EVENT_RULES.minMarketCapEth;
+  const bigEnough = now.marketCapWif >= EVENT_RULES.minMarketCapWif;
 
-  const c1h = pctChange(now.priceEth, hourAgo?.priceEth);
-  const c24h = pctChange(now.priceEth, dayAgo?.priceEth);
+  const c1h = pctChange(now.priceWif, hourAgo?.priceWif);
+  const c24h = pctChange(now.priceWif, dayAgo?.priceWif);
 
   if (bigEnough && c1h !== null && now.trades1h > 0) {
     if (c1h >= EVENT_RULES.boomChange1h) push("ECONOMIC_BOOM", { change1h: c1h });
     if (c1h <= EVENT_RULES.crashChange1h) push("MARKET_CRASH", { change1h: c1h });
   }
 
-  const newAth = now.marketCapEth > ctx.previousAthMarketCapEth * EVENT_RULES.recordHighStep;
-  if (bigEnough && newAth && ctx.previousAthMarketCapEth > 0) {
+  const newAth = now.marketCapWif > ctx.previousAthMarketCapWif * EVENT_RULES.recordHighStep;
+  if (bigEnough && newAth && ctx.previousAthMarketCapWif > 0) {
     if (c24h !== null && c24h >= EVENT_RULES.goldenAgeChange24h) {
-      push("GOLDEN_AGE", { marketCapEth: now.marketCapEth, change24h: c24h });
+      push("GOLDEN_AGE", { marketCapWif: now.marketCapWif, change24h: c24h });
     } else {
-      push("RECORD_HIGH", { marketCapEth: now.marketCapEth });
+      push("RECORD_HIGH", { marketCapWif: now.marketCapWif });
     }
   }
 
@@ -160,42 +162,45 @@ export function detectMarketEvents(ctx: MarketEventContext): DetectedEvent[] {
     }
   }
 
-  const priorHourlyAvg = (now.volume24hEth - now.volume1hEth) / 23;
+  const priorHourlyAvg = (now.volume24hWif - now.volume1hWif) / 23;
   if (
-    now.volume1hEth >= EVENT_RULES.festivalMinVolumeEth &&
-    now.volume1hEth >= EVENT_RULES.festivalVolumeMultiple * Math.max(priorHourlyAvg, 1e-9)
+    now.volume1hWif >= EVENT_RULES.festivalMinVolumeWif &&
+    now.volume1hWif >= EVENT_RULES.festivalVolumeMultiple * Math.max(priorHourlyAvg, 1e-9)
   ) {
-    push("TRADE_FESTIVAL", { volume1hEth: now.volume1hEth });
+    push("TRADE_FESTIVAL", { volume1hWif: now.volume1hWif });
   }
 
   if (
     dayAgo &&
-    dayAgo.liquidityEth >= EVENT_RULES.bankingCrisisMinLiquidityEth &&
-    now.liquidityEth <= dayAgo.liquidityEth * EVENT_RULES.bankingCrisisLiquidityDrop
+    dayAgo.liquidityWif >= EVENT_RULES.bankingCrisisMinLiquidityWif &&
+    now.liquidityWif <= dayAgo.liquidityWif * EVENT_RULES.bankingCrisisLiquidityDrop
   ) {
-    push("BANKING_CRISIS", { liquidityEth: now.liquidityEth, liquidity24hAgoEth: dayAgo.liquidityEth });
+    push("BANKING_CRISIS", { liquidityWif: now.liquidityWif, liquidity24hAgoWif: dayAgo.liquidityWif });
   }
 
   if (
     ctx.graduated &&
-    ctx.athLiquidityEth >= EVENT_RULES.emergencyMinAthLiquidityEth &&
-    now.liquidityEth < ctx.athLiquidityEth * EVENT_RULES.emergencyLiquidityFraction
+    ctx.athLiquidityWif >= EVENT_RULES.emergencyMinAthLiquidityWif &&
+    now.liquidityWif < ctx.athLiquidityWif * EVENT_RULES.emergencyLiquidityFraction
   ) {
-    push("NATIONAL_EMERGENCY", { liquidityEth: now.liquidityEth, athLiquidityEth: ctx.athLiquidityEth });
+    push("NATIONAL_EMERGENCY", { liquidityWif: now.liquidityWif, athLiquidityWif: ctx.athLiquidityWif });
   }
 
   return out;
 }
 
 /** A buy large enough to count as foreign investment ("whale"). Evaluated per trade. */
-export function isWhaleBuy(ethAmount: number, marketCapBeforeEth: number): boolean {
+export function isWhaleBuy(wifAmount: number, marketCapBeforeWif: number): boolean {
   return (
-    ethAmount >= EVENT_RULES.whaleMinEth && ethAmount >= marketCapBeforeEth * EVENT_RULES.whaleMcapFraction
+    wifAmount >= EVENT_RULES.whaleMinWif && wifAmount >= marketCapBeforeWif * EVENT_RULES.whaleMcapFraction
   );
 }
 
 export const CITIZEN_MILESTONES = [10, 100, 1_000, 10_000, 100_000] as const;
-export const MCAP_MILESTONES_ETH = [1, 10, 100, 1_000, 10_000] as const;
+/** Market-cap milestones in $WIF: 1, 10, 100, 1,000 and 10,000 market units. */
+export const MCAP_MILESTONES_WIF = [1, 10, 100, 1_000, 10_000].map((u) => u * WIF_MARKET_UNIT);
+/** The milestone that unlocks the "Economic Power" achievement (100 market units). */
+export const ECONOMIC_POWER_MCAP_WIF = 100 * WIF_MARKET_UNIT;
 
 /** Milestones crossed between two values (exclusive of `before`, inclusive of `after`). */
 export function crossedMilestones(before: number, after: number, milestones: readonly number[]): number[] {

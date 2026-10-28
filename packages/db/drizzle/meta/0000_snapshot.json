@@ -743,26 +743,26 @@
           "primaryKey": true,
           "notNull": true
         },
-        "price_eth": {
-          "name": "price_eth",
+        "price_wif": {
+          "name": "price_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "market_cap_eth": {
-          "name": "market_cap_eth",
+        "market_cap_wif": {
+          "name": "market_cap_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "liquidity_eth": {
-          "name": "liquidity_eth",
+        "liquidity_wif": {
+          "name": "liquidity_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "volume_24h_eth": {
-          "name": "volume_24h_eth",
+        "volume_24h_wif": {
+          "name": "volume_24h_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true,
@@ -787,20 +787,20 @@
           "primaryKey": false,
           "notNull": false
         },
-        "ath_market_cap_eth": {
-          "name": "ath_market_cap_eth",
+        "ath_market_cap_wif": {
+          "name": "ath_market_cap_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "ath_liquidity_eth": {
-          "name": "ath_liquidity_eth",
+        "ath_liquidity_wif": {
+          "name": "ath_liquidity_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "treasury_eth": {
-          "name": "treasury_eth",
+        "treasury_wif": {
+          "name": "treasury_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true,
@@ -1108,32 +1108,32 @@
           "primaryKey": false,
           "notNull": true
         },
-        "price_eth": {
-          "name": "price_eth",
+        "price_wif": {
+          "name": "price_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "market_cap_eth": {
-          "name": "market_cap_eth",
+        "market_cap_wif": {
+          "name": "market_cap_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "liquidity_eth": {
-          "name": "liquidity_eth",
+        "liquidity_wif": {
+          "name": "liquidity_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "volume_1h_eth": {
-          "name": "volume_1h_eth",
+        "volume_1h_wif": {
+          "name": "volume_1h_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true
         },
-        "volume_24h_eth": {
-          "name": "volume_24h_eth",
+        "volume_24h_wif": {
+          "name": "volume_24h_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true
@@ -1150,8 +1150,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "treasury_eth": {
-          "name": "treasury_eth",
+        "treasury_wif": {
+          "name": "treasury_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true
@@ -1168,8 +1168,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "eth_usd": {
-          "name": "eth_usd",
+        "wif_usd": {
+          "name": "wif_usd",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
@@ -1546,14 +1546,14 @@
           "notNull": true,
           "default": 0
         },
-        "eth_usd": {
-          "name": "eth_usd",
+        "wif_usd": {
+          "name": "wif_usd",
           "type": "double precision",
           "primaryKey": false,
           "notNull": false
         },
-        "eth_usd_updated_at": {
-          "name": "eth_usd_updated_at",
+        "wif_usd_updated_at": {
+          "name": "wif_usd_updated_at",
           "type": "bigint",
           "primaryKey": false,
           "notNull": false
@@ -1664,8 +1664,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "initial_virtual_eth": {
-          "name": "initial_virtual_eth",
+        "initial_virtual_wif": {
+          "name": "initial_virtual_wif",
           "type": "numeric(78, 0)",
           "primaryKey": false,
           "notNull": true
@@ -1676,8 +1676,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "virtual_eth": {
-          "name": "virtual_eth",
+        "virtual_wif": {
+          "name": "virtual_wif",
           "type": "numeric(78, 0)",
           "primaryKey": false,
           "notNull": true
@@ -1688,8 +1688,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "real_eth": {
-          "name": "real_eth",
+        "real_wif": {
+          "name": "real_wif",
           "type": "numeric(78, 0)",
           "primaryKey": false,
           "notNull": true
@@ -1719,8 +1719,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "graduation_eth": {
-          "name": "graduation_eth",
+        "graduation_wif": {
+          "name": "graduation_wif",
           "type": "numeric(78, 0)",
           "primaryKey": false,
           "notNull": false
@@ -1737,11 +1737,18 @@
           "primaryKey": false,
           "notNull": false
         },
-        "pool_weth_reserve": {
-          "name": "pool_weth_reserve",
+        "pool_wif_reserve": {
+          "name": "pool_wif_reserve",
           "type": "numeric(78, 0)",
           "primaryKey": false,
           "notNull": false
+        },
+        "wif_burned": {
+          "name": "wif_burned",
+          "type": "numeric(78, 0)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'0'"
         },
         "created_at": {
           "name": "created_at",
@@ -2004,8 +2011,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "eth_amount": {
-          "name": "eth_amount",
+        "wif_amount": {
+          "name": "wif_amount",
           "type": "numeric(78, 0)",
           "primaryKey": false,
           "notNull": true
@@ -2022,20 +2029,20 @@
           "primaryKey": false,
           "notNull": true
         },
-        "price_eth": {
-          "name": "price_eth",
+        "price_wif": {
+          "name": "price_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true
         },
-        "market_cap_eth": {
-          "name": "market_cap_eth",
+        "market_cap_wif": {
+          "name": "market_cap_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true
         },
-        "liquidity_eth": {
-          "name": "liquidity_eth",
+        "liquidity_wif": {
+          "name": "liquidity_wif",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true

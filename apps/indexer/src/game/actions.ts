@@ -130,10 +130,10 @@ export async function applyAction(g: GameCtx, a: ActionEvent): Promise<void> {
       const startOf = async (id: number) => {
         const nation = g.cache.byId.get(id)!;
         const trade = await lastTradeAsOf(sql, id, t);
-        const opening = (Number(nation.initialVirtualEth) / Number(nation.initialVirtualTokens)) * (Number(nation.totalSupply) / 1e18);
+        const opening = (Number(nation.initialVirtualWif) / Number(nation.initialVirtualTokens)) * (Number(nation.totalSupply) / 1e18);
         return {
           citizens: await citizenCountAsOf(sql, id, t, citizenThreshold(nation), excludedFor(g.ctx, nation)),
-          marketCapEth: trade?.marketCapEth ?? opening,
+          marketCapWif: trade?.marketCapWif ?? opening,
         };
       };
       await sql`
@@ -303,18 +303,18 @@ export async function sideStats(g: GameCtx, nationId: number, t: number) {
   const sql = g.ctx.sql;
   const n = g.cache.byId.get(nationId)!;
   const trade = await lastTradeAsOf(sql, nationId, t);
-  const opening = (Number(n.initialVirtualEth) / Number(n.initialVirtualTokens)) * (Number(n.totalSupply) / 1e18);
-  const [snap] = await sql`SELECT volume_24h_eth FROM game_snapshots WHERE nation_id = ${nationId} AND epoch <= ${t} ORDER BY epoch DESC LIMIT 1`;
+  const opening = (Number(n.initialVirtualWif) / Number(n.initialVirtualTokens)) * (Number(n.totalSupply) / 1e18);
+  const [snap] = await sql`SELECT volume_24h_wif FROM game_snapshots WHERE nation_id = ${nationId} AND epoch <= ${t} ORDER BY epoch DESC LIMIT 1`;
   const citizens = await citizenCountAsOf(sql, nationId, t, citizenThreshold(n), excludedFor(g.ctx, n));
   const state = (await loadGameStates(sql, [nationId], t)).get(nationId)!;
   const stats = computeStats(
     {
-      marketCapEth: trade?.marketCapEth ?? opening,
-      liquidityEth: trade?.liquidityEth ?? 0,
-      volume24hEth: Number(snap?.volume_24h_eth ?? 0),
+      marketCapWif: trade?.marketCapWif ?? opening,
+      liquidityWif: trade?.liquidityWif ?? 0,
+      volume24hWif: Number(snap?.volume_24h_wif ?? 0),
       citizens,
     },
     state,
   );
-  return { citizens, marketCapEth: trade?.marketCapEth ?? opening, stats, allies: state.allies, influence: state.resources.influence };
+  return { citizens, marketCapWif: trade?.marketCapWif ?? opening, stats, allies: state.allies, influence: state.resources.influence };
 }

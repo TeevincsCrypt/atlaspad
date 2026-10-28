@@ -21,12 +21,12 @@ export interface TradeRecord {
   logIndex: number;
   trader: string;
   isBuy: boolean;
-  ethAmount: bigint;
+  wifAmount: bigint;
   tokenAmount: bigint;
-  priceEth: number;
-  marketCapEth: number;
-  marketCapBeforeEth: number | null;
-  liquidityEth: number;
+  priceWif: number;
+  marketCapWif: number;
+  marketCapBeforeWif: number | null;
+  liquidityWif: number;
   venue: "curve" | "uniswap";
   blockNumber: number;
   timestamp: number;
@@ -36,7 +36,8 @@ export interface ApplyResult {
   affectedNations: Set<number>;
   trades: TradeRecord[];
   founded: { nationId: number; txHash: string; timestamp: number; blockNumber: number }[];
-  graduated: { nationId: number; txHash: string; timestamp: number; blockNumber: number; ethLiquidity: bigint }[];
+  graduated: { nationId: number; txHash: string; timestamp: number; blockNumber: number; wifLiquidity: bigint }[];
+  burns: { nationId: number; amount: bigint; creationFee: boolean; timestamp: number }[];
   proposalsCreated: { id: number; nationId: number; proposer: string; kind: number; timestamp: number; txHash: string; blockNumber: number }[];
   proposalsExecuted: { id: number; nationId: number; kind: number; timestamp: number; txHash: string; blockNumber: number }[];
   proposalsTouched: Set<number>;
@@ -75,6 +76,7 @@ export async function applyBatch(
     trades: [],
     founded: [],
     graduated: [],
+    burns: [],
     proposalsCreated: [],
     proposalsExecuted: [],
     proposalsTouched: new Set(),
@@ -84,7 +86,7 @@ export async function applyBatch(
     newCitizens: [],
     gameActions: 0,
   };
-  const weth = ctx.env.network.dex.weth.toLowerCase();
+  const wif = ctx.env.network.dex.wif.toLowerCase();
   const working = new Map<number, NationRow>();
   const nation = (id: number): NationRow | undefined => {
     if (working.has(id)) return working.get(id);
@@ -153,7 +155,7 @@ export async function applyBatch(
   // constructor) before the launchpad's NationFounded/CurveInitialized logs, so these must be known first.
   for (const e of batch.events) {
     if (e.source !== "launchpad" || (e.eventName !== "NationFounded" && e.eventName !== "CurveInitialized")) continue;
-    applyFounding(e, working, tokenToId, pairToId, weth, result);
+    applyFounding(e, working, tokenToId, pairToId, wif, result);
   }
 
   for (const e of batch.events) {
@@ -169,9 +171,9 @@ export async function applyBatch(
           const n = nation(id);
           if (!n) break;
           const mcapBefore = nationMarketCap(n);
-          n.virtualEth = a.virtualEth as bigint;
+          n.virtualWif = a.virtualWif as bigint;
           n.virtualTokens = a.virtualTokens as bigint;
-          n.realEth = a.realEth as bigint;
+          n.realWif = a.realWif as bigint;
           n.curveTokensRemaining = a.curveTokensRemaining as bigint;
           const price = nationPrice(n) ?? 0;
           const rec: TradeRecord = {
@@ -180,12 +182,12 @@ export async function applyBatch(
             logIndex: m.logIndex,
             trader: (a.trader as string).toLowerCase(),
             isBuy: Boolean(a.isBuy),
-            ethAmount: a.ethAmount as bigint,
+            wifAmount: a.wifAmount as bigint,
             tokenAmount: a.tokenAmount as bigint,
-            priceEth: price,
-            marketCapEth: nationMarketCap(n) ?? 0,
-            marketCapBeforeEth: mcapBefore,
-            liquidityEth: nationLiquidity(n),
+            priceWif: price,
+            marketCapWif: nationMarketCap(n) ?? 0,
+            marketCapBeforeWif: mcapBefore,
+            liquidityWif: nationLiquidity(n),
             venue: "curve",
             blockNumber: m.blockNumber,
             timestamp: m.timestamp,
@@ -194,16 +196,23 @@ export async function applyBatch(
           tradeRows.push(tradeRow(rec, a.fee as bigint));
           break;
         }
+        case "WifBurned": {
+          const n = nation(id);
+          if (!n) break;
+          n.wifBurned += a.amount as bigint;
+          result.burns.push({ nationId: id, amount: a.amount as bigint, creationFee: Boolean(a.creationFee), timestamp: m.timestamp });
+          break;
+        }
         case "NationGraduated": {
           const n = nation(id);
           if (!n) break;
           n.graduated = true;
           n.graduatedAt = m.timestamp;
           n.graduationTx = m.txHash;
-          n.graduationEth = a.ethLiquidity as bigint;
-          n.realEth = 0n;
+          n.graduationWif = a.wifLiquidity as bigint;
+          n.realWif = 0n;
           n.curveTokensRemaining = 0n;
-          n.poolWethReserve = a.ethLiquidity as bigint;
+          n.poolWifReserve = a.wifLiquidity as bigint;
           n.poolTokenReserve = a.tokenLiquidity as bigint;
           n.lpReserve = 0n;
           result.graduated.push({
@@ -211,7 +220,7 @@ export async function applyBatch(
             txHash: m.txHash,
             timestamp: m.timestamp,
             blockNumber: m.blockNumber,
-            ethLiquidity: a.ethLiquidity as bigint,
+            wifLiquidity: a.wifLiquidity as bigint,
           });
           break;
         }
@@ -395,13 +404,13 @@ export async function applyBatch(
         const r0 = a.reserve0 as bigint;
         const r1 = a.reserve1 as bigint;
         n.poolTokenReserve = n.tokenIsToken0 ? r0 : r1;
-        n.poolWethReserve = n.tokenIsToken0 ? r1 : r0;
+        n.poolWifReserve = n.tokenIsToken0 ? r1 : r0;
       } else {
         const t0 = Boolean(n.tokenIsToken0);
         const tokenIn = (t0 ? a.amount0In : a.amount1In) as bigint;
         const tokenOut = (t0 ? a.amount0Out : a.amount1Out) as bigint;
-        const wethIn = (t0 ? a.amount1In : a.amount0In) as bigint;
-        const wethOut = (t0 ? a.amount1Out : a.amount0Out) as bigint;
+        const wifIn = (t0 ? a.amount1In : a.amount0In) as bigint;
+        const wifOut = (t0 ? a.amount1Out : a.amount0Out) as bigint;
         const isBuy = tokenOut > 0n;
         const price = nationPrice(n) ?? 0;
         const rec: TradeRecord = {
@@ -410,20 +419,20 @@ export async function applyBatch(
           logIndex: m.logIndex,
           trader: (e.meta as { txFrom: Address }).txFrom.toLowerCase(),
           isBuy,
-          ethAmount: isBuy ? wethIn : wethOut,
+          wifAmount: isBuy ? wifIn : wifOut,
           tokenAmount: isBuy ? tokenOut : tokenIn,
-          priceEth: price,
-          marketCapEth: nationMarketCap(n) ?? 0,
-          marketCapBeforeEth: null,
-          liquidityEth: nationLiquidity(n),
+          priceWif: price,
+          marketCapWif: nationMarketCap(n) ?? 0,
+          marketCapBeforeWif: null,
+          liquidityWif: nationLiquidity(n),
           venue: "uniswap",
           blockNumber: m.blockNumber,
           timestamp: m.timestamp,
         };
         // market cap before = price implied by reserves before this swap
         const tokBefore = (n.poolTokenReserve ?? 0n) + (isBuy ? tokenOut : -tokenIn);
-        const wethBefore = (n.poolWethReserve ?? 0n) - (isBuy ? wethIn : -wethOut);
-        if (tokBefore > 0n) rec.marketCapBeforeEth = ((Number(wethBefore) / Number(tokBefore)) * Number(n.totalSupply)) / 1e18;
+        const wifBefore = (n.poolWifReserve ?? 0n) - (isBuy ? wifIn : -wifOut);
+        if (tokBefore > 0n) rec.marketCapBeforeWif = ((Number(wifBefore) / Number(tokBefore)) * Number(n.totalSupply)) / 1e18;
         result.trades.push(rec);
         tradeRows.push(tradeRow(rec, 0n));
       }
@@ -485,7 +494,7 @@ function applyFounding(
   working: Map<number, NationRow>,
   tokenToId: Map<string, number>,
   pairToId: Map<string, number>,
-  weth: string,
+  wif: string,
   result: ApplyResult,
 ) {
   const a = e.args as Record<string, unknown>;
@@ -508,19 +517,20 @@ function applyFounding(
       curveSupply: 0n,
       lpReserve: 0n,
       founderAllocation: 0n,
-      initialVirtualEth: 0n,
+      initialVirtualWif: 0n,
       initialVirtualTokens: 1n,
-      virtualEth: 0n,
+      virtualWif: 0n,
       virtualTokens: 1n,
-      realEth: 0n,
+      realWif: 0n,
       curveTokensRemaining: 0n,
       graduated: false,
       graduatedAt: null,
       graduationTx: null,
-      graduationEth: null,
-      tokenIsToken0: token < weth,
+      graduationWif: null,
+      tokenIsToken0: token < wif,
       poolTokenReserve: null,
-      poolWethReserve: null,
+      poolWifReserve: null,
+      wifBurned: 0n,
       createdAt: m.timestamp,
       createdBlock: m.blockNumber,
       createdTx: m.txHash,
@@ -535,9 +545,9 @@ function applyFounding(
     n.curveSupply = a.curveSupply as bigint;
     n.lpReserve = a.lpReserve as bigint;
     n.founderAllocation = a.founderAllocation as bigint;
-    n.initialVirtualEth = a.virtualEth as bigint;
+    n.initialVirtualWif = a.virtualWif as bigint;
     n.initialVirtualTokens = a.virtualTokens as bigint;
-    n.virtualEth = a.virtualEth as bigint;
+    n.virtualWif = a.virtualWif as bigint;
     n.virtualTokens = a.virtualTokens as bigint;
     n.curveTokensRemaining = a.curveSupply as bigint;
     pairToId.set(n.pair, id);
@@ -552,12 +562,12 @@ function tradeRow(r: TradeRecord, fee: bigint): Record<string, unknown> {
     nation_id: r.nationId,
     trader: r.trader,
     is_buy: r.isBuy,
-    eth_amount: r.ethAmount.toString(),
+    wif_amount: r.wifAmount.toString(),
     token_amount: r.tokenAmount.toString(),
     fee: fee.toString(),
-    price_eth: r.priceEth,
-    market_cap_eth: r.marketCapEth,
-    liquidity_eth: r.liquidityEth,
+    price_wif: r.priceWif,
+    market_cap_wif: r.marketCapWif,
+    liquidity_wif: r.liquidityWif,
     venue: r.venue,
     block_number: r.blockNumber,
     timestamp: r.timestamp,

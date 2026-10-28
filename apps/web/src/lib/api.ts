@@ -97,13 +97,13 @@ export interface NationDetail {
   curve: {
     curveSupply: string;
     curveTokensRemaining: string;
-    realEth: number;
-    virtualEth: string;
+    realWif: number;
+    virtualWif: string;
     virtualTokens: string;
     lpReserve: string;
-    graduationEth: number | null;
+    graduationWif: number | null;
   };
-  ethUsd: number | null;
+  wifUsd: number | null;
 }
 
 export function useNation(id: number) {
@@ -122,12 +122,12 @@ export function useCandles(id: number, interval: number) {
 
 export interface SeriesPoint {
   time: number;
-  priceEth: number | null;
-  marketCapEth: number | null;
-  liquidityEth: number | null;
-  volumeEth: number;
+  priceWif: number | null;
+  marketCapWif: number | null;
+  liquidityWif: number | null;
+  volumeWif: number;
   citizens: number;
-  treasuryEth: number;
+  treasuryWif: number;
   civilizationScore: number;
   economicPower: number;
 }
@@ -168,7 +168,7 @@ export function useProposal(id: number) {
 export function useTreasury(id: number) {
   return useQuery({
     queryKey: queryKeys.treasury(id),
-    queryFn: () => api<{ balanceEth: number; receivedEth: number; releasedEth: number; txs: TreasuryTxDTO[] }>(`/api/nations/${id}/treasury`),
+    queryFn: () => api<{ balanceWif: number; receivedWif: number; releasedWif: number; txs: TreasuryTxDTO[] }>(`/api/nations/${id}/treasury`),
     staleTime: 10_000,
   });
 }
@@ -182,8 +182,8 @@ export interface WarDetailResponse {
     endsAt: number;
     status: string;
     winnerId: number | null;
-    attackerStart: { citizens: number; marketCapEth: number };
-    defenderStart: { citizens: number; marketCapEth: number };
+    attackerStart: { citizens: number; marketCapWif: number };
+    defenderStart: { citizens: number; marketCapWif: number };
     attackerScore: Record<string, number> | null;
     defenderScore: Record<string, number> | null;
     spoils: number | null;

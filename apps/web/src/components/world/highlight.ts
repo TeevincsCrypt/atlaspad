@@ -17,13 +17,13 @@ export function computeHighlight(nations: NationSummary[], wars: WarSummary[], f
   const now = Date.now() / 1000;
   switch (filter) {
     case "marketCap":
-      rankBy((n) => n.marketCapEth);
+      rankBy((n) => n.marketCapWif);
       break;
     case "population":
       rankBy((n) => n.citizens);
       break;
     case "activity":
-      rankBy((n) => n.volume24hEth);
+      rankBy((n) => n.volume24hWif);
       break;
     case "age":
       rankBy((n) => now - n.createdAt);
