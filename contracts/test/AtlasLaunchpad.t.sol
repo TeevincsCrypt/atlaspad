@@ -6,15 +6,17 @@ import {AtlasLaunchpad} from "../src/AtlasLaunchpad.sol";
 import {NationToken} from "../src/NationToken.sol";
 import {NationTokenFactory} from "../src/NationTokenFactory.sol";
 import {UniswapV2Pair} from "./mocks/UniswapV2.sol";
+import {MockWIF, FeeOnTransferToken} from "./mocks/MockWIF.sol";
+import {NationTreasury} from "../src/NationTreasury.sol";
 
 contract AtlasLaunchpadDeploymentTest is BaseTest {
     function test_ImmutableConfiguration() public view {
         assertEq(launchpad.uniswapV2Factory(), address(v2Factory));
-        assertEq(launchpad.weth(), address(weth));
+        assertEq(address(launchpad.wif()), address(wif));
         assertEq(address(launchpad.treasury()), address(treasury));
         assertEq(launchpad.governor(), address(governor));
         assertEq(launchpad.protocolFeeRecipient(), feeRecipient);
-        assertEq(launchpad.graduationEth(), GRADUATION_ETH);
+        assertEq(launchpad.graduationWif(), GRADUATION_WIF);
         assertEq(launchpad.creationFee(), CREATION_FEE);
         assertEq(launchpad.tokenFactory().launchpad(), address(launchpad));
         assertEq(address(treasury.launchpad()), address(launchpad));
@@ -25,33 +27,35 @@ contract AtlasLaunchpadDeploymentTest is BaseTest {
 
     function test_RevertWhen_ZeroAddressConfig() public {
         vm.expectRevert(AtlasLaunchpad.InvalidConfig.selector);
-        new AtlasLaunchpad(address(0), address(weth), address(treasury), address(governor), feeRecipient, 1 ether, 0);
+        new AtlasLaunchpad(address(0), address(wif), address(treasury), address(governor), feeRecipient, 1 ether, 0);
         vm.expectRevert(AtlasLaunchpad.InvalidConfig.selector);
-        new AtlasLaunchpad(address(v2Factory), address(weth), address(treasury), address(governor), address(0), 1 ether, 0);
+        new AtlasLaunchpad(address(v2Factory), address(wif), address(treasury), address(governor), address(0), 1 ether, 0);
     }
 
     function test_RevertWhen_GraduationOutOfBounds() public {
         vm.expectRevert(AtlasLaunchpad.InvalidConfig.selector);
-        new AtlasLaunchpad(
-            address(v2Factory), address(weth), address(treasury), address(governor), feeRecipient, 0.001 ether, 0
-        );
+        new AtlasLaunchpad(address(v2Factory), address(wif), address(treasury), address(governor), feeRecipient, 1e6 - 1, 0);
         vm.expectRevert(AtlasLaunchpad.InvalidConfig.selector);
         new AtlasLaunchpad(
-            address(v2Factory), address(weth), address(treasury), address(governor), feeRecipient, 10_001 ether, 0
+            address(v2Factory), address(wif), address(treasury), address(governor), feeRecipient, 1e36 + 1, 0
         );
     }
 
-    function test_RevertWhen_CreationFeeTooHigh() public {
+    function test_RevertWhen_CreationFeeAboveGraduation() public {
         vm.expectRevert(AtlasLaunchpad.InvalidConfig.selector);
         new AtlasLaunchpad(
-            address(v2Factory), address(weth), address(treasury), address(governor), feeRecipient, 1 ether, 1.1 ether
+            address(v2Factory), address(wif), address(treasury), address(governor), feeRecipient, 1 ether, 1.1 ether
         );
+    }
+
+    function test_ApprovesTreasuryToPullFees() public view {
+        assertEq(wif.allowance(address(launchpad), address(treasury)), type(uint256).max);
     }
 
     function test_TokenFactoryOnlyLaunchpad() public {
         NationTokenFactory f = launchpad.tokenFactory();
         vm.expectRevert(NationTokenFactory.OnlyLaunchpad.selector);
-        f.deploy("X Land", "XL", 99, SUPPLY, address(v2Factory), address(weth));
+        f.deploy("X Land", "XL", 99, SUPPLY, address(v2Factory), address(wif));
     }
 }
 
@@ -74,16 +78,34 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         AtlasLaunchpad.Nation memory n = launchpad.getNation(1);
         assertEq(n.founder, founder);
         assertEq(n.pair, token.pair());
-        assertEq(n.pair, v2Factory.getPair(address(token), address(weth)));
+        assertEq(n.pair, v2Factory.getPair(address(token), address(wif)));
         assertEq(n.theme, 5);
         assertEq(n.emblem, 0x1234);
         assertEq(n.lpReserve, SUPPLY / 5);
         assertEq(n.founderAllocation, 0);
         assertEq(n.curveSupply, SUPPLY - SUPPLY / 5);
         assertEq(n.curveTokensRemaining, n.curveSupply);
-        assertEq(n.realEth, 0);
+        assertEq(n.realWif, 0);
         assertFalse(n.graduated);
-        assertEq(launchpad.protocolFeesAccrued(), CREATION_FEE);
+        // The creation fee is burned, not kept.
+        assertEq(launchpad.protocolFeesAccrued(), 0);
+        assertEq(wif.balanceOf(launchpad.DEAD()), CREATION_FEE);
+        assertEq(launchpad.totalWifBurned(), CREATION_FEE);
+        assertEq(launchpad.wifBurnedOf(1), CREATION_FEE);
+        assertEq(wif.balanceOf(founder), 1_000 ether - CREATION_FEE);
+    }
+
+    function test_FoundingEmitsCreationBurn() public {
+        vm.expectEmit(true, false, false, true);
+        emit AtlasLaunchpad.WifBurned(1, CREATION_FEE, true);
+        _found("Pepeland", "PEPE");
+    }
+
+    function test_RevertWhen_FounderHasNoWif() public {
+        address broke = makeAddr("broke");
+        vm.prank(broke);
+        vm.expectRevert();
+        launchpad.foundNation(_params("Pepeland", "PEPE"));
     }
 
     function test_CurveShapeMatchesDerivation() public {
@@ -92,10 +114,10 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         uint256 c = n.curveSupply;
         uint256 l = n.lpReserve;
         assertEq(n.virtualTokens, (c * c) / (c - l));
-        assertEq(n.virtualEth, (GRADUATION_ETH * l) / (c - l));
-        // Opening market cap = 0.3125 * graduationEth for a 0% founder allocation.
-        uint256 openingMcap = (n.virtualEth * SUPPLY) / n.virtualTokens;
-        assertApproxEqRel(openingMcap, (GRADUATION_ETH * 3125) / 10_000, 1e12);
+        assertEq(n.virtualWif, (GRADUATION_WIF * l) / (c - l));
+        // Opening market cap = 0.3125 * graduationWif for a 0% founder allocation.
+        uint256 openingMcap = (n.virtualWif * SUPPLY) / n.virtualTokens;
+        assertApproxEqRel(openingMcap, (GRADUATION_WIF * 3125) / 10_000, 1e12);
     }
 
     function test_FounderAllocationReducesCurveSupply() public {
@@ -111,38 +133,41 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         AtlasLaunchpad.FoundingParams memory p = _params("Wifia", "WIF");
         (uint256 id, NationToken token) = _foundWith(p, 0.05 ether);
         assertGt(token.balanceOf(founder), 0);
-        assertEq(launchpad.getNation(id).realEth, 0.05 ether - (0.05 ether * 100) / 10_000);
+        assertEq(launchpad.getNation(id).realWif, 0.05 ether - (0.05 ether * 100) / 10_000);
         // founder auto-delegated and can vote
         assertEq(token.delegates(founder), founder);
     }
 
     function test_RevertWhen_InitialBuyTooLarge() public {
         AtlasLaunchpad.FoundingParams memory p = _params("Wifia", "WIF");
-        vm.deal(founder, 100 ether);
+        p.initialBuyWif = 1 ether;
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.InitialBuyTooLarge.selector);
-        launchpad.foundNation{value: CREATION_FEE + 1 ether}(p);
+        launchpad.foundNation(p);
     }
 
     function test_RevertWhen_InitialBuySlippage() public {
         AtlasLaunchpad.FoundingParams memory p = _params("Wifia", "WIF");
         p.minTokensOut = type(uint256).max;
+        p.initialBuyWif = 0.01 ether;
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.Slippage.selector);
-        launchpad.foundNation{value: CREATION_FEE + 0.01 ether}(p);
+        launchpad.foundNation(p);
     }
 
-    function test_RevertWhen_CreationFeeMissing() public {
+    function test_RevertWhen_CreationFeeNotApproved() public {
         vm.prank(founder);
-        vm.expectRevert(AtlasLaunchpad.InsufficientCreationFee.selector);
-        launchpad.foundNation{value: CREATION_FEE - 1}(_params("Pepeland", "PEPE"));
+        wif.approve(address(launchpad), CREATION_FEE - 1);
+        vm.prank(founder);
+        vm.expectRevert();
+        launchpad.foundNation(_params("Pepeland", "PEPE"));
     }
 
     function test_RevertWhen_NameTakenCaseInsensitive() public {
         _found("Pepeland", "PEPE");
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.NameTaken.selector);
-        launchpad.foundNation{value: CREATION_FEE}(_params("PEPELAND", "PEPE2"));
+        launchpad.foundNation(_params("PEPELAND", "PEPE2"));
         assertFalse(launchpad.isNameAvailable("pepeland"));
         assertTrue(launchpad.isNameAvailable("Dogeland"));
     }
@@ -151,7 +176,7 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         _found("Pepeland", "PEPE");
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.SymbolTaken.selector);
-        launchpad.foundNation{value: CREATION_FEE}(_params("Frogland", "PEPE"));
+        launchpad.foundNation(_params("Frogland", "PEPE"));
         assertFalse(launchpad.isSymbolAvailable("PEPE"));
     }
 
@@ -161,7 +186,7 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         for (uint256 i; i < bad.length; i++) {
             vm.prank(founder);
             vm.expectRevert(AtlasLaunchpad.InvalidName.selector);
-            launchpad.foundNation{value: CREATION_FEE}(_params(bad[i], "OK"));
+            launchpad.foundNation(_params(bad[i], "OK"));
         }
     }
 
@@ -175,7 +200,7 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         for (uint256 i; i < bad.length; i++) {
             vm.prank(founder);
             vm.expectRevert(AtlasLaunchpad.InvalidSymbol.selector);
-            launchpad.foundNation{value: CREATION_FEE}(_params("Valid Name", bad[i]));
+            launchpad.foundNation(_params("Valid Name", bad[i]));
         }
     }
 
@@ -184,7 +209,7 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         p.theme = 8;
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.InvalidTheme.selector);
-        launchpad.foundNation{value: CREATION_FEE}(p);
+        launchpad.foundNation(p);
     }
 
     function test_RevertWhen_InvalidSupply() public {
@@ -194,7 +219,7 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
             p.totalSupply = bad[i];
             vm.prank(founder);
             vm.expectRevert(AtlasLaunchpad.InvalidSupply.selector);
-            launchpad.foundNation{value: CREATION_FEE}(p);
+            launchpad.foundNation(p);
         }
     }
 
@@ -215,7 +240,7 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         p.founderBps = 501;
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.InvalidFounderBps.selector);
-        launchpad.foundNation{value: CREATION_FEE}(p);
+        launchpad.foundNation(p);
     }
 
     function test_RevertWhen_TextTooLong() public {
@@ -223,12 +248,12 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         p.description = string(new bytes(281));
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.TextTooLong.selector);
-        launchpad.foundNation{value: CREATION_FEE}(p);
+        launchpad.foundNation(p);
         p.description = "";
         p.metadataURI = string(new bytes(201));
         vm.prank(founder);
         vm.expectRevert(AtlasLaunchpad.TextTooLong.selector);
-        launchpad.foundNation{value: CREATION_FEE}(p);
+        launchpad.foundNation(p);
     }
 
     function test_FoundingSurvivesPreCreatedPair() public {
@@ -236,10 +261,10 @@ contract AtlasLaunchpadFoundingTest is BaseTest {
         AtlasLaunchpad.FoundingParams memory p = _params("Pepeland", "PEPE");
         bytes memory init = abi.encodePacked(
             type(NationToken).creationCode,
-            abi.encode(p.name, p.symbol, uint256(1), p.totalSupply, address(launchpad), address(v2Factory), address(weth))
+            abi.encode(p.name, p.symbol, uint256(1), p.totalSupply, address(launchpad), address(v2Factory), address(wif))
         );
         address predicted = vm.computeCreate2Address(bytes32(uint256(1)), keccak256(init), address(launchpad.tokenFactory()));
-        address prePair = v2Factory.createPair(predicted, address(weth));
+        address prePair = v2Factory.createPair(predicted, address(wif));
         (, NationToken token) = _foundWith(p, 0);
         assertEq(address(token), predicted);
         assertEq(token.pair(), prePair);
@@ -256,18 +281,25 @@ contract AtlasLaunchpadTradingTest is BaseTest {
     }
 
     function test_BuyMatchesQuoteAndSplitsFees() public {
-        (uint256 quoted, uint256 fee, uint256 used, uint256 refund) = launchpad.quoteBuy(id, 0.5 ether);
+        (uint256 quoted, uint256 fee, uint256 used, bool graduates) = launchpad.quoteBuy(id, 0.5 ether);
         assertEq(fee, 0.005 ether);
         assertEq(used, 0.5 ether);
-        assertEq(refund, 0);
+        assertFalse(graduates);
         uint256 protocolBefore = launchpad.protocolFeesAccrued();
+        uint256 burnedBefore = wif.balanceOf(launchpad.DEAD());
+        uint256 walletBefore = wif.balanceOf(alice);
 
         uint256 out = _buy(alice, id, 0.5 ether);
         assertEq(out, quoted);
+        assertEq(walletBefore - wif.balanceOf(alice), 0.5 ether);
         assertEq(token.balanceOf(alice), out);
+        // 1% fee: 0.5% treasury, 0.25% burned, 0.25% protocol
         assertEq(treasury.balanceOf(id), 0.0025 ether);
-        assertEq(launchpad.protocolFeesAccrued() - protocolBefore, 0.0025 ether);
-        assertEq(launchpad.getNation(id).realEth, 0.495 ether);
+        assertEq(wif.balanceOf(address(treasury)), 0.0025 ether);
+        assertEq(wif.balanceOf(launchpad.DEAD()) - burnedBefore, 0.00125 ether);
+        assertEq(launchpad.wifBurnedOf(id), CREATION_FEE + 0.00125 ether);
+        assertEq(launchpad.protocolFeesAccrued() - protocolBefore, 0.00125 ether);
+        assertEq(launchpad.getNation(id).realWif, 0.495 ether);
         assertEq(token.delegates(alice), alice);
         assertEq(token.getVotes(alice), out);
     }
@@ -288,13 +320,15 @@ contract AtlasLaunchpadTradingTest is BaseTest {
         assertGt(p2, p1);
     }
 
-    function test_SellReturnsEthMinusFees() public {
+    function test_SellReturnsWifMinusFees() public {
         uint256 out = _buy(alice, id, 1 ether);
-        (uint256 quotedEth, uint256 fee) = launchpad.quoteSell(id, out);
-        uint256 balBefore = alice.balance;
+        (uint256 quotedWif, uint256 fee) = launchpad.quoteSell(id, out);
+        uint256 balBefore = wif.balanceOf(alice);
+        uint256 burnedBefore = launchpad.totalWifBurned();
         uint256 ethOut = _sell(alice, id, out);
-        assertEq(ethOut, quotedEth);
-        assertEq(alice.balance - balBefore, ethOut);
+        assertEq(ethOut, quotedWif);
+        assertEq(wif.balanceOf(alice) - balBefore, ethOut);
+        assertEq(launchpad.totalWifBurned() - burnedBefore, fee / 4);
         assertGt(fee, 0);
         // Round trip loses ~2% to fees, never gains.
         assertLt(ethOut, 1 ether);
@@ -304,7 +338,7 @@ contract AtlasLaunchpadTradingTest is BaseTest {
 
     function test_SellWithPermit() public {
         (address owner, uint256 pk) = makeAddrAndKey("permitOwner");
-        vm.deal(owner, 10 ether);
+        _fund(owner, 10 ether);
         uint256 out = _buy(owner, id, 0.3 ether);
         uint256 deadline = block.timestamp + 1 hours;
         bytes32 digest = keccak256(
@@ -333,7 +367,7 @@ contract AtlasLaunchpadTradingTest is BaseTest {
     function test_RevertWhen_Expired() public {
         vm.prank(alice);
         vm.expectRevert(AtlasLaunchpad.Expired.selector);
-        launchpad.buy{value: 1 ether}(id, 0, block.timestamp - 1);
+        launchpad.buy(id, 1 ether, 0, block.timestamp - 1);
         vm.prank(alice);
         vm.expectRevert(AtlasLaunchpad.Expired.selector);
         launchpad.sell(id, 1, 0, block.timestamp - 1);
@@ -344,7 +378,7 @@ contract AtlasLaunchpadTradingTest is BaseTest {
         _buy(bob, id, 0.1 ether); // front-run moves the price
         vm.prank(alice);
         vm.expectRevert(AtlasLaunchpad.Slippage.selector);
-        launchpad.buy{value: 0.1 ether}(id, quoted, block.timestamp);
+        launchpad.buy(id, 0.1 ether, quoted, block.timestamp);
     }
 
     function test_RevertWhen_SellSlippage() public {
@@ -359,7 +393,7 @@ contract AtlasLaunchpadTradingTest is BaseTest {
     function test_RevertWhen_ZeroAmounts() public {
         vm.prank(alice);
         vm.expectRevert(AtlasLaunchpad.ZeroAmount.selector);
-        launchpad.buy{value: 0}(id, 0, block.timestamp);
+        launchpad.buy(id, 0, 0, block.timestamp);
         vm.prank(alice);
         vm.expectRevert(AtlasLaunchpad.ZeroAmount.selector);
         launchpad.sell(id, 0, 0, block.timestamp);
@@ -368,7 +402,7 @@ contract AtlasLaunchpadTradingTest is BaseTest {
     function test_RevertWhen_UnknownNation() public {
         vm.prank(alice);
         vm.expectRevert(AtlasLaunchpad.UnknownNation.selector);
-        launchpad.buy{value: 1 ether}(42, 0, block.timestamp);
+        launchpad.buy(42, 1 ether, 0, block.timestamp);
         vm.expectRevert(AtlasLaunchpad.UnknownNation.selector);
         launchpad.getNation(42);
     }
@@ -414,8 +448,8 @@ contract AtlasLaunchpadTradingTest is BaseTest {
         uint256 out2 = _buy(bob, id2, 0.01 ether);
         _sell(bob, id2, out2);
         // nation 1's reserve is untouched by nation 2's activity
-        assertEq(launchpad.getNation(id).realEth, 0.99 ether);
-        assertEq(address(launchpad).balance, _ethInvariant() + launchpad.protocolFeesAccrued());
+        assertEq(launchpad.getNation(id).realWif, 0.99 ether);
+        assertEq(wif.balanceOf(address(launchpad)), _wifInvariant() + launchpad.protocolFeesAccrued());
     }
 
     function test_WithdrawProtocolFees() public {
@@ -423,7 +457,7 @@ contract AtlasLaunchpadTradingTest is BaseTest {
         uint256 accrued = launchpad.protocolFeesAccrued();
         vm.prank(bob); // anyone can trigger; funds always go to the immutable recipient
         launchpad.withdrawProtocolFees();
-        assertEq(feeRecipient.balance, accrued);
+        assertEq(wif.balanceOf(feeRecipient), accrued);
         assertEq(launchpad.protocolFeesAccrued(), 0);
         vm.expectRevert(AtlasLaunchpad.NothingToClaim.selector);
         launchpad.withdrawProtocolFees();
@@ -440,18 +474,19 @@ contract AtlasLaunchpadTradingTest is BaseTest {
         uint256 out = _buy(alice, id, ethIn);
         uint256 back = _sell(alice, id, out);
         assertLe(back, ethIn);
-        assertEq(address(launchpad).balance, _ethInvariant() + launchpad.protocolFeesAccrued());
+        assertEq(wif.balanceOf(address(launchpad)), _wifInvariant() + launchpad.protocolFeesAccrued());
     }
 
     function testFuzz_QuoteBuyMatchesExecution(uint96 a, uint96 b) public {
         a = uint96(bound(a, 1e12, 1 ether));
         b = uint96(bound(b, 1e12, 3 ether));
         _buy(bob, id, a);
-        (uint256 quoted,,, uint256 refund) = launchpad.quoteBuy(id, b);
-        uint256 balBefore = alice.balance;
+        (uint256 quoted,, uint256 used,) = launchpad.quoteBuy(id, b);
+        uint256 balBefore = wif.balanceOf(alice);
         uint256 out = _buy(alice, id, b);
         assertEq(out, quoted);
-        assertEq(balBefore - alice.balance, b - refund);
+        assertEq(balBefore - wif.balanceOf(alice), used);
+        assertLe(used, b);
     }
 }
 
@@ -475,34 +510,42 @@ contract AtlasLaunchpadGraduationTest is BaseTest {
         AtlasLaunchpad.Nation memory n = launchpad.getNation(id);
         assertTrue(n.graduated);
         assertTrue(token.graduated());
-        assertEq(n.realEth, 0);
+        assertEq(n.realWif, 0);
         assertEq(n.lpReserve, 0);
         assertEq(n.curveTokensRemaining, 0);
         assertEq(n.graduatedAt, block.timestamp);
 
         UniswapV2Pair pair = UniswapV2Pair(n.pair);
         (uint112 r0, uint112 r1,) = pair.getReserves();
-        (uint256 tokenReserve, uint256 wethReserve) = pair.token0() == address(token) ? (r0, r1) : (r1, r0);
+        (uint256 tokenReserve, uint256 wifReserve) = pair.token0() == address(token) ? (r0, r1) : (r1, r0);
         assertEq(tokenReserve, before.lpReserve);
-        assertApproxEqRel(wethReserve, GRADUATION_ETH, 0.0001e18);
+        assertApproxEqRel(wifReserve, GRADUATION_WIF, 0.0001e18);
+        assertEq(launchpad.totalWifLocked(), wifReserve);
+        assertEq(n.pair, v2Factory.getPair(address(token), address(wif)));
         // All LP except MINIMUM_LIQUIDITY is held by the burn address.
         assertEq(pair.balanceOf(token.DEAD()), pair.totalSupply() - 1000);
-        // The launchpad holds no leftover ETH for this nation.
-        assertEq(address(launchpad).balance, launchpad.protocolFeesAccrued());
+        // The launchpad holds no leftover $WIF for this nation.
+        assertEq(wif.balanceOf(address(launchpad)), launchpad.protocolFeesAccrued());
         // Price continuity: Uniswap opening price ~= final curve price.
-        uint256 uniPrice = (wethReserve * 1e18) / tokenReserve;
-        assertApproxEqRel(uniPrice, GRADUATION_ETH * 1e18 / before.lpReserve, 0.001e18);
+        uint256 uniPrice = (wifReserve * 1e18) / tokenReserve;
+        assertApproxEqRel(uniPrice, GRADUATION_WIF * 1e18 / before.lpReserve, 0.001e18);
         assertGt(uniPrice, lastPrice);
     }
 
-    function test_GraduatingBuyRefundsExcess() public {
-        uint256 balBefore = carol.balance;
+    function test_GraduatingBuyPullsOnlyWhatIsNeeded() public {
+        uint256 needed = launchpad.wifToGraduate(id);
+        (,, uint256 used, bool graduates) = launchpad.quoteBuy(id, 50 ether);
+        assertTrue(graduates);
+        assertEq(used, needed);
+        uint256 balBefore = wif.balanceOf(carol);
         _buy(carol, id, 50 ether);
         AtlasLaunchpad.Nation memory n = launchpad.getNation(id);
         assertTrue(n.graduated);
-        uint256 spent = balBefore - carol.balance;
-        // ~2 ETH to the curve + 1% fee; the rest refunded
-        assertApproxEqRel(spent, (GRADUATION_ETH * 10_000) / 9_900, 0.0001e18);
+        uint256 spent = balBefore - wif.balanceOf(carol);
+        assertEq(spent, needed);
+        assertEq(launchpad.wifToGraduate(id), 0);
+        // ~2 WIF to the curve + 1% fee; nothing more is pulled
+        assertApproxEqRel(spent, (GRADUATION_WIF * 10_000) / 9_900, 0.0001e18);
         assertEq(token.balanceOf(carol), n.curveSupply);
     }
 
@@ -516,7 +559,7 @@ contract AtlasLaunchpadGraduationTest is BaseTest {
         _graduate(id);
         vm.prank(alice);
         vm.expectRevert(AtlasLaunchpad.NationGraduatedAlready.selector);
-        launchpad.buy{value: 1 ether}(id, 0, block.timestamp);
+        launchpad.buy(id, 1 ether, 0, block.timestamp);
         vm.startPrank(carol);
         token.approve(address(launchpad), 1 ether);
         vm.expectRevert(AtlasLaunchpad.NationGraduatedAlready.selector);
@@ -529,35 +572,35 @@ contract AtlasLaunchpadGraduationTest is BaseTest {
     function test_UniswapTradingAfterGraduation() public {
         _graduate(id);
         address[] memory path = new address[](2);
-        path[0] = address(weth);
+        path[0] = address(wif);
         path[1] = address(token);
-        vm.prank(alice);
-        uint256[] memory amounts = router.swapExactETHForTokens{value: 0.1 ether}(0, path, alice, block.timestamp);
+        vm.startPrank(alice);
+        wif.approve(address(router), 0.1 ether);
+        uint256[] memory amounts = router.swapExactTokensForTokens(0.1 ether, 0, path, alice, block.timestamp);
+        vm.stopPrank();
         assertEq(token.balanceOf(alice), amounts[1]);
         assertEq(token.delegates(alice), alice);
 
         path[0] = address(token);
-        path[1] = address(weth);
+        path[1] = address(wif);
         vm.startPrank(alice);
         token.approve(address(router), amounts[1]);
-        uint256 balBefore = alice.balance;
-        router.swapExactTokensForETH(amounts[1], 0, path, alice, block.timestamp);
+        uint256 balBefore = wif.balanceOf(alice);
+        router.swapExactTokensForTokens(amounts[1], 0, path, alice, block.timestamp);
         vm.stopPrank();
-        assertGt(alice.balance, balBefore);
+        assertGt(wif.balanceOf(alice), balBefore);
     }
 
-    function test_DonatedWethBeforeGraduationOnlyRaisesPrice() public {
+    function test_DonatedWifBeforeGraduationOnlyRaisesPrice() public {
         AtlasLaunchpad.Nation memory n = launchpad.getNation(id);
-        // Attacker donates WETH into the empty pair and syncs reserves.
-        vm.startPrank(alice);
-        weth.deposit{value: 1 ether}();
-        weth.transfer(n.pair, 1 ether);
-        vm.stopPrank();
+        // Attacker donates $WIF into the empty pair and syncs reserves.
+        vm.prank(alice);
+        wif.transfer(n.pair, 1 ether);
         UniswapV2Pair(n.pair).sync();
         _graduate(id);
         (uint112 r0, uint112 r1,) = UniswapV2Pair(n.pair).getReserves();
-        uint256 wethReserve = UniswapV2Pair(n.pair).token0() == address(weth) ? r0 : r1;
-        assertApproxEqRel(wethReserve, GRADUATION_ETH + 1 ether, 0.0001e18);
+        uint256 wifReserve = UniswapV2Pair(n.pair).token0() == address(wif) ? r0 : r1;
+        assertApproxEqRel(wifReserve, GRADUATION_WIF + 1 ether, 0.0001e18);
         assertEq(UniswapV2Pair(n.pair).balanceOf(token.DEAD()), UniswapV2Pair(n.pair).totalSupply() - 1000);
     }
 
@@ -621,7 +664,18 @@ contract AtlasLaunchpadFounderVestingTest is BaseTest {
     }
 }
 
-/// @dev Attempts to re-enter the launchpad when receiving ETH.
+/// @dev A $WIF stand-in that calls back into the recipient on every transfer (ERC-777 style), so tests can try
+/// to re-enter the launchpad mid-trade.
+contract CallbackWIF is MockWIF {
+    function _update(address from, address to, uint256 value) internal override {
+        super._update(from, to, value);
+        if (to.code.length > 0 && from != address(0)) {
+            try ReentrantTrader(to).onTokenReceived() {} catch {}
+        }
+    }
+}
+
+/// @dev Attempts to re-enter the launchpad when receiving $WIF.
 contract ReentrantTrader {
     AtlasLaunchpad internal immutable lp;
     uint256 internal immutable id;
@@ -631,25 +685,24 @@ contract ReentrantTrader {
     constructor(AtlasLaunchpad lp_, uint256 id_) {
         lp = lp_;
         id = id_;
+        lp_.wif().approve(address(lp_), type(uint256).max);
     }
 
-    function buyThenSell() external payable {
-        uint256 out = lp.buy{value: msg.value}(id, 0, block.timestamp);
+    function buyThenSell(uint256 wifIn) external {
+        uint256 out = lp.buy(id, wifIn, 0, block.timestamp);
         NationToken(lp.tokenOf(id)).approve(address(lp), out);
         attack = true;
         lp.sell(id, out / 2, 0, block.timestamp);
     }
 
-    function buy() external payable {
-        attack = true;
-        lp.buy{value: msg.value}(id, 0, block.timestamp);
-    }
-
-    receive() external payable {
+    function onTokenReceived() external {
         if (attack) {
             attack = false;
             // Re-entry must fail; swallow the revert so the outer call completes.
             try lp.sell(id, 1, 0, block.timestamp) {
+                reentered = true;
+            } catch {}
+            try lp.buy(id, 1 ether, 0, block.timestamp) {
                 reentered = true;
             } catch {}
             try lp.withdrawProtocolFees() {
@@ -661,20 +714,38 @@ contract ReentrantTrader {
 
 contract AtlasLaunchpadSecurityTest is BaseTest {
     function test_ReentrancyOnSellBlocked() public {
-        (uint256 id,) = _found("Pepeland", "PEPE");
-        ReentrantTrader attacker = new ReentrantTrader(launchpad, id);
-        attacker.buyThenSell{value: 0.5 ether}();
+        CallbackWIF cwif = new CallbackWIF();
+        uint64 nonce = vm.getNonce(address(this));
+        address predictedLaunchpad = vm.computeCreateAddress(address(this), nonce + 1);
+        NationTreasury t = new NationTreasury(predictedLaunchpad, address(governor), address(cwif));
+        AtlasLaunchpad lp = new AtlasLaunchpad(
+            address(v2Factory), address(cwif), address(t), address(governor), feeRecipient, GRADUATION_WIF, 0
+        );
+        assertEq(address(lp), predictedLaunchpad);
+        AtlasLaunchpad.FoundingParams memory p = _params("Pepeland", "PEPE");
+        (uint256 id,) = lp.foundNation(p);
+        ReentrantTrader attacker = new ReentrantTrader(lp, id);
+        cwif.mint(address(attacker), 10 ether);
+        attacker.buyThenSell(0.5 ether);
         assertFalse(attacker.reentered());
-        assertEq(address(launchpad).balance, _ethInvariant() + launchpad.protocolFeesAccrued());
+        assertEq(cwif.balanceOf(address(lp)), lp.getNation(id).realWif + lp.protocolFeesAccrued());
     }
 
-    function test_ReentrancyOnGraduationRefundBlocked() public {
-        (uint256 id,) = _found("Pepeland", "PEPE");
-        ReentrantTrader attacker = new ReentrantTrader(launchpad, id);
-        vm.deal(address(this), 100 ether);
-        attacker.buy{value: 10 ether}();
-        assertFalse(attacker.reentered());
-        assertTrue(launchpad.getNation(id).graduated);
+    function test_RevertWhen_FeeOnTransferWif() public {
+        FeeOnTransferToken taxed = new FeeOnTransferToken();
+        uint64 nonce = vm.getNonce(address(this));
+        address predictedLaunchpad = vm.computeCreateAddress(address(this), nonce + 1);
+        NationTreasury t = new NationTreasury(predictedLaunchpad, address(governor), address(taxed));
+        AtlasLaunchpad lp = new AtlasLaunchpad(
+            address(v2Factory), address(taxed), address(t), address(governor), feeRecipient, GRADUATION_WIF, 0
+        );
+        (uint256 id,) = lp.foundNation(_params("Pepeland", "PEPE"));
+        taxed.mint(alice, 10 ether);
+        vm.startPrank(alice);
+        taxed.approve(address(lp), type(uint256).max);
+        vm.expectRevert(AtlasLaunchpad.UnsupportedToken.selector);
+        lp.buy(id, 1 ether, 0, block.timestamp);
+        vm.stopPrank();
     }
 
     function test_NoTokenMintingPossible() public {
@@ -692,7 +763,7 @@ contract AtlasLaunchpadSecurityTest is BaseTest {
         _found("Pepeland", "PEPE");
         vm.prank(alice);
         vm.expectRevert(AtlasLaunchpad.NameTaken.selector);
-        launchpad.foundNation{value: CREATION_FEE}(_params("pepeLAND", "XX"));
+        launchpad.foundNation(_params("pepeLAND", "XX"));
     }
 
     function test_CurvePriceMathMonotonicAcrossGraduationDistances() public {
@@ -707,8 +778,8 @@ contract AtlasLaunchpadSecurityTest is BaseTest {
             assertGt(price, prev);
             prev = price;
             // k never decreases (rounding always favours the curve)
-            uint256 k0 = n.initialVirtualEth * ((n.curveSupply * n.curveSupply) / (n.curveSupply - (SUPPLY / 5)));
-            assertGe(n.virtualEth * n.virtualTokens, k0);
+            uint256 k0 = n.initialVirtualWif * ((n.curveSupply * n.curveSupply) / (n.curveSupply - (SUPPLY / 5)));
+            assertGe(n.virtualWif * n.virtualTokens, k0);
         }
     }
 }

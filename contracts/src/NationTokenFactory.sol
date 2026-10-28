@@ -22,12 +22,12 @@ contract NationTokenFactory {
         uint256 nationId,
         uint256 totalSupply,
         address uniswapV2Factory,
-        address weth
+        address wif
     ) external returns (address token) {
         if (msg.sender != launchpad) revert OnlyLaunchpad();
         token = address(
             new NationToken{salt: bytes32(nationId)}(
-                name, symbol, nationId, totalSupply, launchpad, uniswapV2Factory, weth
+                name, symbol, nationId, totalSupply, launchpad, uniswapV2Factory, wif
             )
         );
     }

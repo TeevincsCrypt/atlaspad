@@ -19,9 +19,9 @@ contract AtlasGovernorTest is BaseTest {
         (id2,) = _found("Dogeland", "DOGE");
         _buy(alice, id, 0.06 ether); // ~8% of supply
         _buy(bob, id, 0.03 ether); // ~3.5% of supply
-        vm.deal(dave, 1 ether);
+        _fund(dave, 1 ether);
         vm.prank(dave);
-        treasury.deposit{value: 1 ether}(id);
+        treasury.deposit(id, 1 ether);
         vm.warp(block.timestamp + 1);
     }
 
@@ -236,10 +236,10 @@ contract AtlasGovernorTest is BaseTest {
         vm.expectRevert(AtlasGovernor.NotExecutable.selector);
         governor.execute(pid);
         vm.warp(block.timestamp + 1 days);
-        uint256 before = carol.balance;
+        uint256 before = wif.balanceOf(carol);
         vm.prank(dave); // permissionless
         governor.execute(pid);
-        assertEq(carol.balance - before, 0.2 ether);
+        assertEq(wif.balanceOf(carol) - before, 0.2 ether);
         assertEq(uint8(governor.state(pid)), uint8(AtlasGovernor.State.Executed));
         vm.expectRevert(AtlasGovernor.NotExecutable.selector);
         governor.execute(pid);
@@ -252,11 +252,33 @@ contract AtlasGovernorTest is BaseTest {
         vm.expectRevert(NationTreasury.ExceedsReleaseCap.selector);
         governor.execute(pid);
         // still executable later if the treasury grows
-        vm.deal(dave, 10 ether);
+        _fund(dave, 10 ether);
         vm.prank(dave);
-        treasury.deposit{value: 3 ether}(id);
+        treasury.deposit(id, 3 ether);
+        uint256 before = wif.balanceOf(carol);
         governor.execute(pid);
-        assertEq(carol.balance, 1_000 ether + 0.9 ether);
+        assertEq(wif.balanceOf(carol) - before, 0.9 ether);
+    }
+
+    function test_ParallelTreasuryProposalsCannotDrainPastWeeklyCap() public {
+        // A large holder passes several treasury proposals at once; together they may only move 25% per week.
+        uint256 bal = treasury.balanceOf(id);
+        uint256 quarter = bal / 4;
+        uint256 p1 = _propose(alice, AtlasGovernor.Kind.Treasury, abi.encode(alice, quarter));
+        uint256 p2 = _propose(alice, AtlasGovernor.Kind.Treasury, abi.encode(alice, quarter / 2));
+        _vote(alice, p1, 1);
+        _vote(alice, p2, 1);
+        vm.warp(block.timestamp + 4 days + 1);
+        governor.execute(p1);
+        vm.expectRevert(NationTreasury.ExceedsReleaseCap.selector);
+        governor.execute(p2);
+        // Once the window rolls over, a fresh proposal can release again.
+        vm.warp(block.timestamp + 7 days);
+        uint256 p3 = _propose(alice, AtlasGovernor.Kind.Treasury, abi.encode(alice, quarter / 2));
+        _vote(alice, p3, 1);
+        vm.warp(block.timestamp + 4 days + 1);
+        governor.execute(p3);
+        assertEq(treasury.balanceOf(id), bal - quarter - quarter / 2);
     }
 
     function test_ProposalExpires() public {

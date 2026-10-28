@@ -6,6 +6,7 @@ import {BaseTest} from "./Base.t.sol";
 import {AtlasLaunchpad} from "../src/AtlasLaunchpad.sol";
 import {NationTreasury} from "../src/NationTreasury.sol";
 import {NationToken} from "../src/NationToken.sol";
+import {MockWIF} from "./mocks/MockWIF.sol";
 
 contract LaunchpadHandler is Test {
     AtlasLaunchpad internal immutable lp;
@@ -21,7 +22,12 @@ contract LaunchpadHandler is Test {
         for (uint256 i; i < 4; i++) {
             address a = address(uint160(0xA11CE + i));
             actors.push(a);
-            vm.deal(a, 10_000 ether);
+            MockWIF wif = MockWIF(address(lp_.wif()));
+            wif.mint(a, 10_000 ether);
+            vm.startPrank(a);
+            wif.approve(address(lp_), type(uint256).max);
+            wif.approve(address(treasury_), type(uint256).max);
+            vm.stopPrank();
         }
     }
 
@@ -34,7 +40,7 @@ contract LaunchpadHandler is Test {
         if (lp.getNation(id).graduated) return;
         amount = bound(amount, 1e6, 0.8 ether);
         vm.prank(actors[actorSeed % actors.length]);
-        lp.buy{value: amount}(id, 0, block.timestamp);
+        lp.buy(id, amount, 0, block.timestamp);
         buys++;
     }
 
@@ -59,7 +65,7 @@ contract LaunchpadHandler is Test {
         amount = bound(amount, 1, 1 ether);
         uint256 id = _nation(nationSeed); // resolve before the prank: the external call would consume it
         vm.prank(actors[0]);
-        treasury.deposit{value: amount}(id);
+        treasury.deposit(id, amount);
         donations++;
     }
 
@@ -101,8 +107,18 @@ contract InvariantsTest is BaseTest {
     }
 
     /// The launchpad holds exactly the curve reserves of un-graduated nations plus unpaid protocol fees.
-    function invariant_EthSolvency() public view {
-        assertEq(address(launchpad).balance, _ethInvariant() + launchpad.protocolFeesAccrued());
+    function invariant_WifSolvency() public view {
+        assertEq(wif.balanceOf(address(launchpad)), _wifInvariant() + launchpad.protocolFeesAccrued());
+    }
+
+    /// Every $WIF the launchpad says it burned is sitting at the dead address.
+    function invariant_BurnAccounting() public view {
+        assertEq(wif.balanceOf(launchpad.DEAD()), launchpad.totalWifBurned());
+        uint256 sum;
+        for (uint256 i; i < ids.length; i++) {
+            sum += launchpad.wifBurnedOf(ids[i]);
+        }
+        assertEq(sum, launchpad.totalWifBurned());
     }
 
     /// The treasury holds exactly the sum of nation balances.
@@ -111,7 +127,7 @@ contract InvariantsTest is BaseTest {
         for (uint256 i; i < ids.length; i++) {
             sum += treasury.balanceOf(ids[i]);
         }
-        assertEq(address(treasury).balance, sum);
+        assertEq(wif.balanceOf(address(treasury)), sum);
         assertEq(treasury.totalHeld(), sum);
     }
 
@@ -126,12 +142,12 @@ contract InvariantsTest is BaseTest {
         }
     }
 
-    /// The curve never holds less ETH than its virtual-reserve accounting implies.
+    /// The curve never holds less $WIF than its virtual-reserve accounting implies.
     function invariant_RealEthMatchesVirtual() public view {
         for (uint256 i; i < ids.length; i++) {
             AtlasLaunchpad.Nation memory n = launchpad.getNation(ids[i]);
             if (n.graduated) continue;
-            assertEq(n.virtualEth - n.initialVirtualEth, n.realEth);
+            assertEq(n.virtualWif - n.initialVirtualWif, n.realWif);
         }
     }
 }
