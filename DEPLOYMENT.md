@@ -39,7 +39,7 @@ Target: **Robinhood Chain mainnet**. It is an Arbitrum Orbit L2 with chain id `4
 | PostgreSQL | 16 | One database per network. The indexer refuses a database that was indexed for another chain id. |
 | `psql`, `jq` | any | `psql` is used by `scripts/dev-local.sh`. `jq` is optional; it is used in the snippets below. |
 
-For mainnet you also need a deployer account funded with ETH on Robinhood Chain, plus the address that will receive protocol fees (preferably a multisig).
+For mainnet you also need a deployer account funded with ETH (for gas) on Robinhood Chain and some $WIF for the smoke test, plus the address that will receive protocol fees (preferably a multisig).
 
 ## 2. Install
 
@@ -86,15 +86,15 @@ BLOCKSCOUT_API_KEY=                                         # must be defined fo
 EXPECTED_CHAIN_ID=4663
 UNISWAP_V2_FACTORY=0x8bceaa40b9acdfaedf85adf4ff01f5ad6517937f
 UNISWAP_V2_ROUTER=0x89e5db8b5aa49aa85ac63f691524311aeb649eba
-WETH_ADDRESS=0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73
+WIF_ADDRESS=0x5173b8eA6923c2d40267890D45C46a3480954773     # $WIF; must equal WIF_ADDRESS in packages/shared/src/chains.ts
 PROTOCOL_FEE_RECIPIENT=<your multisig>                      # immutable
-GRADUATION_ETH_WEI=<0.01–10000 ETH in wei>                  # immutable; script example: 2000000000000000000 (2 ETH)
-CREATION_FEE_WEI=<0–1 ETH in wei>                           # immutable; script example: 0
+GRADUATION_WIF=<$WIF base units, 1e6–1e36>                 # immutable; recommended 200000000000000000000000 (200,000 WIF)
+CREATION_FEE_WIF=<$WIF base units, 0–GRADUATION_WIF>        # immutable, burned per founding; recommended 100000000000000000000 (100 WIF)
 ```
 
-**Where the DEX values come from.** The three DEX addresses come from `packages/shared/src/chains.ts` (`ROBINHOOD_DEX`) and the `Deploy.s.sol` header. They **must** match `ROBINHOOD_DEX`, because on `robinhood` the web app and the indexer ignore `*_UNISWAP_V2_*` / `*_WETH` and always use those constants.
+**Where the DEX values come from.** The Uniswap and $WIF addresses come from `packages/shared/src/chains.ts` (`ROBINHOOD_DEX`, `WIF_ADDRESS`) and the `Deploy.s.sol` header. They **must** match `chains.ts`, because on `robinhood` the web app and the indexer ignore `*_UNISWAP_V2_*` / `*_WETH` / `*_WIF` and always use those constants. If $WIF does not have 18 decimals (the preflight logs them), set `WIF_DECIMALS` in `chains.ts` too.
 
-**Effect on local runs.** Foundry also loads `contracts/.env` for `DeployLocal.s.sol`, but that script reads only `LOCAL_GRADUATION_ETH_WEI` (default 2 ETH) and `LOCAL_CREATION_FEE_WEI` (default 0), never `GRADUATION_ETH_WEI` / `CREATION_FEE_WEI`. Production values in `contracts/.env` therefore do not leak into local seeding or the integration test.
+**Effect on local runs.** Foundry also loads `contracts/.env` for `DeployLocal.s.sol`, but that script reads only `LOCAL_GRADUATION_WIF` (default 200,000 WIF) and `LOCAL_CREATION_FEE_WIF` (default 100 WIF), never `GRADUATION_WIF` / `CREATION_FEE_WIF`. Production values in `contracts/.env` therefore do not leak into local seeding or the integration test.
 
 ### 4.3 Optional dry run (simulation only)
 
@@ -137,17 +137,17 @@ Use the same command for `src/AtlasGovernor.sol:AtlasGovernor` and `src/NationTr
 
 **Preflight** runs before any gas is spent. It requires:
 - `block.chainid == EXPECTED_CHAIN_ID`.
-- The factory, router and WETH all have code.
-- `router.factory() == UNISWAP_V2_FACTORY` and `router.WETH() == WETH_ADDRESS`.
+- The factory, router and $WIF all have code; $WIF's symbol, decimals and supply are logged (check them).
+- `router.factory() == UNISWAP_V2_FACTORY`.
 - `factory.getPair()` is callable.
 - `PROTOCOL_FEE_RECIPIENT != 0`.
-- `0.01 ETH ≤ GRADUATION_ETH_WEI ≤ 10000 ETH`.
-- `CREATION_FEE_WEI ≤ 1 ETH`.
+- `1e6 ≤ GRADUATION_WIF ≤ 1e36`.
+- `CREATION_FEE_WIF ≤ GRADUATION_WIF`.
 
 **Deployment.** The contracts are deployed in this order: `NationTreasury`, `AtlasGovernor`, `AtlasLaunchpad`, wired together through the predicted addresses. The script then requires every deployed address to equal its prediction.
 
 **Postflight** checks the full wiring:
-- The launchpad's factory, WETH, treasury, governor, fee recipient, graduation and creation fee.
+- The launchpad's factory, $WIF (and the treasury's $WIF), treasury, governor, fee recipient, graduation and creation fee.
 - `tokenFactory().launchpad()`.
 - The treasury↔governor↔launchpad back-references.
 - `nationCount() == 0`.
@@ -158,7 +158,7 @@ A broadcast run writes `contracts/deployments/<chainId>.json`, so `contracts/dep
 - `chainId`, `deployedAtBlock`, `deployedAtTimestamp`, `deployer`
 - `launchpad`, `governor`, `treasury`, `tokenFactory`
 - `uniswapV2Factory`, `uniswapV2Router`, `weth`
-- `protocolFeeRecipient`, `graduationEthWei`, `creationFeeWei`
+- `protocolFeeRecipient`, `graduationWifWei`, `creationFeeWif`
 
 Forge also writes the transaction log to `contracts/broadcast/Deploy.s.sol/4663/run-latest.json`. Neither path is gitignored (only the 31337 and dry-run artifacts are), so **commit both** after a successful deployment.
 
@@ -188,14 +188,14 @@ forge script script/VerifyDeployment.s.sol --rpc-url robinhood
 
 This reads `deployments/<chainid>.json` and checks the following against the live chain:
 - Each of the three contracts has code.
-- The launchpad's factory and WETH, and the router's `factory()` and `WETH()`.
+- The launchpad's and treasury's factory and $WIF, and the router's `factory()`.
 - All cross-references, the fee recipient and the token factory.
 - Treasury solvency: `balance >= totalHeld()`.
-- Launchpad solvency: `balance >= Σ realEth + protocolFeesAccrued`.
+- Launchpad solvency: `balance >= Σ realWif + protocolFeesAccrued`.
 
-The solvency checks use `>=`, so ETH force-sent to a contract (for example through `SELFDESTRUCT`) cannot make verification fail. It prints the nation count, proposal count and treasury ETH held. You can re-run it at any time.
+The solvency checks use `>=`, so $WIF transferred straight to a contract cannot make verification fail. It prints the nation count, proposal count, treasury $WIF held, $WIF burned and $WIF locked in pools. You can re-run it at any time.
 
-### 4.9 Smoke test (spends real ETH and creates a permanent nation)
+### 4.9 Smoke test (spends real $WIF and creates a permanent nation)
 
 Run this after the indexer and web are configured (sections 6–7), so you can watch the nation appear.
 
@@ -207,11 +207,11 @@ forge script script/SmokeTest.s.sol --rpc-url robinhood --account deployer --bro
 **Guard.** On any chain other than 31337 the script reverts unless `SMOKE_CONFIRM=I_UNDERSTAND`.
 
 **What it does.** It reads `.launchpad` from `deployments/<chainid>.json`, then:
-1. Founds a nation (supply 1e9 tokens, founder allocation 0, theme 6), sending `creationFee` + `SMOKE_INITIAL_BUY_WEI` (default **0.0001 ETH**).
-2. Buys again with `SMOKE_BUY_WEI` (default **0.0002 ETH**).
+1. Founds a nation (supply 1e9 tokens, founder allocation 0, theme 6), approving and spending `creationFee` (burned) + `SMOKE_INITIAL_BUY_WIF` (default **100 WIF**).
+2. Buys again with `SMOKE_BUY_WIF` (default **200 WIF**).
 3. Sells half its balance back.
 
-It then asserts the founder, the balance and the voting power, and logs the nation id, the token, the ETH returned and the curve reserve. The cost is the creation fee + about 0.0003 ETH + gas, minus what the sell returns. Both trades use `minOut = 0`, which is acceptable only at these tiny sizes.
+It then asserts the founder, the balance and the voting power, and logs the nation id, the token, the $WIF spent and returned, the curve reserve and the $WIF burned. The cost is the creation fee + about 300 WIF + gas, minus what the sell returns. Both trades use `minOut = 0`, which is acceptable only at these tiny sizes.
 
 **Permanence.** Names (case-insensitive) and tickers are unique forever. The smoke nation is a real, public nation, and a second run with the same name reverts with `NameTaken`. A name is 2–32 characters from `[A-Za-z0-9 -.']`; a ticker is 2–10 characters from `[A-Z0-9]`.
 
@@ -259,9 +259,9 @@ INDEXER_CORS_ORIGIN=https://<your web origin>
 INDEXER_ADMIN_TOKEN                                  # optional
 ```
 
-Empty values count as unset. A configuration error (an unknown network, an invalid address, only one or two of the three addresses, a non-digit deploy block, an unknown `ETH_USD_SOURCE`) makes the indexer exit at startup.
+Empty values count as unset. A configuration error (an unknown network, an invalid address, only one or two of the three addresses, a non-digit deploy block, an unknown `WIF_USD_SOURCE`) makes the indexer exit at startup.
 
-The optional variables are `ETH_USD_SOURCE=coinbase`, `EXCLUDED_ADDRESSES`, `INDEXER_CONFIRMATIONS`, `INDEXER_BATCH_BLOCKS`, `INDEXER_POLL_MS`, `LOG_LEVEL`, `PORT`/`INDEXER_PORT` (default 4100) and `DATABASE_SSL`.
+The optional variables are `WIF_USD_SOURCE=dexscreener`, `EXCLUDED_ADDRESSES`, `INDEXER_CONFIRMATIONS`, `INDEXER_BATCH_BLOCKS`, `INDEXER_POLL_MS`, `LOG_LEVEL`, `PORT`/`INDEXER_PORT` (default 4100) and `DATABASE_SSL`.
 
 **Endpoints:**
 - `GET /health` (public). Returns `chainId`, `deployed`, `lastIndexedBlock`, `chainHeadBlock`, `lagBlocks`, `lastSyncAt` and `subscribers`.

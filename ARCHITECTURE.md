@@ -17,7 +17,7 @@ web app, the 3D world renderer and the tests.
  │ AtlasLaunchpad ──(NationTokenFactory, CREATE2)──► NationToken  (one per nation)│
  │   bonding curve · fees · graduation ──► Uniswap V2 pair (LP minted to 0x…dEaD) │
  │ AtlasGovernor ──► NationTreasury.release()  /  AtlasLaunchpad.setNationSymbol() │
- │ NationTreasury (per-nation ETH accounts)                                        │
+ │ NationTreasury (per-nation $WIF accounts)                                       │
  └───────────▲─────────────────────────────────────────────┬──────────────────────┘
              │ wallet txs + live reads                     │ eth_getLogs / getBlock /
              │ (wagmi + viem: simulate, write, receipt)    │ getTransaction / readContract
@@ -38,8 +38,8 @@ web app, the 3D world renderer and the tests.
  │  queries (postgres.js)            │                  │  PostgreSQL  │
  │  proxy.ts (admin Basic auth)      │                  │ packages/db  │
  └───────────────────────────────────┘                  └──────────────┘
-                                         optional: api.coinbase.com ETH-USD spot
-                                         (indexer, ETH_USD_SOURCE=coinbase)
+                                         optional: api.dexscreener.com WIF-USD
+                                         (indexer, WIF_USD_SOURCE=dexscreener)
 ```
 
 The contracts are the source of truth. The indexer is the only process that writes to the database. The web
@@ -103,11 +103,11 @@ pair (`getReserves`, `token0/1`, `Swap`, `Sync`), the router (`getAmountsOut`, `
 
 | Module | Contents |
 |---|---|
-| `chains.ts` | `robinhoodChain` (4663, public RPC, Blockscout explorer), `anvilChain` (31337), canonical Robinhood Uniswap V2 factory/router and WETH, `BURN_ADDRESSES` |
+| `chains.ts` | `robinhoodChain` (4663, public RPC, Blockscout explorer), `anvilChain` (31337), canonical Robinhood Uniswap V2 factory/router, WETH and $WIF (`WIF_ADDRESS`, `WIF_DECIMALS`), `BURN_ADDRESSES` |
 | `config.ts` | `resolveNetwork()` builds an `AtlasNetworkConfig` (chain, rpcUrl, explorer, dex, `contracts \| null`, deployBlock) from raw env values. Empty values count as unset. Throws `ConfigError` for an unknown network, an invalid address, only some of the three contract addresses, a non-digit deployBlock, or missing local DEX addresses. Also explorer link helpers |
 | `abis/` | Generated and minimal ABIs (see above) |
 | `types.ts` | DTOs shared by the API and the SSE stream (`NationSummary`, `NewsItem`, `TradeDTO`, `ProposalDTO`, `WorldResponse`, `RealtimeMessage`, …). Convention: `null` = data unavailable |
-| `format.ts` | ETH/USD/percent/compact/duration/time-ago formatting, `weiToEth`, `shortAddress` |
+| `format.ts` | WIF/USD/percent/compact/duration/time-ago formatting, `unitsToWif`, `shortAddress` |
 | `game/constants.ts` | Themes, enums that mirror the contracts (`GameAction`, `ProposalKind`, `ProposalState`), buildings, tiers, `EPOCH_SECONDS = 3600`, `WAR`, `ALLIANCE`, `GOVERNANCE` |
 | `game/stats.ts`, `resources.ts`, `rules.ts`, `events.ts`, `achievements.ts` | Stat formulas (`computeStats`), hourly production, decree validation (`validateBuild`, `validateWarDeclaration`, alliance rules), war scoring (`resolveWar`), market-event detection (`detectMarketEvents`, `isWhaleBuy`, milestones), achievements, XP values, citizen ranks |
 | `game/curve.ts` | Exact bigint port of the launchpad curve math. Used to preview a nation before it exists. For existing nations the contract's `quoteBuy`/`quoteSell` are authoritative |
@@ -122,11 +122,11 @@ pair (`getReserves`, `token0/1`, `Swap`, `Sync`), the router (`getAmountsOut`, `
 
 | Contract | Holds / does | Events consumed by the indexer |
 |---|---|---|
-| `AtlasLaunchpad` | Nation registry, constant-product bonding curve with virtual reserves, 1% trade fee (0.5% protocol, 0.5% to the nation treasury), founder vesting (30 days, claimable only after graduation), graduation into Uniswap V2 (LP tokens minted to `0x…dEaD`). Symbol updates are allowed only from `AtlasGovernor`. No owner, no pause | `NationFounded`, `CurveInitialized`, `Trade`, `NationGraduated`, `NationSymbolUpdated` (`FounderTokensClaimed` and `ProtocolFeesWithdrawn` are decoded and ignored) |
+| `AtlasLaunchpad` | Nation registry, constant-product bonding curve with virtual reserves, 1% trade fee in $WIF (0.5% to the nation treasury, 0.25% burned, 0.25% protocol), creation fee burned, founder vesting (30 days, claimable only after graduation), graduation into Uniswap V2 (LP tokens minted to `0x…dEaD`). Symbol updates are allowed only from `AtlasGovernor`. No owner, no pause | `NationFounded`, `CurveInitialized`, `Trade`, `NationGraduated`, `NationSymbolUpdated` (`FounderTokensClaimed` and `ProtocolFeesWithdrawn` are decoded and ignored) |
 | `NationTokenFactory` | Deploys `NationToken` with CREATE2 (salt = nation id). Only the launchpad can call it | — |
 | `NationToken` | ERC20 + ERC20Permit + ERC20Votes with a timestamp clock. Fixed supply is minted to the launchpad. Holders are self-delegated automatically. Transfers to the pair revert until graduation | `Transfer` |
 | `AtlasGovernor` | Per-nation proposals of three kinds: Treasury, GameAction, Symbol. Token-weighted votes, quorum, timelock, permissionless execution | `ProposalCreated`, `VoteCast`, `ProposalCanceled`, `ProposalExecuted`, `GameActionExecuted` |
-| `NationTreasury` | Per-nation ETH accounts. Releases only through the governor, capped at 25% per release | `Deposited`, `Released` |
+| `NationTreasury` | Per-nation $WIF accounts. Releases only through the governor, capped at 25% per rolling 7-day window | `Deposited`, `Released` |
 | Uniswap V2 pair (external) | Post-graduation market | `Sync`, `Swap` (graduated pairs only) |
 
 For anything that moves money, the web app reads the chain directly: `quoteBuy`, `quoteSell`, `spotPrice`,
@@ -146,7 +146,7 @@ migration is `drizzle/0000_init.sql`. Storage conventions:
 
 | Group | Table | Key | Contents |
 |---|---|---|---|
-| **Indexer bookkeeping** | `indexer_state` | `id='main'` | chain id, `last_block` / `last_block_hash` / `last_block_timestamp`, `chain_head`, `game_cursor`, `eth_usd` |
+| **Indexer bookkeeping** | `indexer_state` | `id='main'` | chain id, `last_block` / `last_block_hash` / `last_block_timestamp`, `chain_head`, `game_cursor`, `wif_usd` |
 | | `indexed_blocks` | `number` | Hash and timestamp of recent blocks (last 512 kept) for reorg detection |
 | | `indexer_errors` | serial | Loop errors (`loop`), handled reorgs (`reorg`) and ranges whose post-processing failed after all retries (`post-process`) |
 | | `excluded_addresses` | `address` | Burn, DEX, protocol and system addresses that can never be citizens |
@@ -198,7 +198,7 @@ Values computed **at read time** in the web app rather than stored:
   (`sync/post.ts`, `sync/metrics.ts`). They are idempotent through their keys, but `rebuild-game` does not
   recreate or clear them. Only a full re-index of the mirror regenerates them. (A reorg deletes the ones recorded
   after the fork so that re-sync can derive them again; see 4.3.)
-- **Wall-clock inputs.** `eth_usd` is a live price. It feeds the `game_snapshots.eth_usd` column and the
+- **Wall-clock inputs.** `wif_usd` is a live price. It feeds the `game_snapshots.wif_usd` column and the
   `MCAP_1M_USD` achievement, so those values depend on when they were computed. Everything else uses block
   timestamps.
 
@@ -222,7 +222,7 @@ Values computed **at read time** in the web app rather than stored:
          error → log, INSERT indexer_errors(scope='loop'), backoff ×2 up to 60 s
          if caughtUp: sleep INDEXER_POLL_MS (default 2000)
    ```
-8. Refresh ETH/USD at startup and every 60 s.
+8. Refresh WIF/USD at startup and every 60 s (when enabled).
 
 | Env var | Default | Meaning |
 |---|---|---|
@@ -238,7 +238,7 @@ Values computed **at read time** in the web app rather than stored:
 | `INDEXER_POLL_MS` | `2000` (min 250) | Idle poll interval |
 | `INDEXER_ADMIN_TOKEN` | unset | Enables `/admin/status` |
 | `INDEXER_CORS_ORIGIN` | `*` | CORS for all endpoints |
-| `ETH_USD_SOURCE` | `none` | `coinbase` or `none` (empty = unset) |
+| `WIF_USD_SOURCE` | `none` | `dexscreener` or `none` (empty = unset) |
 | `EXCLUDED_ADDRESSES` | — | `addr[:label],…`: extra non-citizen addresses |
 | `LOG_LEVEL`, `MIGRATIONS_DIR` | `info`, auto | Logging (JSON lines), migrations folder override |
 
@@ -279,8 +279,9 @@ step():
 
 | Source | Handling |
 |---|---|
-| Launchpad `Trade` | Curve state is taken from the event args. Price = `virtualEth / virtualTokens`, market cap = price × supply, liquidity = `realEth`. A trade row is written with `venue = 'curve'` and the fee |
-| `NationGraduated` | Sets graduated, zeroes curve ETH, seeds pool reserves from the event |
+| Launchpad `Trade` | Curve state is taken from the event args. Price = `virtualWif / virtualTokens`, market cap = price × supply, liquidity = `realWif`. A trade row is written with `venue = 'curve'` and the fee |
+| `WifBurned` | Adds the amount to the nation's `wif_burned` (creation fee and the burn share of every curve trade) |
+| `NationGraduated` | Sets graduated, zeroes curve $WIF, seeds pool reserves from the event |
 | `NationSymbolUpdated` | Emblem and metadata URI |
 | Treasury `Deposited` / `Released` | `treasury_txs` (`trade_fee` / `donation` / `release`) |
 | Governor events | `proposals`, `votes` (tallies recomputed), canceled/executed flags, `game_action_events` |
@@ -293,7 +294,7 @@ The transaction writes the nation upserts, all mirror rows, holder upserts and d
 Non-citizen exclusions:
 
 - the zero address and `0x…dEaD`
-- the Uniswap V2 router and factory, and WETH
+- the Uniswap V2 router and factory, WETH and the $WIF token contract
 - the AtlasPad launchpad, treasury and governor
 - known Uniswap router/Permit2/UniswapX contracts on Robinhood Chain (`context.ts`)
 - `EXCLUDED_ADDRESSES`
@@ -358,12 +359,12 @@ with `INDEXER_CONFIRMATIONS`, this catches reorgs that reach indexed blocks.
 
 The game engine then replays from scratch.
 
-### 4.4 ETH/USD price (`src/price.ts`)
+### 4.4 WIF/USD price (`src/price.ts`)
 
-With `ETH_USD_SOURCE=coinbase`, the indexer fetches `https://api.coinbase.com/v2/prices/ETH-USD/spot` every 60 s
-(8 s timeout) into `indexer_state.eth_usd`. Besides USD display, the price is stored in each hourly snapshot and
+With `WIF_USD_SOURCE=dexscreener`, the indexer fetches `https://api.dexscreener.com/latest/dex/tokens/<WIF>` every
+60 s (8 s timeout) and stores the USD price of the most liquid $WIF pool in `indexer_state.wif_usd`. Besides USD display, the price is stored in each hourly snapshot and
 feeds the `MCAP_1M_USD` achievement, which therefore cannot unlock without it. With `none` (the default), USD
-stays `null` and the UI shows ETH values with "—" for USD. On-chain values are always ETH.
+stays `null` and the UI shows $WIF values with "—" for USD. On-chain values are always $WIF.
 
 ### 4.5 Game engine (`src/game/*`)
 
@@ -566,7 +567,7 @@ It passes them to `resolveNetwork()` (`packages/shared/src/config.ts`):
 | No DB / DB failing | `/api/*` returns 503. Components render `DataUnavailable`. Banner: "Live world data is unavailable" |
 | No `NEXT_PUBLIC_REALTIME_URL` / SSE down | Realtime `disabled` / `offline`. React Query polling fallback |
 | No WebGL | `WorldStage` renders a gradient and a text fallback |
-| `ETH_USD_SOURCE=none` | `ethUsd: null`. USD shown as "—" |
+| `WIF_USD_SOURCE=none` | `ethUsd: null`. USD shown as "—" |
 | Indexer without contracts | Does not index. The HTTP server still runs and `/health` reports `deployed: false` |
 | Indexer with a `ConfigError` (for example only some contract addresses set) | Exits at startup |
 
@@ -720,7 +721,7 @@ are computed in the shaders, so all 20,000 cells are always drawn.
 
 | Layer | Location | Command | Requires |
 |---|---|---|---|
-| Contracts | `contracts/test` (107 tests): `AtlasLaunchpad`, `AtlasGovernor`, `NationToken`, `NationTreasury`, `Invariants` (handler-based), `Base`, `mocks/` (Uniswap V2 port, WETH9) | `pnpm contracts:test` (`forge test -vv`). Fuzz runs: 512 default, 4096 with `FOUNDRY_PROFILE=ci` | Foundry + submodules |
+| Contracts | `contracts/test` (114 tests): `AtlasLaunchpad`, `AtlasGovernor`, `NationToken`, `NationTreasury`, `Invariants` (handler-based), `Base`, `mocks/` (Uniswap V2 port, WETH9, MockWIF) | `pnpm contracts:test` (`forge test -vv`). Fuzz runs: 512 default, 4096 with `FOUNDRY_PROFILE=ci` | Foundry + submodules |
 | Shared unit | `packages/shared/test` (30 tests): `config.test.ts` (`resolveNetwork`: defaults, empty values as unset, complete and partial deployments, invalid addresses/block numbers/networks, local DEX requirement), `curve.test.ts` (bigint curve port), `game.test.ts` (stats, market events, rules, emblem), `world.test.ts` (deterministic terrain, wrap, stable capitals, territory size) | `pnpm --filter @atlaspad/shared test` (vitest) | — |
 | Web unit | `apps/web/test` (8 tests): `admin-auth.test.ts` (Basic-auth gate), `errors.test.ts` (error map vs ABIs, revert/rejection mapping). `vitest.config.ts` includes `test/**/*.test.ts` and aliases `@` | `pnpm --filter @atlaspad/web test` (vitest) | — |
 | Indexer integration | `apps/indexer/test/integration.test.ts` (7 tests) + `scenario.ts` | `INTEGRATION=1 TEST_DATABASE_URL=postgresql://…/atlaspad_test pnpm --filter @atlaspad/indexer test` (skipped without `INTEGRATION=1`) | `anvil`, `forge`, Postgres (the test DB is dropped and recreated) |

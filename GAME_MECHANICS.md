@@ -41,10 +41,10 @@ This document describes the AtlasPad game rules **as they are implemented**. Eve
 
 ## 1. Principles
 
-- **The blockchain is the source of truth.** AtlasPad runs on Robinhood Chain (chain id 4663), an Arbitrum Orbit L2 that uses ETH for gas. The contracts hold nations, tokens, votes and treasury ETH.
+- **The blockchain is the source of truth.** AtlasPad runs on Robinhood Chain (chain id 4663), an Arbitrum Orbit L2 that uses ETH for gas. **$WIF is the currency of the whole game**: nations are founded, bought, sold, taxed and pooled in $WIF. The contracts hold nations, tokens, votes and treasury $WIF.
 - **Game state is derived, not stored on-chain.** The indexer mirrors contract events into a database. A deterministic game engine then replays those events in time order to produce resources, buildings, wars, alliances, events, news and achievements. That state can be wiped and rebuilt from chain data at any time (see [section 17](#17-on-chain-vs-off-chain-state-replay-and-rebuild)).
 - **Nothing is random.** The engine has no random number generator. Every outcome is a function of indexed on-chain data: trades, transfers, liquidity, votes and executed decrees. The world map is generated procedurally from a fixed seed, and capitals are placed from a hash of each token address.
-- **There is no gambling.** Wars are decided by a published formula over measurable metrics, and ties go to the defender. No tokens or ETH are at stake in any game action. `AtlasGovernor` has no payable function, and no contract accepts bets or stakes on outcomes.
+- **There is no gambling.** Wars are decided by a published formula over measurable metrics, and ties go to the defender. No tokens or $WIF are at stake in any game action. `AtlasGovernor` has no payable function, and no contract accepts bets or stakes on outcomes.
 - **Game values are not assets.** Resources, scores, influence and XP live only in the indexer database. They cannot be bought, sold, transferred or withdrawn (`packages/shared/src/game/constants.ts`, `resources.ts`).
 
 ---
@@ -60,12 +60,12 @@ This document describes the AtlasPad game rules **as they are implemented**. Eve
 | Description / metadata URI | ≤ 280 bytes / ≤ 200 bytes |
 | Total supply | 1,000,000 to 1,000,000,000,000 whole tokens. Fixed and minted once to the launchpad. No mint, owner, pause, blacklist, transfer tax or upgrade path. |
 | Founder allocation | 0–5% of supply, vesting linearly over 30 days from founding and claimable only after graduation (the UI shows "30-day vesting, claimable after graduation"). Held by the launchpad until claimed, so founder tokens can never be sold back into the bonding curve. |
-| Founder's initial buy | Any ETH sent above the creation fee is used to buy on the curve. It may not exceed 10% of supply. |
+| Founder's initial buy | `initialBuyWif` $WIF is used to buy on the curve in the founding transaction. It may not exceed 10% of supply. |
 | Creation fee | Immutable per deployment (may be zero). Paid to the protocol, not to the treasury. |
 | Theme | One of 8: Medieval, Cyberpunk, Space, Ocean, Jungle, Meme, AI, Fantasy. **Cosmetic only.** No game formula reads it. |
 | Emblem (flag) | A single `uint256`: glyph (24 options), pattern (8), and primary, secondary and accent colours. Out-of-range ids wrap around. Can only be changed by a Symbol proposal ([section 10](#10-governance-proposing-voting-enacting)). |
 
-**Graduation ("joining world markets").** Tokens first trade on a bonding curve ([Appendix A](#appendix-a-the-founding-curve)). When the curve allocation sells out, the launchpad seeds a Uniswap V2 pool with the raised ETH and the 20% LP reserve. The LP tokens are minted to `0x…dEaD`, which locks the liquidity permanently. Graduation affects the game in three ways:
+**Graduation ("joining world markets").** Tokens first trade on a bonding curve ([Appendix A](#appendix-a-the-founding-curve)). When the curve allocation sells out, the launchpad seeds a nation/WIF Uniswap V2 pool with the raised $WIF and the 20% LP reserve. The LP tokens are minted to `0x…dEaD`, which locks the liquidity permanently. Graduation affects the game in three ways:
 
 - It is required to build the **Port** and the **Spaceport**.
 - It is required for the **National Emergency** event.
@@ -77,10 +77,10 @@ Graduation also makes the founder's vested allocation claimable (`claimFounderTo
 
 | Metric | Definition |
 | --- | --- |
-| Price (ETH/token) | Before graduation: `virtualEth / virtualTokens`. After: Uniswap pool WETH reserve ÷ token reserve. |
-| Market cap (ETH) | Price × **total** supply |
-| Liquidity (ETH) | Before graduation: ETH actually held by the curve (`realEth`). After: the pool's WETH reserve. |
-| Volume (ETH) | Sum of trade ETH amounts. Curve buys count ETH paid including the fee; curve sells count ETH received after the fee. Uniswap swaps count WETH in (buys) or WETH out (sells). |
+| Price (WIF/token) | Before graduation: `virtualWif / virtualTokens`. After: Uniswap pool WIF reserve ÷ token reserve. |
+| Market cap (WIF) | Price × **total** supply |
+| Liquidity (WIF) | Before graduation: $WIF actually held by the curve (`realWif`). After: the pool's WIF reserve. |
+| Volume (WIF) | Sum of trade $WIF amounts. Curve buys count $WIF paid including the fee; curve sells count $WIF received after the fee. Uniswap swaps count $WIF in (buys) or $WIF out (sells). |
 
 ---
 
@@ -100,7 +100,7 @@ For example, a 1,000,000,000-token nation has a threshold of 1,000 tokens.
 | Excluded address | Why |
 | --- | --- |
 | `0x0000000000000000000000000000000000000000` and `0x000000000000000000000000000000000000dEaD` | Zero and burn addresses |
-| Uniswap V2 Router, Uniswap V2 Factory, WETH | DEX and protocol infrastructure |
+| Uniswap V2 Router, Uniswap V2 Factory, WETH, the $WIF token contract | DEX and protocol infrastructure |
 | On Robinhood Chain: Uniswap Universal Router (3 deployments), SwapRouter02, Permit2, UniswapX V3 Dutch Order Reactor | Infrastructure that may hold tokens briefly |
 | AtlasLaunchpad | The bonding curve. It holds unsold curve tokens, the LP reserve before graduation, and unclaimed founder allocation. |
 | NationTreasury, AtlasGovernor | AtlasPad system contracts |
@@ -129,8 +129,15 @@ logScore(x, lo, hi) = x <= 0 ? 0 : clamp( log10(1 + x/lo) / log10(1 + hi/lo), 0,
 
 **Inputs:**
 
-- Market data: market cap, liquidity, 24h volume (all in ETH), and citizens.
+- Market data: market cap, liquidity and 24h volume, converted from $WIF into **market units** (below), and citizens.
+
 - Game state: the set of *completed* buildings, the nation's influence resource, its war wins, and its allies (active alliance members − 1).
+
+**Market units.** Every market-driven rule is calibrated in market units, `U = WIF_MARKET_UNIT = 100,000 WIF`
+(`packages/shared/src/game/constants.ts`). A value in $WIF is divided by `U` before it enters a formula, so the game
+stays balanced whatever $WIF trades at. The recommended graduation target is `2 U = 200,000 WIF`, which puts a
+nation's opening market cap near `0.6 U` and its graduation market cap at `10 U`. Below, `mcap`, `liquidity`,
+`vol24h`, `volume1h` and war volume are all in market units.
 
 Building flags below are 1 if the building is complete and 0 otherwise.
 
@@ -146,7 +153,7 @@ Building flags below are 1 if the building is complete and 0 otherwise.
 
 Civilization score uses the already-rounded component scores. Some reference points (computed with the shared code):
 
-| Citizens | Population score | Influence (resource) | Influence score | Market cap (ETH) | `logScore(mcap, 0.01, 10 000)` |
+| Citizens | Population score | Influence (resource) | Influence score | Market cap (U) | `logScore(mcap, 0.01, 10 000)` |
 | --- | --- | --- | --- | --- | --- |
 | 1 | 6.0 | 10 | 6.0 | 0.01 | 0.050 |
 | 10 | 20.8 | 100 | 20.8 | 1 | 0.334 |
@@ -229,11 +236,11 @@ It is recomputed after every indexed block range and after every engine step tha
 | Category | Ranked by |
 | --- | --- |
 | 🏆 Overall Civilization | Civilization score |
-| 🌎 Largest Economy | Market cap (ETH) |
+| 🌎 Largest Economy | Market cap ($WIF) |
 | 👥 Most Citizens | Citizen count |
 | ⚔️ Strongest Nation | Military power |
 | 📈 Fastest Growing | 24h citizen growth: `citizens / citizens 24h ago − 1`, the same measure and 5-citizen floor as the Discover page. Nations with fewer than 5 citizens, or none 24 h ago, are not ranked. |
-| 🔥 Most Active | 24h trading volume (ETH) |
+| 🔥 Most Active | 24h trading volume ($WIF) |
 | 🏗️ Most Developed | Development score (ties broken by civilization score), shown as "n / 8" buildings |
 | 👑 Most Influential | Influence **resource** (not the influence score) |
 
@@ -287,14 +294,14 @@ The inputs come from the epoch snapshot:
 | Input | Meaning |
 | --- | --- |
 | `citizens` | Citizens at `E − 1` |
-| `volume1h` | ETH traded in `[E − 1h, E)` |
-| `liquidity` | Liquidity in ETH |
+| `volume1h` | $WIF traded in `[E − 1h, E)`, in market units |
+| `liquidity` | Liquidity, in market units |
 | `votesCast` | Number of votes (one per address per proposal, any choice) cast on this nation's proposals during the hour |
 | `economicPower` | The epoch's economic power |
 | `allies` | Active alliance members − 1 |
 | `goldenAge` | True while a Golden Age status is active. The epoch at which the Golden Age fires is not itself boosted. |
 
-For example, a nation with 100 citizens, 1 ETH of liquidity, no trades, no votes, economic power 30 and no buildings produces 42 materials, 21 energy, 4 culture and 3 influence per hour.
+For example, a nation with 100 citizens, 1 U (100,000 WIF) of liquidity, no trades, no votes, economic power 30 and no buildings produces 42 materials, 21 energy, 4 culture and 3 influence per hour.
 
 **Consumption.** Resources are spent in only two ways:
 
@@ -394,7 +401,7 @@ Treasury and Symbol proposals are enacted entirely on-chain by the contracts. Th
 
 ## 11. Wars
 
-Wars are 48-hour contests decided **deterministically** by measurable metrics. No tokens or ETH change hands, and there is no betting.
+Wars are 48-hour contests decided **deterministically** by measurable metrics. No tokens or $WIF change hands, and there is no betting.
 
 **Declaration rules** (`validateWarDeclaration`, checked at enactment):
 
@@ -412,7 +419,7 @@ Wars are 48-hour contests decided **deterministically** by measurable metrics. N
 **At the end** (`declared_at + 48h`) the engine measures both sides as of the end time:
 
 - citizens and market cap;
-- ETH volume traded during `[declared_at, ends_at)`;
+- $WIF volume traded during `[declared_at, ends_at)` (in market units);
 - economic and defensive power;
 - current allies.
 
@@ -422,7 +429,7 @@ It then scores each side (`warScore` in `rules.ts`):
 | --- | --- | --- |
 | Population growth | 30 | `30 × (clamp(g, −0.5, 1) + 0.5) / 1.5`, where `g = citizensEnd/citizensStart − 1` (if the start is 0: `g = 1` when the end is > 0, else 0) |
 | Market momentum | 25 | `25 × (clamp(m, −0.5, 1) + 0.5) / 1.5`, where `m = mcapEnd/mcapStart − 1` (0 if the start is 0) |
-| Trading activity | 25 | `25 × logScore(warVolumeEth, 0.001, 1 000)` |
+| Trading activity | 25 | `25 × logScore(warVolumeWif / U, 0.001, 1 000)` |
 | Economic power | 20 | `20 × economicPowerEnd / 100` |
 | Defense (defender only) | 10 | `10 × defensivePowerEnd / 100` |
 | Alliance bonus | +10% | `subtotal × min(10, 2 × allies) %` |
@@ -471,16 +478,16 @@ All world events come from indexed chain data and fire at most once per cooldown
 
 | Event | Severity | Trigger (exact) | Cooldown | Status shown | Game effect |
 | --- | --- | --- | --- | --- | --- |
-| 🚀 **Economic Boom** | notable | mcap ≥ 0.1 ETH, ≥ 1 trade in the hour, a 1h-ago snapshot exists, and the 1h price change is ≥ +10% | 6 h | 3 h | none (display only) |
+| 🚀 **Economic Boom** | notable | mcap ≥ 0.1 U (10,000 WIF), ≥ 1 trade in the hour, a 1h-ago snapshot exists, and the 1h price change is ≥ +10% | 6 h | 3 h | none (display only) |
 | 📉 **Market Crash** | notable | Same gates, and the 1h price change is ≤ −20% | 6 h | 3 h | none |
-| 👑 **Golden Age** | major | mcap ≥ 0.1 ETH, mcap > previous ATH × 1.05 (previous ATH > 0), and the 24h price change is ≥ +50% | 48 h | 24 h | **+20 base influence per epoch** while active, and the **Golden Age** achievement |
+| 👑 **Golden Age** | major | mcap ≥ 0.1 U (10,000 WIF), mcap > previous ATH × 1.05 (previous ATH > 0), and the 24h price change is ≥ +50% | 48 h | 24 h | **+20 base influence per epoch** while active, and the **Golden Age** achievement |
 | 📈 **Record Economy** (record high) | minor | Same new-ATH condition, but the Golden Age 24h condition is not met. If Golden Age qualifies but is on cooldown, neither event fires. | 12 h | — | none |
-| 🌩️ **Economic Crisis** | major | mcap ≥ 0.1 ETH and the 24h price change is ≤ −50% | 48 h | 24 h | none directly. It starts the 7-day clock for **Resilient**. |
+| 🌩️ **Economic Crisis** | major | mcap ≥ 0.1 U (10,000 WIF) and the 24h price change is ≤ −50% | 48 h | 24 h | none directly. It starts the 7-day clock for **Resilient**. |
 | 👥 **Population Explosion** | notable | A 24h-ago snapshot with > 0 citizens exists, the nation gained ≥ 25 citizens, and citizens are ≥ 1.25 × the day-ago count | 24 h | — | none |
-| 🔥 **Trade Festival** | notable | Volume this hour is ≥ 0.25 ETH **and** ≥ 5 × the average hourly volume of the previous 23 hours | 12 h | 3 h | none |
-| ⚠️ **Banking Crisis** | notable | A 24h-ago snapshot has liquidity ≥ 0.1 ETH, and current liquidity is ≤ 50% of it | 24 h | — | none |
-| ☠️ **National Emergency** | major | The nation graduated before `E`, ATH liquidity is ≥ 0.5 ETH, and current liquidity is < 10% of ATH liquidity | 72 h | 24 h | none |
-| 🐋 **Foreign Investment** (whale) | notable | Evaluated **per buy trade** during chain sync: ETH spent is ≥ 0.25 **and** ≥ 3% of the market cap before the trade | 1 h | — | none |
+| 🔥 **Trade Festival** | notable | Volume this hour is ≥ 0.25 U (25,000 WIF) **and** ≥ 5 × the average hourly volume of the previous 23 hours | 12 h | 3 h | none |
+| ⚠️ **Banking Crisis** | notable | A 24h-ago snapshot has liquidity ≥ 0.1 U (10,000 WIF), and current liquidity is ≤ 50% of it | 24 h | — | none |
+| ☠️ **National Emergency** | major | The nation graduated before `E`, ATH liquidity is ≥ 0.5 U (50,000 WIF), and current liquidity is < 10% of ATH liquidity | 72 h | 24 h | none |
+| 🐋 **Foreign Investment** (whale) | notable | Evaluated **per buy trade** during chain sync: $WIF spent is ≥ 0.25 U (25,000 WIF) **and** ≥ 3% of the market cap before the trade | 1 h | — | none |
 
 **Statuses.** Statuses are timed flags (`statuses` on the nation). The UI uses them for header badges, map glow and the capital sky. Firing the same status again replaces its timer. Only **Golden Age** changes game numbers (+20 base influence production).
 
@@ -489,7 +496,7 @@ All world events come from indexed chain data and fire at most once per cooldown
 | Milestone | Values | Trigger |
 | --- | --- | --- |
 | 👥 Population milestone | 10, 100, 1,000, 10,000, 100,000 citizens | The live citizen count crosses the value upward. 100, 1,000 and 10,000 also unlock achievements. |
-| 💰 Economic milestone | 1, 10, 100, 1,000, 10,000 ETH | Market cap rises past the value above the previous all-time high. 100 ETH also unlocks an achievement. |
+| 💰 Economic milestone | 1, 10, 100, 1,000, 10,000 U (100K to 1B WIF) | Market cap rises past the value above the previous all-time high. 100 U (10M WIF) also unlocks an achievement. |
 
 ---
 
@@ -568,8 +575,8 @@ The "proposal executed" XP is paid when the governor executes the proposal, incl
 | CITIZENS_1000 | Thriving City | rare | Live citizens cross 1,000 |
 | CITIZENS_10000 | Great Nation | epic | Live citizens cross 10,000 |
 | GRADUATED | World Markets | rare | The curve sells out and liquidity moves to Uniswap |
-| MCAP_100_ETH | Economic Power | epic | Market cap crosses 100 ETH (above the previous ATH) |
-| MCAP_1M_USD | Millionaire Economy | epic | Market cap × the indexer's ETH/USD reference price is ≥ $1,000,000. This needs `ETH_USD_SOURCE=coinbase`; without a price it never unlocks. |
+| MCAP_100_UNITS | Economic Power | epic | Market cap crosses 100 U = 10,000,000 WIF (above the previous ATH) |
+| MCAP_1M_USD | Millionaire Economy | epic | Market cap × the indexer's $WIF/USD reference price is ≥ $1,000,000. This needs `WIF_USD_SOURCE=dexscreener`; without a price it never unlocks. |
 | FIRST_BUILDING | First Stone | common | The first building completes |
 | FIRST_MONUMENT | Wonder of the World | rare | A Monument completes |
 | SPACEFARING | Spacefaring | legendary | A Spaceport completes |
@@ -600,12 +607,12 @@ The "proposal executed" XP is paid when the governor executes the proposal, incl
 
 ## 16. The national treasury
 
-Each nation has an isolated ETH account in `NationTreasury`. The treasury holds real ETH, but it is **not an input to any game formula**. Its balance is only displayed.
+Each nation has an isolated $WIF account in `NationTreasury`. The treasury holds real $WIF, but it is **not an input to any game formula**. Its balance is only displayed. Citizens decide how to spend it (recruiting bounties, prizes, alliances' shared goals) through Treasury proposals, capped at 25% per 7-day window.
 
 **Income:**
 
-- **Bonding-curve trades.** Every curve buy and sell pays a **1%** fee in ETH. Half (0.5% of the trade value) is deposited into the nation's treasury; the other half goes to the protocol fee recipient.
-- **Donations.** Anyone may call `deposit(nationId)`. A plain ETH transfer to the contract reverts.
+- **Bonding-curve trades.** Every curve buy and sell pays a **1%** fee in $WIF: 0.5% of the trade value is deposited into the nation's treasury, 0.25% is burned, and 0.25% goes to the protocol fee recipient.
+- **Donations.** Anyone may call `deposit(nationId, amount)` after approving $WIF. $WIF sent directly to the contract is not credited to any nation.
 - **Not income:** after graduation, trades happen on Uniswap V2. AtlasPad takes no fee on them and the treasury receives nothing from them. The nation-creation fee goes to the protocol, not the treasury.
 
 **Spending:**
@@ -661,12 +668,12 @@ The untouched items are insert-once and idempotent. The replay re-attempts engin
   - derived game scores (economic, military, defensive and civilization multipliers, and the development score);
   - resource production.
 
-  Buildings never touch token supply, price, the bonding curve, liquidity, fees, voting power or treasury ETH. Executing a GameAction on-chain only emits an event, and the engine that interprets it is off-chain and never writes to the chain.
+  Buildings never touch token supply, price, the bonding curve, liquidity, fees, voting power or treasury $WIF. Executing a GameAction on-chain only emits an event, and the engine that interprets it is off-chain and never writes to the chain.
 - **Wars are skill-and-activity contests, not gambles.** The outcome is a fixed formula over growth, momentum, trading activity, economic power, defense and allies. Ties go to the defender. Only influence, the win/loss record and a 7-day map-territory bonus change. No tokens or ETH are at stake, and AtlasPad offers no betting on outcomes.
 - **Market activity is an input, by design.** Economic power, military power, war scores, energy and influence production, and most world events are computed from real market data: market cap, liquidity, volume and citizens. Trading and holding a nation's token therefore *does* move its game standing. What cannot be bought is any in-game resource or effect outside those published formulas.
 - **Counting is per address.** Citizens and the culture earned from votes are counted per address (one vote per address per proposal, regardless of weight). Voting *outcomes* are token-weighted.
 - **XP is flat.** XP comes in fixed amounts for founding, citizenship, voting, proposing and achievements. It does not scale with the amount held or spent.
-- **One off-chain dependency.** The **Millionaire Economy** achievement uses an off-chain ETH/USD reference price. It is the only game outcome that is not a pure function of chain data.
+- **One off-chain dependency.** The **Millionaire Economy** achievement uses an off-chain $WIF/USD reference price. It is the only game outcome that is not a pure function of chain data.
 
 ---
 
@@ -676,17 +683,17 @@ The untouched items are insert-once and idempotent. The replay re-attempts engin
 
 ```
 S = total supply      L = LP reserve = 20% of S      F = founder allocation = 0–5% of S
-C = curve supply = S − L − F      R = graduationEth (immutable per deployment)
+C = curve supply = S − L − F      R = graduationWif (immutable per deployment)
 
-virtualTokens₀ = C² / (C − L)        virtualEth₀ = R·L / (C − L)
-k = virtualEth · virtualTokens       (constant while trading; fees excluded)
+virtualTokens₀ = C² / (C − L)        virtualWif₀ = R·L / (C − L)
+k = virtualWif · virtualTokens       (constant while trading; fees excluded)
 ```
 
-Selling the whole curve allocation leaves `virtualTokens = C·L/(C − L)` and `virtualEth = R·C/(C − L)`. So:
+Selling the whole curve allocation leaves `virtualTokens = C·L/(C − L)` and `virtualWif = R·C/(C − L)`. So:
 
-- the curve raises exactly `R` ETH (net of fees);
-- the final curve price is `R / L`, which is exactly the Uniswap V2 opening price when `R` ETH and `L` tokens seed the pool.
+- the curve raises exactly `R` $WIF (net of fees);
+- the final curve price is `R / L`, which is exactly the Uniswap V2 opening price when `R` $WIF and `L` tokens seed the pool.
 
 With no founder allocation, the opening market cap is 31.25% of `R` and the graduation market cap is 5 × `R` (verified in `packages/shared/test/curve.test.ts`).
 
-Trades pay a 1% ETH fee, split 0.5% to the treasury and 0.5% to the protocol. A buy that would overshoot the remaining curve supply is capped and the excess ETH is refunded, which triggers graduation. Only tokens that the curve itself sold can be sold back into it; founder tokens cannot be claimed until after graduation, when the curve is closed.
+Trades pay a 1% $WIF fee, split 0.5% to the treasury, 0.25% burned and 0.25% to the protocol. A buy that would overshoot the remaining curve supply is capped and only the $WIF it needs is pulled, which triggers graduation. Only tokens that the curve itself sold can be sold back into it; founder tokens cannot be claimed until after graduation, when the curve is closed.
