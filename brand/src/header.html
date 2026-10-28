@@ -1,0 +1,165 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Unbounded; font-weight: 500; src: url(unbounded-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 600; src: url(unbounded-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 700; src: url(unbounded-latin-700-normal.woff2) format("woff2"); }
+  html, body { margin: 0; width: 1500px; height: 500px; background: #04050a; overflow: hidden; }
+  .stage { position: relative; width: 1500px; height: 500px; }
+  svg.art { position: absolute; inset: 0; }
+  /* X overlays the profile picture on the lower-left and crops the top/bottom on some screens:
+     the text block sits in the vertical middle and starts well right of the avatar. */
+  .copy { position: absolute; left: 110px; top: 118px; width: 760px; }
+  .brand { display: flex; align-items: center; gap: 22px; }
+  .word { font-family: Unbounded; font-weight: 600; font-size: 64px; letter-spacing: 0.2em; color: #eef0f6; }
+  .line1 { margin-top: 26px; font-family: Unbounded; font-weight: 500; font-size: 30px; color: #e9ebf2; letter-spacing: -0.005em; }
+  .line2 { margin-top: 8px; font-family: Unbounded; font-weight: 700; font-size: 30px; letter-spacing: -0.005em;
+    background: linear-gradient(100deg, #fbe6ad 0%, #e2bd72 45%, #b48a43 100%); -webkit-background-clip: text; color: transparent; }
+  .meta { margin-top: 26px; font-family: "JetBrains Mono", monospace; font-size: 15px; letter-spacing: 0.26em; color: #8d95a8; text-transform: uppercase; }
+  .meta b { color: #d6b26e; font-weight: 500; }
+  .live { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #35d29a; box-shadow: 0 0 12px #35d29a; margin-right: 12px; vertical-align: 2px; }
+</style>
+</head>
+<body>
+<div class="stage">
+<svg class="art" width="1500" height="500" viewBox="0 0 1500 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="sky" cx="78%" cy="40%" r="75%">
+      <stop offset="0" stop-color="#16130a"/>
+      <stop offset="0.4" stop-color="#090b14"/>
+      <stop offset="1" stop-color="#03040a"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbe6ad"/>
+      <stop offset="0.5" stop-color="#d6b26e"/>
+      <stop offset="1" stop-color="#8a6a2f"/>
+    </linearGradient>
+    <radialGradient id="globeFill" cx="35%" cy="25%" r="80%">
+      <stop offset="0" stop-color="#231e0e"/>
+      <stop offset="0.55" stop-color="#0c0f1b"/>
+      <stop offset="1" stop-color="#05070d"/>
+    </radialGradient>
+    <radialGradient id="atmo" cx="50%" cy="50%" r="50%">
+      <stop offset="0.86" stop-color="#d6b26e" stop-opacity="0"/>
+      <stop offset="0.9" stop-color="#e8c47a" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#d6b26e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff2c9"/>
+      <stop offset="0.3" stop-color="#f3d58f" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#f3d58f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fadeLeft" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#04050a" stop-opacity="0.95"/>
+      <stop offset="0.45" stop-color="#04050a" stop-opacity="0.55"/>
+      <stop offset="0.62" stop-color="#04050a" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="globeClip"><circle cx="1180" cy="470" r="400"/></clipPath>
+    <filter id="blur6" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
+
+  <rect width="1500" height="500" fill="url(#sky)"/>
+  <g id="stars"></g>
+
+  <!-- globe -->
+  <circle cx="1180" cy="470" r="470" fill="url(#atmo)"/>
+  <circle cx="1180" cy="470" r="400" fill="url(#globeFill)"/>
+  <g clip-path="url(#globeClip)">
+    <g id="hexes"></g>
+    <g fill="none" stroke="url(#gold)" stroke-linecap="round">
+      <ellipse cx="1180" cy="470" rx="80" ry="400" stroke-width="1.6" opacity="0.5"/>
+      <ellipse cx="1180" cy="470" rx="190" ry="400" stroke-width="1.4" opacity="0.38"/>
+      <ellipse cx="1180" cy="470" rx="300" ry="400" stroke-width="1.2" opacity="0.28"/>
+      <ellipse cx="1180" cy="470" rx="400" ry="70" stroke-width="1.2" opacity="0.3"/>
+      <ellipse cx="1180" cy="330" rx="372" ry="62" stroke-width="1.2" opacity="0.3"/>
+      <ellipse cx="1180" cy="200" rx="290" ry="48" stroke-width="1.2" opacity="0.3"/>
+      <ellipse cx="1180" cy="105" rx="160" ry="27" stroke-width="1.1" opacity="0.28"/>
+    </g>
+    <!-- trade routes -->
+    <g fill="none" stroke="#f3d58f" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 9" opacity="0.8">
+      <path d="M1000 300 Q 1090 170 1245 210"/>
+      <path d="M1245 210 Q 1340 230 1380 330"/>
+      <path d="M1000 300 Q 1110 360 1150 420"/>
+    </g>
+    <!-- a war front -->
+    <path d="M1300 380 Q 1330 360 1362 372" fill="none" stroke="#ff5a6e" stroke-width="2.4" stroke-dasharray="4 6" opacity="0.8"/>
+  </g>
+  <circle cx="1180" cy="470" r="400" fill="none" stroke="url(#gold)" stroke-width="3"/>
+
+  <!-- capitals -->
+  <g>
+    <circle cx="1245" cy="210" r="36" fill="url(#glow)" filter="url(#blur6)"/>
+    <circle cx="1245" cy="210" r="9" fill="#f3d58f"/><circle cx="1245" cy="210" r="4" fill="#fff6dc"/>
+    <circle cx="1000" cy="300" r="26" fill="url(#glow)" filter="url(#blur6)"/>
+    <circle cx="1000" cy="300" r="6.5" fill="#f3d58f"/>
+    <circle cx="1380" cy="330" r="24" fill="url(#glow)" filter="url(#blur6)"/>
+    <circle cx="1380" cy="330" r="6" fill="#f3d58f"/>
+    <circle cx="1150" cy="420" r="20" fill="url(#glow)" filter="url(#blur6)"/>
+    <circle cx="1150" cy="420" r="5" fill="#f3d58f"/>
+  </g>
+
+  <rect width="1500" height="500" fill="url(#fadeLeft)"/>
+</svg>
+
+<div class="copy">
+  <div class="brand">
+    <svg width="64" height="64" viewBox="0 0 32 32" fill="none">
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#f3d58f"/><stop offset="1" stop-color="#8a6a2f"/></linearGradient></defs>
+      <circle cx="16" cy="16" r="13.5" stroke="url(#lg)" stroke-width="1.8"/>
+      <ellipse cx="16" cy="16" rx="6" ry="13.5" stroke="url(#lg)" stroke-width="1.3" opacity="0.8"/>
+      <path d="M3 16h26M5 9.5h22M5 22.5h22" stroke="url(#lg)" stroke-width="1" opacity="0.55"/>
+      <circle cx="21.5" cy="10.5" r="2.4" fill="#f3d58f"/>
+    </svg>
+    <div class="word">ATLASPAD</div>
+  </div>
+  <div class="line1">Every token is a nation.</div>
+  <div class="line2">Every nation runs on $WIF.</div>
+  <div class="meta"><span class="live"></span>Found · Trade · Govern · Conquer <b>— Robinhood Chain</b></div>
+</div>
+</div>
+
+<script>
+  // Deterministic starfield and hex territories (seeded, so every render is identical).
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const NS = "http://www.w3.org/2000/svg";
+  const stars = document.getElementById("stars");
+  for (let i = 0; i < 260; i++) {
+    const c = document.createElementNS(NS, "circle");
+    const big = rnd() > 0.93;
+    c.setAttribute("cx", (rnd() * 1500).toFixed(1));
+    c.setAttribute("cy", (rnd() * 500).toFixed(1));
+    c.setAttribute("r", big ? (1 + rnd()).toFixed(2) : (0.4 + rnd() * 0.7).toFixed(2));
+    c.setAttribute("fill", rnd() > 0.8 ? "#f3d58f" : "#cfd6ea");
+    c.setAttribute("opacity", (0.2 + rnd() * (big ? 0.7 : 0.45)).toFixed(2));
+    stars.appendChild(c);
+  }
+  // Hex territories around each capital.
+  const hexes = document.getElementById("hexes");
+  const hex = (x, y, s, a) => {
+    const p = document.createElementNS(NS, "path");
+    const h = s * Math.sqrt(3) / 2;
+    p.setAttribute("d", `M${x} ${y - s} L${x + h} ${y - s / 2} L${x + h} ${y + s / 2} L${x} ${y + s} L${x - h} ${y + s / 2} L${x - h} ${y - s / 2}Z`);
+    p.setAttribute("fill", `rgba(214,178,110,${(0.06 + a * 0.16).toFixed(3)})`);
+    p.setAttribute("stroke", `rgba(232,196,122,${(0.12 + a * 0.3).toFixed(3)})`);
+    p.setAttribute("stroke-width", "1");
+    hexes.appendChild(p);
+  };
+  const s = 15, w = s * Math.sqrt(3), v = s * 1.5;
+  const capitals = [[1245, 210, 5], [1000, 300, 3.5], [1380, 330, 3.2], [1150, 420, 2.6]];
+  for (let row = -2; row < 40; row++) {
+    for (let col = -2; col < 40; col++) {
+      const x = 760 + col * w + (row % 2 ? w / 2 : 0), y = row * v;
+      let best = 0;
+      for (const [cx, cy, r] of capitals) {
+        const d = Math.hypot(x - cx, y - cy) / (r * w);
+        best = Math.max(best, 1 - d);
+      }
+      if (best > 0 && rnd() < 0.55 + best) hex(x, y, s - 1.5, Math.min(1, best * 1.4));
+    }
+  }
+</script>
+</body>
+</html>
