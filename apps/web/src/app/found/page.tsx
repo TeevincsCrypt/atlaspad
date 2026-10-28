@@ -1,23 +1,24 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { useAccount, useBalance, useReadContract } from "wagmi";
+import { useAccount, useReadContract } from "wagmi";
 import { useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, Loader2, ShieldCheck, X } from "lucide-react";
-import { decodeEventLog, formatEther, parseEther } from "viem";
-import { atlasLaunchpadAbi } from "@atlaspad/shared/abis";
+import { AlertTriangle, ArrowLeft, ArrowRight, Check, ExternalLink, Flame, Loader2, ShieldCheck, X } from "lucide-react";
+import { decodeEventLog, formatEther, formatUnits, parseUnits } from "viem";
+import { atlasLaunchpadAbi, nationTokenAbi } from "@atlaspad/shared/abis";
 import {
   LAUNCHPAD,
   THEMES,
+  WIF_DECIMALS,
   curveMilestones,
   encodeEmblem,
   formatCompact,
-  formatEth,
+  formatWif,
   initialCurve,
   quoteBuy,
   type Emblem,
 } from "@atlaspad/shared";
-import { contracts, isDeployed, network } from "@/lib/env";
+import { contracts, getWifUrl, isDeployed, network, wifToken } from "@/lib/env";
 import { queryKeys } from "@/lib/api";
 import { useUi } from "@/lib/store";
 import { useAtlasTx } from "@/lib/tx";
@@ -85,9 +86,18 @@ export default function FoundPage() {
   const dTicker = useDebounced(ticker);
   const nameAvail = useReadContract({ address: contracts?.launchpad, abi: atlasLaunchpadAbi, functionName: "isNameAvailable", args: [dName], chainId: network.chain.id, query: { enabled: Boolean(contracts && !validateName(dName)) } });
   const tickerAvail = useReadContract({ address: contracts?.launchpad, abi: atlasLaunchpadAbi, functionName: "isSymbolAvailable", args: [dTicker], chainId: network.chain.id, query: { enabled: Boolean(contracts && !validateTicker(dTicker)) } });
-  const gradEth = useReadContract({ address: contracts?.launchpad, abi: atlasLaunchpadAbi, functionName: "graduationEth", chainId: network.chain.id, query: { enabled: Boolean(contracts) } });
+  const gradWif = useReadContract({ address: contracts?.launchpad, abi: atlasLaunchpadAbi, functionName: "graduationWif", chainId: network.chain.id, query: { enabled: Boolean(contracts) } });
   const creationFee = useReadContract({ address: contracts?.launchpad, abi: atlasLaunchpadAbi, functionName: "creationFee", chainId: network.chain.id, query: { enabled: Boolean(contracts) } });
-  const balance = useBalance({ address, chainId: network.chain.id, query: { enabled: Boolean(address) } });
+  // $WIF is a plain ERC-20: any ERC-20 ABI reads its balance and allowance.
+  const wifBalance = useReadContract({ address: wifToken, abi: nationTokenAbi, functionName: "balanceOf", args: [address!], chainId: network.chain.id, query: { enabled: Boolean(address) } });
+  const wifAllowance = useReadContract({
+    address: wifToken,
+    abi: nationTokenAbi,
+    functionName: "allowance",
+    args: [address!, contracts?.launchpad ?? wifToken],
+    chainId: network.chain.id,
+    query: { enabled: Boolean(address && contracts) },
+  });
 
   const emblem = useMemo(() => {
     if (customEmblem !== null) return customEmblem;
@@ -98,21 +108,25 @@ export default function FoundPage() {
   const totalSupplyWei = supply * 10n ** 18n;
   const initialBuyWei = (() => {
     try {
-      return initialBuy ? parseEther(initialBuy as `${number}`) : 0n;
+      return initialBuy ? parseUnits(initialBuy as `${number}`, WIF_DECIMALS) : 0n;
     } catch {
       return null;
     }
   })();
-  const milestones = useMemo(() => (gradEth.data ? curveMilestones(totalSupplyWei, BigInt(founderBps), gradEth.data) : null), [gradEth.data, totalSupplyWei, founderBps]);
+  const milestones = useMemo(() => (gradWif.data ? curveMilestones(totalSupplyWei, BigInt(founderBps), gradWif.data) : null), [gradWif.data, totalSupplyWei, founderBps]);
   const buyPreview = useMemo(() => {
-    if (!gradEth.data || !initialBuyWei) return null;
-    const q = quoteBuy(initialCurve(totalSupplyWei, BigInt(founderBps), gradEth.data), initialBuyWei);
+    if (!gradWif.data || !initialBuyWei) return null;
+    const q = quoteBuy(initialCurve(totalSupplyWei, BigInt(founderBps), gradWif.data), initialBuyWei);
     const share = Number((q.tokensOut * 10_000n) / totalSupplyWei) / 100;
     return { ...q, share, tooLarge: q.tokensOut > (totalSupplyWei * LAUNCHPAD.MAX_INITIAL_BUY_BPS) / LAUNCHPAD.BPS };
-  }, [gradEth.data, initialBuyWei, totalSupplyWei, founderBps]);
+  }, [gradWif.data, initialBuyWei, totalSupplyWei, founderBps]);
 
   const fee = creationFee.data ?? 0n;
-  const value = fee + (initialBuyWei ?? 0n);
+  /** Total $WIF the founding transaction pulls: the burned creation fee plus the optional initial buy. */
+  const wifTotal = fee + (initialBuyWei ?? 0n);
+  const needsApproval = wifTotal > 0n && (wifAllowance.data ?? 0n) < wifTotal;
+  const notEnoughWif = wifBalance.data !== undefined && wifBalance.data < wifTotal;
+  const wif = (units: bigint) => formatWif(Number(formatUnits(units, WIF_DECIMALS)));
   const call = contracts
     ? {
         address: contracts.launchpad,
@@ -128,12 +142,13 @@ export default function FoundPage() {
             emblem,
             totalSupply: totalSupplyWei,
             founderBps,
+            initialBuyWif: initialBuyWei ?? 0n,
             minTokensOut: buyPreview ? (buyPreview.tokensOut * 98n) / 100n : 0n,
           },
         ],
-        value,
       }
     : null;
+  const approveCall = contracts ? { address: wifToken, abi: nationTokenAbi, functionName: "approve", args: [contracts.launchpad, wifTotal] } : null;
 
   const nameErr = name ? validateName(name.trim()) : null;
   const tickerErr = ticker ? validateTicker(ticker) : null;
@@ -149,9 +164,16 @@ export default function FoundPage() {
   ][step];
 
   useEffect(() => {
-    if (step === 7 && call && isConnected) void tx.prepare(call);
+    // The founding call can only be simulated once the launchpad may pull the $WIF.
+    if (step === 7 && call && isConnected && !needsApproval) void tx.prepare(call);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, isConnected]);
+  }, [step, isConnected, needsApproval]);
+
+  const approve = async () => {
+    if (!approveCall) return;
+    const receipt = await tx.send(approveCall);
+    if (receipt) await wifAllowance.refetch();
+  };
 
   const launch = async () => {
     if (!call) return;
@@ -168,6 +190,9 @@ export default function FoundPage() {
       }
     }
     void qc.invalidateQueries({ queryKey: queryKeys.world });
+    // Founding spends the $WIF approval and balance; drop cached reads so other screens re-check them.
+    void wifAllowance.refetch();
+    void wifBalance.refetch();
   };
 
   if (!isDeployed) {
@@ -278,7 +303,7 @@ export default function FoundPage() {
                       <p className="mt-1 text-xs text-faint">Vests linearly over 30 days and is shown publicly on your nation page. It comes out of the curve allocation and can be claimed only after the nation graduates to Uniswap, so it can never be sold back into the bonding curve.</p>
                     </div>
                     <div>
-                      <div className="label mb-2">Your initial buy (optional, ETH)</div>
+                      <div className="label mb-2">Your initial buy (optional, $WIF)</div>
                       <input value={initialBuy} onChange={(e) => setInitialBuy(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="0.0" inputMode="decimal" className={`${input} font-mono text-base`} />
                       {initialBuyWei === null && <p className="mt-1 text-xs text-warn">Enter a valid amount.</p>}
                       {buyPreview && (
@@ -293,8 +318,8 @@ export default function FoundPage() {
                         {[
                           ["Sold on curve", `${formatCompact(Number(formatEther(milestones.curve.curveSupply)))} (${(Number((milestones.curve.curveSupply * 1000n) / totalSupplyWei) / 10).toFixed(1)}%)`],
                           ["Reserved for LP", `${formatCompact(Number(formatEther(milestones.curve.lpReserve)))} (20%)`],
-                          ["Opening market cap", formatEth(Number(formatEther(milestones.openingMarketCapWei)))],
-                          ["Graduates at", formatEth(Number(formatEther(milestones.graduationMarketCapWei)))],
+                          ["Opening market cap", wif(milestones.openingMarketCapWei)],
+                          ["Graduates at", wif(milestones.graduationMarketCapWei)],
                         ].map(([k, v]) => (
                           <div key={k} className="bg-panel/90 px-4 py-3">
                             <div className="label mb-1">{k}</div>
@@ -303,9 +328,9 @@ export default function FoundPage() {
                         ))}
                       </div>
                     )}
-                    {gradEth.data !== undefined && (
+                    {gradWif.data !== undefined && (
                       <p className="text-xs leading-relaxed text-faint">
-                        When the curve raises {formatEth(Number(formatEther(gradEth.data)))}, the raised ETH and the 20% LP reserve are deposited into a Uniswap V2 pool and the
+                        When the curve raises {wif(gradWif.data)}, the raised $WIF and the 20% LP reserve are deposited into a nation/WIF Uniswap V2 pool and the
                         LP tokens are burned — liquidity is locked forever. The curve&apos;s final price equals the pool&apos;s opening price.
                       </p>
                     )}
@@ -329,9 +354,9 @@ export default function FoundPage() {
                       {[
                         ["Total supply", `${formatCompact(Number(supply))} (fixed, minted once to the launchpad)`],
                         ["Founder allocation", `${founderBps / 100}% · 30-day vesting · claimable after graduation`],
-                        ["Initial buy", initialBuyWei ? formatEth(Number(formatEther(initialBuyWei))) : "None"],
-                        ["Founding fee", formatEth(Number(formatEther(fee)))],
-                        ["Trade fee on the curve", "1% (0.5% to your nation's treasury · 0.5% to the protocol)"],
+                        ["Initial buy", initialBuyWei ? wif(initialBuyWei) : "None"],
+                        ["Founding fee", `${wif(fee)} · burned forever`],
+                        ["Trade fee on the curve", "1% in $WIF (0.5% to your nation's treasury · 0.25% burned · 0.25% to the protocol)"],
                         ["After graduation", "Uniswap V2 · LP burned · no AtlasPad fee"],
                       ].map(([k, v]) => (
                         <div key={k} className="flex justify-between gap-4 border-b border-line px-4 py-2.5 text-sm last:border-0">
@@ -362,11 +387,15 @@ export default function FoundPage() {
                       {[
                         ["Network", `${network.chain.name} · chain ${network.chain.id}`],
                         ["Action", `Found ${name} ($${ticker}) on AtlasPad`],
-                        ["Founding fee", formatEth(Number(formatEther(fee)))],
-                        ["Initial buy", initialBuyWei ? formatEth(Number(formatEther(initialBuyWei))) : "None"],
-                        ["Estimated network fee", tx.phase === "preparing" ? "Simulating…" : tx.gasWei !== null ? formatEth(Number(tx.gasWei) / 1e18) : "—"],
-                        ["Estimated total", tx.gasWei !== null ? formatEth(Number(value + tx.gasWei) / 1e18) : formatEth(Number(formatEther(value)))],
-                        ["Your balance", balance.data ? formatEth(Number(formatEther(balance.data.value))) : "—"],
+                        ["Founding fee (burned)", wif(fee)],
+                        ["Initial buy", initialBuyWei ? wif(initialBuyWei) : "None"],
+                        ["Total $WIF", wif(wifTotal)],
+                        ["Your $WIF balance", wifBalance.data !== undefined ? wif(wifBalance.data) : "—"],
+                        ["$WIF approval", wifTotal === 0n ? "Not needed" : needsApproval ? "Required (one transaction)" : "Done"],
+                        [
+                          "Estimated network fee",
+                          needsApproval ? "Shown after approval" : tx.phase === "preparing" ? "Simulating…" : tx.gasWei !== null ? `${Number(formatEther(tx.gasWei)).toPrecision(3)} ETH (gas)` : "—",
+                        ],
                       ].map(([k, v]) => (
                         <div key={k} className="flex justify-between gap-4 border-b border-line px-4 py-2.5 text-sm last:border-0">
                           <span className="text-faint">{k}</span>
@@ -383,7 +412,7 @@ export default function FoundPage() {
                     <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-warn/30 bg-warn/[0.06] px-4 py-3 text-xs leading-relaxed text-warn">
                       <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} className="mt-0.5 accent-[#ffb547]" />
                       I understand founding is irreversible: the name, ticker, supply and allocation are permanent, fees and the initial buy are spent on-chain, and
-                      tokens can lose value.
+                      tokens can lose value. The founding fee in $WIF is burned.
                     </label>
                   </div>
                 </Step>
@@ -403,8 +432,18 @@ export default function FoundPage() {
               <Button variant="primary" size="lg" onClick={() => setWalletOpen(true)}>
                 Connect wallet
               </Button>
+            ) : notEnoughWif ? (
+              <a href={getWifUrl} target="_blank" rel="noreferrer">
+                <Button variant="primary" size="lg">
+                  Not enough $WIF · Get $WIF <ExternalLink className="size-4" />
+                </Button>
+              </a>
+            ) : needsApproval ? (
+              <Button variant="primary" size="lg" onClick={approve} disabled={!ack || tx.busy}>
+                {tx.busy ? <Loader2 className="size-4 animate-spin" /> : <Flame className="size-4" />} Approve {wif(wifTotal)}
+              </Button>
             ) : (
-              <Button variant="primary" size="lg" onClick={launch} disabled={!ack || tx.gasWei === null || tx.busy || (balance.data ? balance.data.value < value : false)}>
+              <Button variant="primary" size="lg" onClick={launch} disabled={!ack || tx.gasWei === null || tx.busy}>
                 Found {name || "nation"}
               </Button>
             )}

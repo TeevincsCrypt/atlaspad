@@ -1,9 +1,10 @@
 import {
   CITIZEN_MILESTONES,
-  MCAP_MILESTONES_ETH,
+  ECONOMIC_POWER_MCAP_WIF,
+  MCAP_MILESTONES_WIF,
   computeStats,
   crossedMilestones,
-  formatEth,
+  formatWif,
   formatInt,
   type NewsItem,
 } from "@atlaspad/shared";
@@ -26,21 +27,21 @@ export async function refreshNationMetrics(ctx: Ctx, cache: NationCache, ids: nu
   const news: NewsItem[] = [];
 
   const [prevRows, volRows, treasuryRows, ref1h, ref24h, citizens24h, maxRows, stateRow] = await Promise.all([
-    sql`SELECT nation_id, citizens, market_cap_eth, ath_market_cap_eth, ath_liquidity_eth FROM game_nations WHERE nation_id = ANY(${ids})`,
-    sql`SELECT nation_id, COALESCE(sum(eth_amount), 0) AS vol, count(*) AS cnt FROM trades
+    sql`SELECT nation_id, citizens, market_cap_wif, ath_market_cap_wif, ath_liquidity_wif FROM game_nations WHERE nation_id = ANY(${ids})`,
+    sql`SELECT nation_id, COALESCE(sum(wif_amount), 0) AS vol, count(*) AS cnt FROM trades
         WHERE nation_id = ANY(${ids}) AND timestamp > ${now - 86400} GROUP BY nation_id`,
     sql`SELECT nation_id, COALESCE(sum(CASE WHEN direction = 'in' THEN amount ELSE -amount END), 0) AS bal
         FROM treasury_txs WHERE nation_id = ANY(${ids}) GROUP BY nation_id`,
-    sql`SELECT i AS nation_id, (SELECT price_eth FROM trades t WHERE t.nation_id = i AND t.timestamp <= ${now - 3600}
+    sql`SELECT i AS nation_id, (SELECT price_wif FROM trades t WHERE t.nation_id = i AND t.timestamp <= ${now - 3600}
           ORDER BY t.timestamp DESC, t.log_index DESC LIMIT 1) AS price FROM unnest(${ids}::int[]) AS i`,
-    sql`SELECT i AS nation_id, (SELECT price_eth FROM trades t WHERE t.nation_id = i AND t.timestamp <= ${now - 86400}
+    sql`SELECT i AS nation_id, (SELECT price_wif FROM trades t WHERE t.nation_id = i AND t.timestamp <= ${now - 86400}
           ORDER BY t.timestamp DESC, t.log_index DESC LIMIT 1) AS price FROM unnest(${ids}::int[]) AS i`,
     sql`SELECT i AS nation_id, (SELECT citizens FROM game_snapshots s WHERE s.nation_id = i AND s.epoch <= ${now - 86400}
           ORDER BY s.epoch DESC LIMIT 1) AS citizens FROM unnest(${ids}::int[]) AS i`,
-    sql`SELECT nation_id, max(market_cap_eth) AS mcap, max(liquidity_eth) AS liq FROM trades WHERE nation_id = ANY(${ids}) GROUP BY nation_id`,
-    sql`SELECT eth_usd FROM indexer_state WHERE id = 'main'`,
+    sql`SELECT nation_id, max(market_cap_wif) AS mcap, max(liquidity_wif) AS liq FROM trades WHERE nation_id = ANY(${ids}) GROUP BY nation_id`,
+    sql`SELECT wif_usd FROM indexer_state WHERE id = 'main'`,
   ]);
-  const ethUsd = stateRow[0]?.eth_usd === null || stateRow[0] === undefined ? null : Number(stateRow[0].eth_usd);
+  const wifUsd = stateRow[0]?.wif_usd === null || stateRow[0] === undefined ? null : Number(stateRow[0].wif_usd);
   const map = <T>(rows: readonly Record<string, unknown>[], f: (r: Record<string, unknown>) => T) =>
     new Map(rows.map((r) => [Number(r.nation_id), f(r)]));
   const prev = map(prevRows, (r) => r);
@@ -70,20 +71,20 @@ export async function refreshNationMetrics(ctx: Ctx, cache: NationCache, ids: nu
     const change24h = price === null ? null : price / (p24h.get(id) ?? opening) - 1;
     const v = vol.get(id) ?? { vol: 0, cnt: 0 };
     const pr = prev.get(id) as Record<string, unknown> | undefined;
-    const athM = Math.max(Number(pr?.ath_market_cap_eth ?? 0), maxes.get(id)?.mcap ?? 0, mcap ?? 0);
-    const athL = Math.max(Number(pr?.ath_liquidity_eth ?? 0), maxes.get(id)?.liq ?? 0, liquidity);
+    const athM = Math.max(Number(pr?.ath_market_cap_wif ?? 0), maxes.get(id)?.mcap ?? 0, mcap ?? 0);
+    const athL = Math.max(Number(pr?.ath_liquidity_wif ?? 0), maxes.get(id)?.liq ?? 0, liquidity);
     const state = states.get(id)!;
     const stats = computeStats(
-      { marketCapEth: mcap ?? 0, liquidityEth: liquidity, volume24hEth: v.vol, citizens: count },
+      { marketCapWif: mcap ?? 0, liquidityWif: liquidity, volume24hWif: v.vol, citizens: count },
       state,
       state.warBonusPct,
     );
 
     await sql`
       UPDATE game_nations SET
-        price_eth = ${price}, market_cap_eth = ${mcap}, liquidity_eth = ${liquidity},
-        volume_24h_eth = ${v.vol}, trades_24h = ${v.cnt}, change_1h = ${change1h}, change_24h = ${change24h},
-        ath_market_cap_eth = ${athM}, ath_liquidity_eth = ${athL}, treasury_eth = ${treasury.get(id) ?? 0},
+        price_wif = ${price}, market_cap_wif = ${mcap}, liquidity_wif = ${liquidity},
+        volume_24h_wif = ${v.vol}, trades_24h = ${v.cnt}, change_1h = ${change1h}, change_24h = ${change24h},
+        ath_market_cap_wif = ${athM}, ath_liquidity_wif = ${athL}, treasury_wif = ${treasury.get(id) ?? 0},
         citizens = ${count}, citizens_24h_ago = ${c24.get(id) ?? null},
         economic_power = ${stats.economicPower}, military_power = ${stats.militaryPower},
         defensive_power = ${stats.defensivePower}, influence_score = ${stats.influenceScore},
@@ -111,25 +112,25 @@ export async function refreshNationMetrics(ctx: Ctx, cache: NationCache, ids: nu
         if (a) news.push(a);
       }
     }
-    const prevMcap = Number(pr?.ath_market_cap_eth ?? 0);
+    const prevMcap = Number(pr?.ath_market_cap_wif ?? 0);
     if (mcap !== null) {
-      for (const m of crossedMilestones(prevMcap, mcap, MCAP_MILESTONES_ETH)) {
+      for (const m of crossedMilestones(prevMcap, mcap, MCAP_MILESTONES_WIF)) {
         const item = await createEvent(sql, {
           type: "MCAP_MILESTONE",
           nationId: id,
-          title: `💰 ${upper(n.name)} reached a ${formatEth(m)} economy.`,
-          body: `Market cap of $${n.ticker} crossed ${formatEth(m)} for the first time.`,
-          data: { milestoneEth: m, marketCapEth: mcap },
+          title: `💰 ${upper(n.name)} reached a ${formatWif(m)} economy.`,
+          body: `Market cap of $${n.ticker} crossed ${formatWif(m)} for the first time.`,
+          data: { milestoneWif: m, marketCapWif: mcap },
           createdAt: now,
           dedupeKey: `mcap:${id}:${m}`,
         });
         if (item) news.push(item);
-        if (m === 100) {
-          const a = await unlockNationAchievement(sql, id, n.name, "MCAP_100_ETH", now);
+        if (m === ECONOMIC_POWER_MCAP_WIF) {
+          const a = await unlockNationAchievement(sql, id, n.name, "MCAP_100_UNITS", now);
           if (a) news.push(a);
         }
       }
-      if (ethUsd !== null && mcap * ethUsd >= 1_000_000) {
+      if (wifUsd !== null && mcap * wifUsd >= 1_000_000) {
         const a = await unlockNationAchievement(sql, id, n.name, "MCAP_1M_USD", now);
         if (a) news.push(a);
       }

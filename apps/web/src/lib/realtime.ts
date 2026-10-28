@@ -59,7 +59,7 @@ function applyTrade(qc: QueryClient, nationId: number, trade: TradeDTO) {
   qc.setQueryData<TradeDTO[]>(queryKeys.trades(nationId), (list) =>
     list && !list.some((t) => t.txHash === trade.txHash && t.logIndex === trade.logIndex) ? [trade, ...list].slice(0, 100) : list,
   );
-  effects.emit({ kind: "trade", nationId, side: trade.side, magnitude: trade.ethAmount });
+  effects.emit({ kind: "trade", nationId, side: trade.side, magnitude: trade.wifAmount });
   void qc.invalidateQueries({ queryKey: ["candles", nationId] });
 }
 

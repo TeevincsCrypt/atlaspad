@@ -68,7 +68,7 @@ export async function ensureGameRows(db: Db, ids: number[]) {
 export async function recomputeRanks(db: Db): Promise<{ id: number; rank: number; previousRank: number | null }[]> {
   const rows = await db`
     WITH ranked AS (
-      SELECT nation_id, row_number() OVER (ORDER BY civilization_score DESC, market_cap_eth DESC NULLS LAST, nation_id ASC) AS new_rank
+      SELECT nation_id, row_number() OVER (ORDER BY civilization_score DESC, market_cap_wif DESC NULLS LAST, nation_id ASC) AS new_rank
       FROM game_nations
     )
     UPDATE game_nations g

@@ -7,10 +7,12 @@ import {AtlasGovernor} from "../src/AtlasGovernor.sol";
 import {NationTreasury} from "../src/NationTreasury.sol";
 import {NationToken} from "../src/NationToken.sol";
 import {WETH9} from "./mocks/WETH9.sol";
+import {MockWIF} from "./mocks/MockWIF.sol";
 import {UniswapV2Factory, UniswapV2Router02, UniswapV2Pair} from "./mocks/UniswapV2.sol";
 
 abstract contract BaseTest is Test {
     WETH9 internal weth;
+    MockWIF internal wif;
     UniswapV2Factory internal v2Factory;
     UniswapV2Router02 internal router;
     NationTreasury internal treasury;
@@ -23,39 +25,51 @@ abstract contract BaseTest is Test {
     address internal bob = makeAddr("bob");
     address internal carol = makeAddr("carol");
 
-    uint256 internal constant GRADUATION_ETH = 2 ether;
+    /// @dev Amounts are in $WIF base units (18 decimals): GRADUATION_WIF = 2 WIF keeps the numbers readable.
+    uint256 internal constant GRADUATION_WIF = 2 ether;
     uint256 internal constant CREATION_FEE = 0.001 ether;
     uint256 internal constant SUPPLY = 1_000_000_000 ether;
 
     function setUp() public virtual {
         vm.warp(1_790_000_000); // a realistic 2026 timestamp
         weth = new WETH9();
+        wif = new MockWIF();
         v2Factory = new UniswapV2Factory(address(this));
-        router = new UniswapV2Router02(address(v2Factory), address(weth));
-        _deployAtlas(GRADUATION_ETH, CREATION_FEE);
+        router = new UniswapV2Router02(address(v2Factory), address(wif));
+        _deployAtlas(GRADUATION_WIF, CREATION_FEE);
 
-        vm.deal(founder, 1_000 ether);
-        vm.deal(alice, 1_000 ether);
-        vm.deal(bob, 1_000 ether);
-        vm.deal(carol, 1_000 ether);
+        _fund(founder, 1_000 ether);
+        _fund(alice, 1_000 ether);
+        _fund(bob, 1_000 ether);
+        _fund(carol, 1_000 ether);
+        _fund(address(this), 1_000 ether);
+    }
+
+    /// @dev Mints $WIF to `who` and approves the launchpad and treasury to pull it.
+    function _fund(address who, uint256 amount) internal {
+        wif.mint(who, amount);
+        vm.startPrank(who);
+        wif.approve(address(launchpad), type(uint256).max);
+        wif.approve(address(treasury), type(uint256).max);
+        vm.stopPrank();
     }
 
     /// @dev Mirrors script/Deploy.s.sol: predict CREATE addresses so every reference is immutable.
-    function _deployAtlas(uint256 graduationEth, uint256 creationFee) internal {
+    function _deployAtlas(uint256 graduationWif, uint256 creationFee) internal {
         uint64 nonce = vm.getNonce(address(this));
         address predictedTreasury = vm.computeCreateAddress(address(this), nonce);
         address predictedGovernor = vm.computeCreateAddress(address(this), nonce + 1);
         address predictedLaunchpad = vm.computeCreateAddress(address(this), nonce + 2);
 
-        treasury = new NationTreasury(predictedLaunchpad, predictedGovernor);
+        treasury = new NationTreasury(predictedLaunchpad, predictedGovernor, address(wif));
         governor = new AtlasGovernor(predictedLaunchpad, predictedTreasury);
         launchpad = new AtlasLaunchpad(
             address(v2Factory),
-            address(weth),
+            address(wif),
             address(treasury),
             address(governor),
             feeRecipient,
-            graduationEth,
+            graduationWif,
             creationFee
         );
         assertEq(address(treasury), predictedTreasury);
@@ -72,6 +86,7 @@ abstract contract BaseTest is Test {
         p.emblem = 0x1234;
         p.totalSupply = SUPPLY;
         p.founderBps = 0;
+        p.initialBuyWif = 0;
         p.minTokensOut = 0;
     }
 
@@ -83,14 +98,15 @@ abstract contract BaseTest is Test {
         internal
         returns (uint256 id, NationToken token)
     {
+        p.initialBuyWif = initialBuy;
         vm.prank(founder);
-        (uint256 nid, address t) = launchpad.foundNation{value: CREATION_FEE + initialBuy}(p);
+        (uint256 nid, address t) = launchpad.foundNation(p);
         return (nid, NationToken(t));
     }
 
-    function _buy(address who, uint256 id, uint256 ethIn) internal returns (uint256 out) {
+    function _buy(address who, uint256 id, uint256 wifIn) internal returns (uint256 out) {
         vm.prank(who);
-        out = launchpad.buy{value: ethIn}(id, 0, block.timestamp);
+        out = launchpad.buy(id, wifIn, 0, block.timestamp);
     }
 
     function _sell(address who, uint256 id, uint256 amount) internal returns (uint256 out) {
@@ -110,10 +126,10 @@ abstract contract BaseTest is Test {
         }
     }
 
-    function _ethInvariant() internal view returns (uint256 sumRealEth) {
+    function _wifInvariant() internal view returns (uint256 sumRealWif) {
         uint256 count = launchpad.nationCount();
         for (uint256 i = 1; i <= count; i++) {
-            sumRealEth += launchpad.getNation(i).realEth;
+            sumRealWif += launchpad.getNation(i).realWif;
         }
     }
 }

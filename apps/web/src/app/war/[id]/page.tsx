@@ -3,7 +3,7 @@ import { use } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Shield, Swords, Trophy } from "lucide-react";
-import { WAR, formatDate, formatDuration, formatEth, formatInt, formatPct, type NationSummary } from "@atlaspad/shared";
+import { WAR, formatDate, formatDuration, formatWif, formatInt, formatPct, type NationSummary } from "@atlaspad/shared";
 import { useWar } from "@/lib/api";
 import { Flag } from "@/components/emblem/Flag";
 import { Badge } from "@/components/ui/Badge";
@@ -21,9 +21,9 @@ const SCORE_ROWS = [
   { key: "allianceBonus", label: "Alliance bonus", max: 10 },
 ] as const;
 
-function Side({ n, align, winner, start }: { n: NationSummary; align: "left" | "right"; winner: boolean; start: { citizens: number; marketCapEth: number } }) {
+function Side({ n, align, winner, start }: { n: NationSummary; align: "left" | "right"; winner: boolean; start: { citizens: number; marketCapWif: number } }) {
   const growth = start.citizens > 0 ? n.citizens / start.citizens - 1 : null;
-  const momentum = start.marketCapEth > 0 && n.marketCapEth !== null ? n.marketCapEth / start.marketCapEth - 1 : null;
+  const momentum = start.marketCapWif > 0 && n.marketCapWif !== null ? n.marketCapWif / start.marketCapWif - 1 : null;
   return (
     <motion.div initial={{ opacity: 0, x: align === "left" ? -40 : 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} className={`flex flex-col ${align === "left" ? "items-start text-left" : "items-end text-right"}`}>
       <Flag emblem={n.emblem} size={110} glow />
@@ -40,7 +40,7 @@ function Side({ n, align, winner, start }: { n: NationSummary; align: "left" | "
           ["Economic power", n.economicPower.toFixed(0)],
           ["Population", formatInt(n.citizens)],
           ["Influence", formatInt(n.resources.influence)],
-          ["24h activity", formatEth(n.volume24hEth)],
+          ["24h activity", formatWif(n.volume24hWif)],
           ["Growth since declaration", formatPct(growth)],
           ["Market momentum", formatPct(momentum)],
           ["Defensive power", n.defensivePower.toFixed(0)],
@@ -132,7 +132,7 @@ export default function WarPage({ params }: { params: Promise<{ id: string }> })
           <p className="mt-5 flex gap-2 text-[11px] leading-relaxed text-faint">
             <Shield className="size-3.5 shrink-0" />
             Wars last {WAR.durationSeconds / 3600} hours. Ties go to the defender. The winner gains influence and +{WAR.territoryBonusPct}% territory for 7 days. No tokens or
-            ETH are at stake, and AtlasPad offers no betting on outcomes.
+            $WIF are at stake, and AtlasPad offers no betting on outcomes.
           </p>
         </Panel>
         <div className="mt-6 flex justify-center text-xs">

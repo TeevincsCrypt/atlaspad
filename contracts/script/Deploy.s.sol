@@ -8,6 +8,7 @@ import {AtlasGovernor} from "../src/AtlasGovernor.sol";
 import {NationTreasury} from "../src/NationTreasury.sol";
 import {IUniswapV2Router02} from "../src/interfaces/IUniswapV2Router02.sol";
 import {IUniswapV2Factory} from "../src/interfaces/IUniswapV2Factory.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 /// @notice Production deployment of AtlasPad.
 ///
@@ -15,10 +16,11 @@ import {IUniswapV2Factory} from "../src/interfaces/IUniswapV2Factory.sol";
 ///   EXPECTED_CHAIN_ID        4663 for Robinhood Chain mainnet
 ///   UNISWAP_V2_FACTORY       0x8bceaa40b9acdfaedf85adf4ff01f5ad6517937f (Robinhood Chain)
 ///   UNISWAP_V2_ROUTER        0x89e5db8b5aa49aa85ac63f691524311aeb649eba (Robinhood Chain)
-///   WETH_ADDRESS             0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73 (Robinhood Chain)
+///   WIF_ADDRESS              0x5173b8eA6923c2d40267890D45C46a3480954773 ($WIF on Robinhood Chain)
 ///   PROTOCOL_FEE_RECIPIENT   recommended: a multisig (e.g. Safe)
-///   GRADUATION_ETH_WEI       e.g. 2000000000000000000 (2 ETH)
-///   CREATION_FEE_WEI         e.g. 0
+///   GRADUATION_WIF           $WIF base units the curve raises before graduating, e.g. 1000000000000000000000000
+///                            (1,000,000 WIF at 18 decimals)
+///   CREATION_FEE_WIF         $WIF base units burned per founding, e.g. 1000000000000000000000 (1,000 WIF)
 ///
 /// Run (keystore account, never a raw private key in shell history):
 ///   forge script script/Deploy.s.sol --rpc-url robinhood --account deployer --broadcast --verify \
@@ -28,9 +30,9 @@ contract Deploy is Script {
         uint256 expectedChainId;
         address factory;
         address router;
-        address weth;
+        address wif;
         address feeRecipient;
-        uint256 graduationEth;
+        uint256 graduationWif;
         uint256 creationFee;
     }
 
@@ -39,10 +41,10 @@ contract Deploy is Script {
             expectedChainId: vm.envUint("EXPECTED_CHAIN_ID"),
             factory: vm.envAddress("UNISWAP_V2_FACTORY"),
             router: vm.envAddress("UNISWAP_V2_ROUTER"),
-            weth: vm.envAddress("WETH_ADDRESS"),
+            wif: vm.envAddress("WIF_ADDRESS"),
             feeRecipient: vm.envAddress("PROTOCOL_FEE_RECIPIENT"),
-            graduationEth: vm.envUint("GRADUATION_ETH_WEI"),
-            creationFee: vm.envUint("CREATION_FEE_WEI")
+            graduationWif: vm.envUint("GRADUATION_WIF"),
+            creationFee: vm.envUint("CREATION_FEE_WIF")
         });
         deploy(c);
     }
@@ -60,10 +62,10 @@ contract Deploy is Script {
         address predictedGovernor = vm.computeCreateAddress(deployer, nonce + 1);
         address predictedLaunchpad = vm.computeCreateAddress(deployer, nonce + 2);
 
-        treasury = new NationTreasury(predictedLaunchpad, predictedGovernor);
+        treasury = new NationTreasury(predictedLaunchpad, predictedGovernor, c.wif);
         governor = new AtlasGovernor(predictedLaunchpad, predictedTreasury);
         launchpad = new AtlasLaunchpad(
-            c.factory, c.weth, address(treasury), address(governor), c.feeRecipient, c.graduationEth, c.creationFee
+            c.factory, c.wif, address(treasury), address(governor), c.feeRecipient, c.graduationWif, c.creationFee
         );
         vm.stopBroadcast();
 
@@ -79,14 +81,16 @@ contract Deploy is Script {
         require(block.chainid == c.expectedChainId, "unexpected chain id");
         require(c.factory.code.length > 0, "factory has no code");
         require(c.router.code.length > 0, "router has no code");
-        require(c.weth.code.length > 0, "weth has no code");
+        require(c.wif.code.length > 0, "wif has no code");
         require(IUniswapV2Router02(c.router).factory() == c.factory, "router.factory() mismatch");
-        require(IUniswapV2Router02(c.router).WETH() == c.weth, "router.WETH() mismatch");
         // getPair must be callable (reverts if the address is not a V2 factory)
-        IUniswapV2Factory(c.factory).getPair(c.weth, address(0xdead));
+        IUniswapV2Factory(c.factory).getPair(c.wif, address(0xdead));
+        // $WIF must look like an ERC-20 (reverts otherwise); log what we are about to build on.
+        console2.log("WIF token", IERC20Metadata(c.wif).symbol(), IERC20Metadata(c.wif).decimals());
+        console2.log("WIF total supply", IERC20Metadata(c.wif).totalSupply());
         require(c.feeRecipient != address(0), "fee recipient not set");
-        require(c.graduationEth >= 0.01 ether && c.graduationEth <= 10_000 ether, "graduation out of bounds");
-        require(c.creationFee <= 1 ether, "creation fee too high");
+        require(c.graduationWif >= 1e6 && c.graduationWif <= 1e36, "graduation out of bounds");
+        require(c.creationFee <= c.graduationWif, "creation fee too high");
         console2.log("Preflight OK on chain", block.chainid);
     }
 
@@ -95,11 +99,12 @@ contract Deploy is Script {
         view
     {
         require(launchpad.uniswapV2Factory() == c.factory, "launchpad factory");
-        require(launchpad.weth() == c.weth, "launchpad weth");
+        require(address(launchpad.wif()) == c.wif, "launchpad wif");
+        require(address(treasury.wif()) == c.wif, "treasury wif");
         require(address(launchpad.treasury()) == address(treasury), "launchpad treasury");
         require(launchpad.governor() == address(governor), "launchpad governor");
         require(launchpad.protocolFeeRecipient() == c.feeRecipient, "launchpad fee recipient");
-        require(launchpad.graduationEth() == c.graduationEth, "launchpad graduation");
+        require(launchpad.graduationWif() == c.graduationWif, "launchpad graduation");
         require(launchpad.creationFee() == c.creationFee, "launchpad creation fee");
         require(launchpad.tokenFactory().launchpad() == address(launchpad), "token factory");
         require(address(treasury.launchpad()) == address(launchpad), "treasury launchpad");
@@ -130,10 +135,11 @@ contract Deploy is Script {
         vm.serializeAddress(obj, "tokenFactory", address(launchpad.tokenFactory()));
         vm.serializeAddress(obj, "uniswapV2Factory", c.factory);
         vm.serializeAddress(obj, "uniswapV2Router", c.router);
-        vm.serializeAddress(obj, "weth", c.weth);
+        vm.serializeAddress(obj, "wif", c.wif);
+        vm.serializeAddress(obj, "weth", IUniswapV2Router02(c.router).WETH());
         vm.serializeAddress(obj, "protocolFeeRecipient", c.feeRecipient);
-        vm.serializeString(obj, "graduationEthWei", vm.toString(c.graduationEth));
-        string memory json = vm.serializeString(obj, "creationFeeWei", vm.toString(c.creationFee));
+        vm.serializeString(obj, "graduationWif", vm.toString(c.graduationWif));
+        string memory json = vm.serializeString(obj, "creationFeeWif", vm.toString(c.creationFee));
         // Only a broadcast run records the deployment; a dry run's addresses are predictions, kept separately.
         bool broadcast = vm.isContext(VmSafe.ForgeContext.ScriptBroadcast) || vm.isContext(VmSafe.ForgeContext.ScriptResume);
         string memory path = string.concat(

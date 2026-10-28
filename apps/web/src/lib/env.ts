@@ -14,6 +14,9 @@ export const publicEnv = {
   uniswapV2Factory: process.env.NEXT_PUBLIC_ATLAS_UNISWAP_V2_FACTORY,
   uniswapV2Router: process.env.NEXT_PUBLIC_ATLAS_UNISWAP_V2_ROUTER,
   weth: process.env.NEXT_PUBLIC_ATLAS_WETH,
+  wif: process.env.NEXT_PUBLIC_ATLAS_WIF,
+  /** Where "Get $WIF" sends people. Defaults to the Uniswap app with $WIF preselected as the output token. */
+  getWifUrl: process.env.NEXT_PUBLIC_GET_WIF_URL || "",
   walletConnectProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "",
   realtimeUrl: (process.env.NEXT_PUBLIC_REALTIME_URL || "").replace(/\/$/, ""),
   // Used for page metadata and wallet-connection metadata; set it to the public origin in production.
@@ -35,3 +38,5 @@ export const network = loaded.network;
 export const configError = loaded.error;
 export const contracts = network.contracts;
 export const isDeployed = contracts !== null && configError === null;
+export const wifToken = network.dex.wif;
+export const getWifUrl = publicEnv.getWifUrl || `https://app.uniswap.org/swap?outputCurrency=${network.dex.wif}`;

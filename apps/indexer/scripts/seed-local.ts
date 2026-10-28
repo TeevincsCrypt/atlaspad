@@ -9,7 +9,7 @@ import { resolve } from "node:path";
 import { createPublicClient, createTestClient, createWalletClient, http, parseEther } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { atlasLaunchpadAbi } from "@atlaspad/shared/abis";
-import { anvilChain, encodeEmblem, GLYPHS, PATTERNS } from "@atlaspad/shared";
+import { anvilChain, encodeEmblem, GLYPHS, PATTERNS, WIF_MARKET_UNIT } from "@atlaspad/shared";
 import { ANVIL_KEYS, deployLocal, runScenario } from "../test/scenario";
 
 const RPC = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8545";
@@ -21,7 +21,8 @@ const d = deployLocal(RPC);
 console.log("Deployed", d);
 await runScenario(RPC, d, { log: (m) => console.log("·", m) });
 
-// A few more nations with organic-looking (but real, on-chain) activity.
+// A few more nations with organic-looking (but real, on-chain) activity. Amounts are in game market units.
+const units = (u: number) => parseEther((u * WIF_MARKET_UNIT).toFixed(6));
 const test = createTestClient({ chain: anvilChain, transport: http(RPC), mode: "anvil" });
 const wallet = (i: number) => createWalletClient({ chain: anvilChain, transport: http(RPC), account: privateKeyToAccount(ANVIL_KEYS[i]!) });
 const extra = [
@@ -38,9 +39,9 @@ for (const [k, [name, symbol, theme, color]] of extra.entries()) {
     args: [{
       name, symbol, description: `${name} — a local development nation.`, metadataURI: "", theme,
       emblem: encodeEmblem({ glyph: GLYPHS[(k * 5) % GLYPHS.length]!, pattern: PATTERNS[k % PATTERNS.length]!, primary: color, secondary: "#f4f1e8", accent: "#141820" }),
-      totalSupply: parseEther("1000000000"), founderBps: k % 3 === 0 ? 200 : 0, minTokensOut: 0n,
+      totalSupply: parseEther("1000000000"), founderBps: k % 3 === 0 ? 200 : 0,
+      initialBuyWif: units(0.002 + k * 0.003), minTokensOut: 0n,
     }],
-    value: parseEther((0.002 + k * 0.003).toFixed(4)),
   });
   await client.waitForTransactionReceipt({ hash });
   const id = await client.readContract({ address: d.launchpad, abi: atlasLaunchpadAbi, functionName: "nationCount" });
@@ -49,7 +50,7 @@ for (const [k, [name, symbol, theme, color]] of extra.entries()) {
     const ts = Number((await client.getBlock()).timestamp);
     const tx = await wallet(buyer).writeContract({
       address: d.launchpad, abi: atlasLaunchpadAbi, functionName: "buy",
-      args: [id, 0n, BigInt(ts + 600)], value: parseEther((0.003 + ((j * 7 + k) % 5) * 0.004).toFixed(4)),
+      args: [id, units(0.003 + ((j * 7 + k) % 5) * 0.004), 0n, BigInt(ts + 600)],
     });
     await client.waitForTransactionReceipt({ hash: tx });
     await test.increaseTime({ seconds: 900 });
@@ -80,6 +81,7 @@ const common = {
   ATLAS_UNISWAP_V2_FACTORY: d.uniswapV2Factory,
   ATLAS_UNISWAP_V2_ROUTER: d.uniswapV2Router,
   ATLAS_WETH: d.weth,
+  ATLAS_WIF: d.wif,
 };
 const toEnv = (o: Record<string, string>) => Object.entries(o).map(([k, v]) => `${k}=${v}`).join("\n") + "\n";
 writeFileSync(

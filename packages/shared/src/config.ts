@@ -31,6 +31,7 @@ export interface RawNetworkEnv {
   uniswapV2Factory?: string;
   uniswapV2Router?: string;
   weth?: string;
+  wif?: string;
 }
 
 export class ConfigError extends Error {}
@@ -53,8 +54,9 @@ export function resolveNetwork(env: RawNetworkEnv): AtlasNetworkConfig {
     const f = addr(env.uniswapV2Factory, "uniswapV2Factory");
     const r = addr(env.uniswapV2Router, "uniswapV2Router");
     const w = addr(env.weth, "weth");
-    if (!f || !r || !w) throw new ConfigError("Local network requires uniswapV2Factory, uniswapV2Router and weth.");
-    dex = { uniswapV2Factory: f, uniswapV2Router: r, weth: w };
+    const wif = addr(env.wif, "wif");
+    if (!f || !r || !w || !wif) throw new ConfigError("Local network requires uniswapV2Factory, uniswapV2Router, weth and wif.");
+    dex = { uniswapV2Factory: f, uniswapV2Router: r, weth: w, wif };
   }
 
   const launchpad = addr(env.launchpad, "launchpad");

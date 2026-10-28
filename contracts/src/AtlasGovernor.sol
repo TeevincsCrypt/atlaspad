@@ -13,8 +13,8 @@ import {INationTreasury} from "./interfaces/INationTreasury.sol";
 /// a proposal is created cannot vote on it. Execution is permissionless once a proposal has passed.
 ///
 /// Proposal kinds:
-///  - Treasury:   send ETH from the nation's NationTreasury account to a recipient (3-day vote, 4% quorum,
-///                1-day timelock, at most 25% of the treasury per proposal — enforced by NationTreasury).
+///  - Treasury:   send $WIF from the nation's NationTreasury account to a recipient (3-day vote, 4% quorum,
+///                1-day timelock, at most 25% of the treasury per 7-day window — enforced by NationTreasury).
 ///  - GameAction: a national decision for the AtlasPad game (build, declare war, alliances). Execution emits
 ///                `GameActionExecuted`, which the AtlasPad game engine applies under the published rules in
 ///                GAME_MECHANICS.md (1-day vote, 1% quorum).
@@ -206,7 +206,7 @@ contract AtlasGovernor {
 
         if (p.kind == Kind.Treasury) {
             (address recipient, uint256 amount) = abi.decode(p.payload, (address, uint256));
-            treasury.release(nationId, payable(recipient), amount, proposalId);
+            treasury.release(nationId, recipient, amount, proposalId);
         } else if (p.kind == Kind.Symbol) {
             (uint256 emblem, string memory uri) = abi.decode(p.payload, (uint256, string));
             launchpad.setNationSymbol(nationId, emblem, uri);

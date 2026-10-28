@@ -7,7 +7,7 @@ import {
   THEMES,
   formatDate,
   formatSmall,
-  formatEth,
+  formatWif,
   formatInt,
   formatUsd,
   shortAddress,
@@ -29,10 +29,10 @@ const STATUS_BADGE: Record<string, { label: string; tone: "gold" | "down" | "up"
   MARKET_CRASH: { label: "Market crash", tone: "down", icon: <TrendingDown className="size-3" /> },
 };
 
-export function NationHeader({ nation, ethUsd, territoryRank }: { nation: NationSummary; ethUsd: number | null; territoryRank: number | null }) {
+export function NationHeader({ nation, wifUsd, territoryRank }: { nation: NationSummary; wifUsd: number | null; territoryRank: number | null }) {
   const now = useNow();
   const statuses = nation.statuses.filter((s) => s.until > now);
-  const usd = (eth: number | null) => (ethUsd !== null && eth !== null ? formatUsd(eth * ethUsd) : null);
+  const usd = (eth: number | null) => (wifUsd !== null && eth !== null ? formatUsd(eth * wifUsd) : null);
   return (
     <header className="relative">
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -86,10 +86,10 @@ export function NationHeader({ nation, ethUsd, territoryRank }: { nation: Nation
           <div className="text-right">
             <div className="label mb-1">GDP · market cap</div>
             <div className="font-display text-3xl text-fg">
-              <AnimatedNumber value={nation.marketCapEth} format={(v) => formatEth(v)} />
+              <AnimatedNumber value={nation.marketCapWif} format={(v) => formatWif(v)} />
             </div>
             <div className="mt-1 flex items-center justify-end gap-2 font-mono text-xs text-faint">
-              {usd(nation.marketCapEth) ?? ""}
+              {usd(nation.marketCapWif) ?? ""}
               <ChangePill value={nation.change24h} />
               <span>24h</span>
             </div>
@@ -115,8 +115,9 @@ export function NationHeader({ nation, ethUsd, territoryRank }: { nation: Nation
           { label: "Military power", value: <AnimatedNumber value={nation.militaryPower} format={(v) => v.toFixed(0)} /> },
           { label: "Influence", value: <AnimatedNumber value={nation.influenceScore} format={(v) => v.toFixed(0)} /> },
           { label: "Territory", value: territoryRank ? `#${territoryRank}` : "—", hint: `${nation.territoryCells} hexes` },
-          { label: "24h volume", value: formatEth(nation.volume24hEth) },
-          { label: "Treasury", value: formatEth(nation.treasuryEth) },
+          { label: "24h volume", value: formatWif(nation.volume24hWif) },
+          { label: "Treasury", value: formatWif(nation.treasuryWif) },
+          { label: "$WIF burned", value: formatWif(nation.wifBurned), hint: "Founding fee + 0.25% of every curve trade, burned on-chain" },
         ].map((s) => (
           <div key={s.label} className="bg-panel/90 px-4 py-3" title={s.hint}>
             <div className="label mb-1 truncate">{s.label}</div>
@@ -132,8 +133,8 @@ export function NationHeader({ nation, ethUsd, territoryRank }: { nation: Nation
         <span>
           Wars {nation.warWins}W–{nation.warLosses}L
         </span>
-        <span>Liquidity {formatEth(nation.liquidityEth)}</span>
-        <span>Price {nation.priceEth ? `${formatSmall(nation.priceEth)} ETH` : "—"}</span>
+        <span>Liquidity {formatWif(nation.liquidityWif)}</span>
+        <span>Price {nation.priceWif ? `${formatSmall(nation.priceWif)} WIF` : "—"}</span>
       </div>
     </header>
   );

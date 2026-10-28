@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; width: 400px; height: 400px; background: #06080f; overflow: hidden; }
+</style>
+</head>
+<body>
+<!-- X / Twitter profile picture: 400×400, shown cropped to a circle. All artwork stays inside the inner circle. -->
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="70%">
+      <stop offset="0" stop-color="#1a1608"/>
+      <stop offset="0.45" stop-color="#0b0d15"/>
+      <stop offset="1" stop-color="#04050a"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fbe6ad"/>
+      <stop offset="0.45" stop-color="#e2bd72"/>
+      <stop offset="1" stop-color="#8a6a2f"/>
+    </linearGradient>
+    <radialGradient id="globeFill" cx="38%" cy="32%" r="75%">
+      <stop offset="0" stop-color="#2a2410"/>
+      <stop offset="0.6" stop-color="#0f1220"/>
+      <stop offset="1" stop-color="#070910"/>
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0.62" stop-color="#d6b26e" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#d6b26e" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#d6b26e" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="capital" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff4d1"/>
+      <stop offset="0.35" stop-color="#f3d58f"/>
+      <stop offset="1" stop-color="#f3d58f" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="globeClip"><circle cx="200" cy="200" r="118"/></clipPath>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="6"/></filter>
+  </defs>
+
+  <rect width="400" height="400" fill="url(#bg)"/>
+  <circle cx="200" cy="200" r="165" fill="url(#halo)"/>
+
+  <!-- globe body -->
+  <circle cx="200" cy="200" r="118" fill="url(#globeFill)"/>
+
+  <!-- territories: hex cells claimed on the globe -->
+  <g clip-path="url(#globeClip)" opacity="0.9">
+    <g fill="#d6b26e" fill-opacity="0.16" stroke="#e8c47a" stroke-opacity="0.35" stroke-width="1">
+      <path d="M232 128 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+      <path d="M256 142 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+      <path d="M232 156 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+      <path d="M208 142 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+      <path d="M120 214 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+      <path d="M144 228 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+      <path d="M120 242 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+      <path d="M210 252 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+      <path d="M234 266 l12 -7 l12 7 v14 l-12 7 l-12 -7z"/>
+    </g>
+  </g>
+
+  <!-- graticule -->
+  <g fill="none" stroke="url(#gold)" stroke-linecap="round">
+    <ellipse cx="200" cy="200" rx="52" ry="118" stroke-width="3" opacity="0.8"/>
+    <ellipse cx="200" cy="200" rx="96" ry="118" stroke-width="1.6" opacity="0.4"/>
+    <path d="M82 200 H318" stroke-width="2.6" opacity="0.6"/>
+    <path d="M97 141 H303 M97 259 H303" stroke-width="2" opacity="0.45"/>
+    <circle cx="200" cy="200" r="118" stroke-width="7"/>
+  </g>
+
+  <!-- trade route arc between nations -->
+  <path d="M132 228 Q 180 150 244 142" fill="none" stroke="#f3d58f" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round" opacity="0.85"/>
+  <circle cx="132" cy="228" r="5" fill="#f3d58f"/>
+
+  <!-- capital -->
+  <circle cx="244" cy="142" r="30" fill="url(#capital)" filter="url(#soft)" opacity="0.9"/>
+  <circle cx="244" cy="142" r="12" fill="#f3d58f"/>
+  <circle cx="244" cy="142" r="5" fill="#fff6dc"/>
+</svg>
+</body>
+</html>

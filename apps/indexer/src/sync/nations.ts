@@ -16,19 +16,21 @@ export interface NationRow {
   curveSupply: bigint;
   lpReserve: bigint;
   founderAllocation: bigint;
-  initialVirtualEth: bigint;
+  initialVirtualWif: bigint;
   initialVirtualTokens: bigint;
-  virtualEth: bigint;
+  virtualWif: bigint;
   virtualTokens: bigint;
-  realEth: bigint;
+  realWif: bigint;
   curveTokensRemaining: bigint;
   graduated: boolean;
   graduatedAt: number | null;
   graduationTx: string | null;
-  graduationEth: bigint | null;
+  graduationWif: bigint | null;
   tokenIsToken0: boolean | null;
   poolTokenReserve: bigint | null;
-  poolWethReserve: bigint | null;
+  poolWifReserve: bigint | null;
+  /** $WIF burned on behalf of this nation (WifBurned events). */
+  wifBurned: bigint;
   createdAt: number;
   createdBlock: number;
   createdTx: string;
@@ -52,19 +54,20 @@ export function rowFromDb(r: Record<string, unknown>): NationRow {
     curveSupply: BigInt(r.curve_supply as string),
     lpReserve: BigInt(r.lp_reserve as string),
     founderAllocation: BigInt(r.founder_allocation as string),
-    initialVirtualEth: BigInt(r.initial_virtual_eth as string),
+    initialVirtualWif: BigInt(r.initial_virtual_wif as string),
     initialVirtualTokens: BigInt(r.initial_virtual_tokens as string),
-    virtualEth: BigInt(r.virtual_eth as string),
+    virtualWif: BigInt(r.virtual_wif as string),
     virtualTokens: BigInt(r.virtual_tokens as string),
-    realEth: BigInt(r.real_eth as string),
+    realWif: BigInt(r.real_wif as string),
     curveTokensRemaining: BigInt(r.curve_tokens_remaining as string),
     graduated: Boolean(r.graduated),
     graduatedAt: r.graduated_at === null ? null : Number(r.graduated_at),
     graduationTx: (r.graduation_tx as string | null) ?? null,
-    graduationEth: big(r.graduation_eth),
+    graduationWif: big(r.graduation_wif),
     tokenIsToken0: (r.token_is_token0 as boolean | null) ?? null,
     poolTokenReserve: big(r.pool_token_reserve),
-    poolWethReserve: big(r.pool_weth_reserve),
+    poolWifReserve: big(r.pool_wif_reserve),
+    wifBurned: BigInt((r.wif_burned as string | null) ?? "0"),
     createdAt: Number(r.created_at),
     createdBlock: Number(r.created_block),
     createdTx: String(r.created_tx),
@@ -88,19 +91,20 @@ export function rowToDb(n: NationRow): Record<string, string | number | boolean 
     curve_supply: n.curveSupply.toString(),
     lp_reserve: n.lpReserve.toString(),
     founder_allocation: n.founderAllocation.toString(),
-    initial_virtual_eth: n.initialVirtualEth.toString(),
+    initial_virtual_wif: n.initialVirtualWif.toString(),
     initial_virtual_tokens: n.initialVirtualTokens.toString(),
-    virtual_eth: n.virtualEth.toString(),
+    virtual_wif: n.virtualWif.toString(),
     virtual_tokens: n.virtualTokens.toString(),
-    real_eth: n.realEth.toString(),
+    real_wif: n.realWif.toString(),
     curve_tokens_remaining: n.curveTokensRemaining.toString(),
     graduated: n.graduated,
     graduated_at: n.graduatedAt,
     graduation_tx: n.graduationTx,
-    graduation_eth: s(n.graduationEth),
+    graduation_wif: s(n.graduationWif),
     token_is_token0: n.tokenIsToken0,
     pool_token_reserve: s(n.poolTokenReserve),
-    pool_weth_reserve: s(n.poolWethReserve),
+    pool_wif_reserve: s(n.poolWifReserve),
+    wif_burned: n.wifBurned.toString(),
     created_at: n.createdAt,
     created_block: n.createdBlock,
     created_tx: n.createdTx,
@@ -111,28 +115,28 @@ export const NATION_COLUMNS = Object.keys(
   rowToDb({
     id: 0, token: "", pair: "", founder: "", name: "", ticker: "", description: "", theme: 0, emblem: "0",
     metadataUri: "", totalSupply: 0n, curveSupply: 0n, lpReserve: 0n, founderAllocation: 0n,
-    initialVirtualEth: 0n, initialVirtualTokens: 0n, virtualEth: 0n, virtualTokens: 0n, realEth: 0n,
-    curveTokensRemaining: 0n, graduated: false, graduatedAt: null, graduationTx: null, graduationEth: null,
-    tokenIsToken0: null, poolTokenReserve: null, poolWethReserve: null, createdAt: 0, createdBlock: 0, createdTx: "",
+    initialVirtualWif: 0n, initialVirtualTokens: 0n, virtualWif: 0n, virtualTokens: 0n, realWif: 0n,
+    curveTokensRemaining: 0n, graduated: false, graduatedAt: null, graduationTx: null, graduationWif: null,
+    tokenIsToken0: null, poolTokenReserve: null, poolWifReserve: null, wifBurned: 0n, createdAt: 0, createdBlock: 0, createdTx: "",
   }),
 );
 
 const WAD = 1e18;
 
-/** Spot price in ETH per whole token. Curve: virtual reserves. Graduated: Uniswap V2 reserves. */
+/** Spot price in $WIF per whole token. Curve: virtual reserves. Graduated: Uniswap V2 reserves. */
 export function nationPrice(n: NationRow): number | null {
   if (n.graduated) {
-    if (!n.poolTokenReserve || !n.poolWethReserve || n.poolTokenReserve === 0n) return null;
-    return Number(n.poolWethReserve) / Number(n.poolTokenReserve);
+    if (!n.poolTokenReserve || !n.poolWifReserve || n.poolTokenReserve === 0n) return null;
+    return Number(n.poolWifReserve) / Number(n.poolTokenReserve);
   }
   if (n.virtualTokens === 0n) return null;
-  return Number(n.virtualEth) / Number(n.virtualTokens);
+  return Number(n.virtualWif) / Number(n.virtualTokens);
 }
 
 /** ETH-side liquidity depth: curve ETH reserve, or the pool's WETH reserve after graduation. */
 export function nationLiquidity(n: NationRow): number {
-  if (n.graduated) return n.poolWethReserve ? Number(n.poolWethReserve) / WAD : 0;
-  return Number(n.realEth) / WAD;
+  if (n.graduated) return n.poolWifReserve ? Number(n.poolWifReserve) / WAD : 0;
+  return Number(n.realWif) / WAD;
 }
 
 export function nationMarketCap(n: NationRow): number | null {
@@ -141,7 +145,7 @@ export function nationMarketCap(n: NationRow): number | null {
 }
 
 export function openingPrice(n: NationRow): number {
-  return Number(n.initialVirtualEth) / Number(n.initialVirtualTokens);
+  return Number(n.initialVirtualWif) / Number(n.initialVirtualTokens);
 }
 
 /** Holders at or above this balance count as citizens (0.0001% of supply). */

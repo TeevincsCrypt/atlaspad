@@ -36,6 +36,7 @@ export function createCtx(env: IndexerEnv, sql: Sql): Ctx {
   excluded.set(dex.uniswapV2Router.toLowerCase(), { label: "Uniswap V2 Router", kind: "dex" });
   excluded.set(dex.uniswapV2Factory.toLowerCase(), { label: "Uniswap V2 Factory", kind: "dex" });
   excluded.set(dex.weth.toLowerCase(), { label: "WETH", kind: "protocol" });
+  excluded.set(dex.wif.toLowerCase(), { label: "$WIF token", kind: "protocol" });
   if (env.network.key === "robinhood") {
     for (const [a, label] of Object.entries(ROBINHOOD_PROTOCOL_CONTRACTS)) excluded.set(a, { label, kind: "dex" });
   }

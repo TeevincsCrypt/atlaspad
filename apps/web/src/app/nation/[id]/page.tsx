@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, Globe2, Landmark, Plus, TrendingUp } from "lucide-react";
-import { BUILDINGS, formatEth, formatInt } from "@atlaspad/shared";
+import { BUILDINGS, formatWif, formatInt } from "@atlaspad/shared";
 import { useNation, useNews, useSeries, useWorld } from "@/lib/api";
 import { effects } from "@/lib/effects";
 import { NationHeader } from "@/components/nation/NationHeader";
@@ -107,7 +107,7 @@ export default function NationPage({ params }: { params: Promise<{ id: string }>
             </Link>
           </div>
         </div>
-        <NationHeader nation={nation} ethUsd={detail.data.ethUsd} territoryRank={territoryRank} />
+        <NationHeader nation={nation} wifUsd={detail.data.wifUsd} territoryRank={territoryRank} />
 
         <div className="sticky top-14 z-20 -mx-4 mt-8 border-b border-line bg-ink/85 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6">
           <Tabs tabs={TABS.map((t) => ({ key: t.key, label: t.label }))} value={tab} onChange={setTab} />
@@ -178,9 +178,9 @@ function Overview({ id, onTab, onPropose }: { id: number; onTab: (t: TabKey) => 
       {n.description && <p className="text-sm leading-relaxed text-dim">{n.description}</p>}
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          { label: "Market cap · 7d", values: (series.data ?? []).map((p) => p.marketCapEth ?? 0), value: formatEth(n.marketCapEth), tab: "economy" as TabKey },
+          { label: "Market cap · 7d", values: (series.data ?? []).map((p) => p.marketCapWif ?? 0), value: formatWif(n.marketCapWif), tab: "economy" as TabKey },
           { label: "Citizens · 7d", values: (series.data ?? []).map((p) => p.citizens), value: formatInt(n.citizens), tab: "citizens" as TabKey },
-          { label: "Treasury · 7d", values: (series.data ?? []).map((p) => p.treasuryEth), value: formatEth(n.treasuryEth), tab: "treasury" as TabKey },
+          { label: "Treasury · 7d", values: (series.data ?? []).map((p) => p.treasuryWif), value: formatWif(n.treasuryWif), tab: "treasury" as TabKey },
         ].map((c) => (
           <button key={c.label} onClick={() => onTab(c.tab)} className="panel-flat p-4 text-left transition hover:border-line-strong">
             <div className="label">{c.label}</div>

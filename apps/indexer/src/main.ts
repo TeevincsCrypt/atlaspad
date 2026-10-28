@@ -4,7 +4,7 @@ import { loadEnv } from "./env";
 import { GameEngine } from "./game/engine";
 import { log } from "./log";
 import { runMigrations } from "./migrate";
-import { refreshEthUsd } from "./price";
+import { refreshWifUsd } from "./price";
 import { startServer } from "./realtime/server";
 import { ChainSync } from "./sync/sync";
 
@@ -41,8 +41,8 @@ if (!env.network.contracts) {
   });
   const sync = new ChainSync(ctx);
   const engine = new GameEngine(ctx, sync.cache);
-  await refreshEthUsd(ctx);
-  setInterval(() => void refreshEthUsd(ctx), 60_000);
+  await refreshWifUsd(ctx);
+  setInterval(() => void refreshWifUsd(ctx), 60_000);
 
   let backoff = env.pollMs;
   while (running) {

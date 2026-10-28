@@ -1,9 +1,9 @@
-import { ALLIANCE, BuildingType, type Resources } from "./constants";
+import { ALLIANCE, BuildingType, toMarketUnits, type Resources } from "./constants";
 
 export interface EpochActivity {
   citizens: number;
-  volume1hEth: number;
-  liquidityEth: number;
+  volume1hWif: number;
+  liquidityWif: number;
   /** Governance votes cast by this nation's citizens during the epoch. */
   votesCast: number;
   economicPower: number;
@@ -23,7 +23,9 @@ export function epochProduction(a: EpochActivity, buildings: ReadonlySet<Buildin
       (1 + 0.25 * has(buildings, BuildingType.Factory) + 0.1 * has(buildings, BuildingType.Port)),
   );
   const energy = Math.round(
-    (1 + 20 * Math.log10(1 + 1000 * Math.max(0, a.volume1hEth)) + 10 * Math.log10(1 + 100 * Math.max(0, a.liquidityEth))) *
+    (1 +
+      20 * Math.log10(1 + 1000 * Math.max(0, toMarketUnits(a.volume1hWif))) +
+      10 * Math.log10(1 + 100 * Math.max(0, toMarketUnits(a.liquidityWif)))) *
       (1 + 0.25 * has(buildings, BuildingType.Port)),
   );
   const culture = Math.round(

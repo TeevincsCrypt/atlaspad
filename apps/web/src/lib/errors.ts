@@ -10,7 +10,6 @@ export const CONTRACT_ERRORS: Record<string, string> = {
   TextTooLong: "Some text is too long.",
   NameTaken: "Another nation already uses that name.",
   SymbolTaken: "Another nation already uses that ticker.",
-  InsufficientCreationFee: "The transaction doesn't include the founding fee.",
   InitialBuyTooLarge: "The founding purchase would exceed 10% of supply. Lower the initial buy.",
   UnknownNation: "This nation does not exist on-chain.",
   NationGraduatedAlready: "This nation now trades on Uniswap. Refresh to trade through the pool.",
@@ -18,7 +17,7 @@ export const CONTRACT_ERRORS: Record<string, string> = {
   Slippage: "The price moved beyond your slippage tolerance. Nothing was traded — review the new quote and try again.",
   Expired: "The transaction deadline passed before it was mined. Nothing was traded.",
   InsufficientCurveLiquidity: "The bonding curve can't buy back that many tokens.",
-  EthTransferFailed: "An ETH transfer failed.",
+  UnsupportedToken: "The $WIF transfer delivered a different amount than requested.",
   NothingToClaim: "There is nothing to claim yet.",
   NotFounder: "Only the founder can do this.",
   NotGraduated: "Founder tokens unlock once the nation graduates to Uniswap.",
@@ -30,12 +29,12 @@ export const CONTRACT_ERRORS: Record<string, string> = {
   NoVotingPower: "You had no voting power at this proposal's snapshot.",
   NotExecutable: "This proposal can't be executed right now.",
   NotProposer: "Only the proposer can cancel.",
-  ExceedsReleaseCap: "A single proposal can release at most 25% of the treasury.",
+  ExceedsReleaseCap: "A nation can release at most 25% of its treasury per 7-day window.",
   PoolLockedUntilGraduation: "Tokens can't be sent to the Uniswap pool before graduation.",
   UnknownProposal: "This proposal does not exist on-chain.",
-  InvalidRecipient: "The treasury can't send ETH to that recipient.",
+  InvalidRecipient: "The treasury can't send $WIF to that recipient.",
   ERC20InsufficientBalance: "You don't hold enough tokens for this amount.",
-  ERC20InsufficientAllowance: "The token allowance is too low for this amount.",
+  ERC20InsufficientAllowance: "The token allowance is too low for this amount. Approve it again, then retry.",
   ERC2612ExpiredSignature: "The permit signature expired before the transaction was mined. Nothing was traded.",
   ERC2612InvalidSigner: "The permit signature doesn't match your wallet. Nothing was traded.",
 };
@@ -47,6 +46,11 @@ export interface FriendlyError {
   technical: string;
 }
 
+const TOKEN_ERROR_SELECTORS: Record<string, string> = {
+  "0xfb8f41b2": "ERC20InsufficientAllowance",
+  "0xe450d38c": "ERC20InsufficientBalance",
+};
+
 export function friendlyError(err: unknown): FriendlyError {
   const technical = err instanceof BaseError ? err.shortMessage : String((err as Error)?.message ?? err);
   if (err instanceof BaseError) {
@@ -54,13 +58,14 @@ export function friendlyError(err: unknown): FriendlyError {
     if (rejected) return { title: "Request rejected", message: "You declined the request in your wallet. Nothing was sent.", rejected: true, technical };
     const revert = err.walk((e) => e instanceof ContractFunctionRevertedError);
     if (revert instanceof ContractFunctionRevertedError) {
-      const name = revert.data?.errorName ?? "";
+      // Errors raised by the $WIF token itself are not in the launchpad's ABI; match them by selector.
+      const name = revert.data?.errorName ?? (revert.signature ? (TOKEN_ERROR_SELECTORS[revert.signature] ?? "") : "");
       const msg = CONTRACT_ERRORS[name] ?? (revert.reason ? `The contract rejected the transaction: ${revert.reason}` : null);
       if (msg) return { title: "Transaction would fail", message: msg, rejected: false, technical };
     }
     const lower = technical.toLowerCase();
     if (lower.includes("insufficient funds")) {
-      return { title: "Insufficient ETH", message: "Your wallet doesn't have enough ETH for this amount plus gas.", rejected: false, technical };
+      return { title: "Insufficient ETH for gas", message: "Trades are paid in $WIF, but Robinhood Chain gas is paid in ETH. Add a little ETH to your wallet.", rejected: false, technical };
     }
     if (lower.includes("chain") && lower.includes("mismatch")) {
       return { title: "Wrong network", message: "Switch your wallet to the correct network and try again.", rejected: false, technical };

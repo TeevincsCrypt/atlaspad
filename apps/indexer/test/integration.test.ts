@@ -7,7 +7,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import postgres from "postgres";
 import { createPublicClient, http, type Abi, type Address } from "viem";
-import { BUILDINGS, GOVERNANCE, LAUNCHPAD, THEMES, anvilChain } from "@atlaspad/shared";
+import { BUILDINGS, GOVERNANCE, LAUNCHPAD, THEMES, WIF_MARKET_UNIT, anvilChain } from "@atlaspad/shared";
 import { atlasGovernorAbi, atlasLaunchpadAbi, nationTokenAbi, nationTreasuryAbi } from "@atlaspad/shared/abis";
 import { nationSummaries, newsItems } from "@atlaspad/db/queries";
 import { createCtx } from "../src/context";
@@ -60,6 +60,7 @@ describe.skipIf(!enabled)("indexer integration (anvil)", () => {
       ATLAS_UNISWAP_V2_FACTORY: deployment.uniswapV2Factory,
       ATLAS_UNISWAP_V2_ROUTER: deployment.uniswapV2Router,
       ATLAS_WETH: deployment.weth,
+      ATLAS_WIF: deployment.wif,
       DATABASE_URL: DB_URL,
       INDEXER_CONFIRMATIONS: "0",
       INDEXER_BATCH_BLOCKS: "40",
@@ -84,15 +85,31 @@ describe.skipIf(!enabled)("indexer integration (anvil)", () => {
 
   it("indexes nations, curve state and graduation", async () => {
     const nations = await nationSummaries(sql);
-    expect(nations.map((n) => n.name)).toEqual(["Pepeland", "Dogeland", "Wifia", "Bonkistan"]);
+    expect(nations.map((n) => n.name)).toEqual(["Pepeland", "Dogeland", "Hatland", "Bonkistan"]);
     const pepe = nations.find((n) => n.id === ids.pepe)!;
     expect(pepe.graduated).toBe(true);
-    expect(pepe.priceEth).toBeGreaterThan(0);
-    expect(pepe.liquidityEth).toBeGreaterThan(1); // ~2 ETH seeded at graduation, minus a later Uniswap sell
+    expect(pepe.priceWif).toBeGreaterThan(0);
+    expect(pepe.liquidityWif).toBeGreaterThan(1 * WIF_MARKET_UNIT); // ~2 units of $WIF seeded at graduation, minus a later Uniswap sell
     expect(pepe.citizens).toBeGreaterThanOrEqual(5);
     const doge = nations.find((n) => n.id === ids.doge)!;
     expect(doge.graduated).toBe(false);
     expect(doge.curveProgress).toBeGreaterThan(0);
+  });
+
+  it("indexed $WIF burns match the chain exactly", async () => {
+    const client = createPublicClient({ chain: anvilChain, transport: http(RPC) });
+    const rows = await sql`SELECT id, wif_burned FROM nations ORDER BY id`;
+    let total = 0n;
+    for (const r of rows) {
+      const onChain = (await client.readContract({
+        address: deployment.launchpad, abi: atlasLaunchpadAbi, functionName: "wifBurnedOf", args: [BigInt(r.id)],
+      })) as bigint;
+      expect(BigInt(r.wif_burned)).toBe(onChain);
+      expect(onChain).toBeGreaterThan(0n);
+      total += onChain;
+    }
+    const totalOnChain = await client.readContract({ address: deployment.launchpad, abi: atlasLaunchpadAbi, functionName: "totalWifBurned" });
+    expect(total).toBe(totalOnChain);
   });
 
   it("holder balances match the chain exactly", async () => {
@@ -126,7 +143,7 @@ describe.skipIf(!enabled)("indexer integration (anvil)", () => {
     expect(building!.status).toBe("complete");
     const [war] = await sql`SELECT status, winner_id FROM game_wars`;
     expect(war!.status).toBe("ended");
-    expect([ids.pepe, ids.wif]).toContain(Number(war!.winner_id));
+    expect([ids.pepe, ids.hat]).toContain(Number(war!.winner_id));
     const members = await sql`SELECT nation_id FROM game_alliance_members WHERE alliance_id = ${ids.proposals.alliance} AND left_at IS NULL ORDER BY nation_id`;
     expect(members.map((m) => Number(m.nation_id))).toEqual([ids.doge, ids.bonk]);
     const [release] = await sql`SELECT kind, amount FROM treasury_txs WHERE direction = 'out'`;
@@ -151,7 +168,7 @@ describe.skipIf(!enabled)("indexer integration (anvil)", () => {
         SELECT
           (SELECT json_agg(x ORDER BY nation_id) FROM (SELECT nation_id, influence, culture, energy, materials, war_wins, war_losses, alliance_id FROM game_nations) x) AS nations,
           (SELECT json_agg(x ORDER BY id) FROM (SELECT id, winner_id, spoils FROM game_wars) x) AS wars,
-          (SELECT json_agg(x ORDER BY nation_id, epoch) FROM (SELECT nation_id, epoch, citizens, price_eth FROM game_snapshots) x) AS snaps,
+          (SELECT json_agg(x ORDER BY nation_id, epoch) FROM (SELECT nation_id, epoch, citizens, price_wif FROM game_snapshots) x) AS snaps,
           (SELECT json_agg(x ORDER BY dedupe_key) FROM (SELECT dedupe_key, title FROM game_events WHERE dedupe_key LIKE 'g:%') x) AS events`;
       return JSON.stringify(r[0]);
     };
@@ -189,9 +206,11 @@ describe.skipIf(!enabled)("indexer integration (anvil)", () => {
     expect(await gov("EXECUTION_WINDOW")).toBe(BigInt(GOVERNANCE.executionWindowSeconds));
     expect(await gov("BUILDING_TYPES")).toBe(BigInt(BUILDINGS.length));
     expect(BigInt(await read(deployment.treasury, nationTreasuryAbi as Abi, "MAX_RELEASE_BPS"))).toBe(BigInt(GOVERNANCE.maxReleaseBps));
+    expect(BigInt(await read(deployment.treasury, nationTreasuryAbi as Abi, "RELEASE_WINDOW"))).toBe(BigInt(GOVERNANCE.releaseWindowSeconds));
     expect(await lp("TRADE_FEE_BPS")).toBe(LAUNCHPAD.TRADE_FEE_BPS);
     expect(await lp("PROTOCOL_FEE_BPS")).toBe(LAUNCHPAD.PROTOCOL_FEE_BPS);
     expect(await lp("TREASURY_FEE_BPS")).toBe(LAUNCHPAD.TREASURY_FEE_BPS);
+    expect(await lp("BURN_FEE_BPS")).toBe(LAUNCHPAD.BURN_FEE_BPS);
     expect(await lp("LP_RESERVE_BPS")).toBe(LAUNCHPAD.LP_RESERVE_BPS);
     expect(await lp("MAX_FOUNDER_BPS")).toBe(LAUNCHPAD.MAX_FOUNDER_BPS);
     expect(await lp("MAX_INITIAL_BUY_BPS")).toBe(LAUNCHPAD.MAX_INITIAL_BUY_BPS);

@@ -1,4 +1,5 @@
 import { formatUnits } from "viem";
+import { WIF_DECIMALS } from "./chains";
 
 const SUBSCRIPT = ["₀", "₁", "₂", "₃", "₄", "₅", "₆", "₇", "₈", "₉"];
 
@@ -45,17 +46,18 @@ export function formatSmall(n: number, sig = 4): string {
   return `${n < 0 ? "-" : ""}0.0${subscript(zeros - 1)}${digits}`;
 }
 
-export function formatEth(value: number | null | undefined, opts: { compact?: boolean; symbol?: boolean } = {}): string {
+export function formatWif(value: number | null | undefined, opts: { compact?: boolean; symbol?: boolean } = {}): string {
   if (value === null || value === undefined || !Number.isFinite(value)) return "—";
-  const sym = opts.symbol === false ? "" : " ETH";
+  const sym = opts.symbol === false ? "" : " WIF";
   if (Math.abs(value) >= 1000 && opts.compact !== false) return `${formatCompact(value)}${sym}`;
   if (Math.abs(value) >= 1) return `${value.toLocaleString("en-US", { maximumFractionDigits: 3 })}${sym}`;
   return `${formatSmall(value)}${sym}`;
 }
 
-export function weiToEth(wei: bigint | string | null | undefined): number {
-  if (wei === null || wei === undefined) return 0;
-  return Number(formatUnits(BigInt(wei), 18));
+/** $WIF base units → whole WIF (as a JS number, for display and game math). */
+export function unitsToWif(units: bigint | string | null | undefined): number {
+  if (units === null || units === undefined) return 0;
+  return Number(formatUnits(BigInt(units), WIF_DECIMALS));
 }
 
 export function formatUsd(value: number | null | undefined): string {

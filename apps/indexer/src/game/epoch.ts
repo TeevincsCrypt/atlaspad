@@ -5,7 +5,7 @@ import {
   detectMarketEvents,
   epochProduction,
   formatPct,
-  formatEth,
+  formatWif,
   formatInt,
   type DetectedEvent,
   type MarketSnapshot,
@@ -26,19 +26,19 @@ function headline(type: string, name: string, d: DetectedEvent["data"]): { title
     case "MARKET_CRASH":
       return { title: `📉 ${N}'s market crashed.`, body: `Price down ${formatPct(Number(d.change1h))} in the last hour.` };
     case "GOLDEN_AGE":
-      return { title: `👑 ${N} has entered a Golden Age.`, body: `A new all-time high economy of ${formatEth(Number(d.marketCapEth))}, up ${formatPct(Number(d.change24h))} in 24 hours.` };
+      return { title: `👑 ${N} has entered a Golden Age.`, body: `A new all-time high economy of ${formatWif(Number(d.marketCapWif))}, up ${formatPct(Number(d.change24h))} in 24 hours.` };
     case "ECONOMIC_CRISIS":
       return { title: `🌩️ ${N} entered an Economic Crisis.`, body: `Price down ${formatPct(Number(d.change24h))} in 24 hours.` };
     case "RECORD_HIGH":
-      return { title: `📈 ${N}'s economy hit a record high.`, body: `Market cap reached ${formatEth(Number(d.marketCapEth))}.` };
+      return { title: `📈 ${N}'s economy hit a record high.`, body: `Market cap reached ${formatWif(Number(d.marketCapWif))}.` };
     case "POPULATION_EXPLOSION":
       return { title: `👥 ${N} gained ${formatInt(Number(d.gained))} citizens.`, body: `Population explosion: ${formatInt(Number(d.citizens))} citizens now.` };
     case "TRADE_FESTIVAL":
-      return { title: `🔥 A Trade Festival broke out in ${N}.`, body: `${formatEth(Number(d.volume1hEth))} traded in a single hour.` };
+      return { title: `🔥 A Trade Festival broke out in ${N}.`, body: `${formatWif(Number(d.volume1hWif))} traded in a single hour.` };
     case "BANKING_CRISIS":
-      return { title: `⚠️ ${N} is in a Banking Crisis.`, body: `Liquidity fell to ${formatEth(Number(d.liquidityEth))} from ${formatEth(Number(d.liquidity24hAgoEth))} a day ago.` };
+      return { title: `⚠️ ${N} is in a Banking Crisis.`, body: `Liquidity fell to ${formatWif(Number(d.liquidityWif))} from ${formatWif(Number(d.liquidity24hAgoWif))} a day ago.` };
     case "NATIONAL_EMERGENCY":
-      return { title: `☠️ ${N} declared a National Emergency.`, body: `Liquidity collapsed to ${formatEth(Number(d.liquidityEth))} (peak ${formatEth(Number(d.athLiquidityEth))}).` };
+      return { title: `☠️ ${N} declared a National Emergency.`, body: `Liquidity collapsed to ${formatWif(Number(d.liquidityWif))} (peak ${formatWif(Number(d.athLiquidityWif))}).` };
     default:
       return { title: `${EVENT_TYPES[type as keyof typeof EVENT_TYPES]?.icon ?? "📰"} ${N}`, body: "" };
   }
@@ -54,15 +54,15 @@ export async function tickEpoch(g: GameCtx, E: number): Promise<void> {
   if (!nations.length) return;
   const ids = nations.map((n) => n.id);
   const states = await loadGameStates(sql, ids, E);
-  const [ethUsdRow] = await sql`SELECT eth_usd FROM indexer_state WHERE id = 'main'`;
-  const ethUsd = ethUsdRow?.eth_usd === null || ethUsdRow?.eth_usd === undefined ? null : Number(ethUsdRow.eth_usd);
+  const [wifUsdRow] = await sql`SELECT wif_usd FROM indexer_state WHERE id = 'main'`;
+  const wifUsd = wifUsdRow?.wif_usd === null || wifUsdRow?.wif_usd === undefined ? null : Number(wifUsdRow.wif_usd);
   const hourStart = E - EPOCH_SECONDS;
 
   const snaps = await sql`
     SELECT * FROM game_snapshots WHERE nation_id = ANY(${ids}) AND epoch IN (${hourStart}, ${E - 86400})`;
   const snapOf = (id: number, epoch: number) => snaps.find((s) => Number(s.nation_id) === id && Number(s.epoch) === epoch);
   const windowTrades = await sql`
-    SELECT nation_id, COALESCE(sum(eth_amount), 0) AS vol, count(*)::int AS cnt FROM trades
+    SELECT nation_id, COALESCE(sum(wif_amount), 0) AS vol, count(*)::int AS cnt FROM trades
     WHERE nation_id = ANY(${ids}) AND timestamp >= ${hourStart} AND timestamp < ${E} GROUP BY nation_id`;
   const windowTransfers = await sql`
     SELECT DISTINCT nation_id FROM transfers WHERE nation_id = ANY(${ids}) AND timestamp >= ${hourStart} AND timestamp < ${E}`;
@@ -72,10 +72,10 @@ export async function tickEpoch(g: GameCtx, E: number): Promise<void> {
     SELECT nation_id, COALESCE(sum(CASE WHEN direction = 'in' THEN amount ELSE -amount END), 0) AS bal
     FROM treasury_txs WHERE nation_id = ANY(${ids}) AND timestamp < ${E} GROUP BY nation_id`;
   const vol24 = await sql`
-    SELECT nation_id, COALESCE(sum(volume_1h_eth), 0) AS v FROM game_snapshots
+    SELECT nation_id, COALESCE(sum(volume_1h_wif), 0) AS v FROM game_snapshots
     WHERE nation_id = ANY(${ids}) AND epoch > ${E - 86400} AND epoch < ${E} GROUP BY nation_id`;
   const aths = await sql`
-    SELECT nation_id, max(market_cap_eth) AS mcap, max(liquidity_eth) AS liq FROM game_snapshots
+    SELECT nation_id, max(market_cap_wif) AS mcap, max(liquidity_wif) AS liq FROM game_snapshots
     WHERE nation_id = ANY(${ids}) AND epoch < ${E} GROUP BY nation_id`;
   const by = <T>(rows: readonly Record<string, unknown>[], f: (r: Record<string, unknown>) => T) =>
     new Map(rows.map((r) => [Number(r.nation_id), f(r)]));
@@ -91,34 +91,34 @@ export async function tickEpoch(g: GameCtx, E: number): Promise<void> {
     const prev = snapOf(id, hourStart);
     const day = snapOf(id, E - 86400);
     const trades = wTrades.get(id) ?? { vol: 0, cnt: 0 };
-    const opening = Number(n.initialVirtualEth) / Number(n.initialVirtualTokens);
-    let priceEth: number;
-    let marketCapEth: number;
-    let liquidityEth: number;
+    const opening = Number(n.initialVirtualWif) / Number(n.initialVirtualTokens);
+    let priceWif: number;
+    let marketCapWif: number;
+    let liquidityWif: number;
     if (trades.cnt > 0 || !prev) {
       const last = await lastTradeAsOf(sql, id, E - 1);
-      priceEth = last?.priceEth ?? opening;
-      marketCapEth = last?.marketCapEth ?? (opening * Number(n.totalSupply)) / WAD;
-      liquidityEth = last?.liquidityEth ?? 0;
+      priceWif = last?.priceWif ?? opening;
+      marketCapWif = last?.marketCapWif ?? (opening * Number(n.totalSupply)) / WAD;
+      liquidityWif = last?.liquidityWif ?? 0;
     } else {
-      priceEth = Number(prev.price_eth);
-      marketCapEth = Number(prev.market_cap_eth);
-      liquidityEth = Number(prev.liquidity_eth);
+      priceWif = Number(prev.price_wif);
+      marketCapWif = Number(prev.market_cap_wif);
+      liquidityWif = Number(prev.liquidity_wif);
     }
     const citizens =
       wTransfers.has(id) || !prev
         ? await citizenCountAsOf(sql, id, E - 1, citizenThreshold(n), excludedFor(g.ctx, n))
         : Number(prev.citizens);
-    const volume24hEth = (v24.get(id) ?? 0) + trades.vol;
+    const volume24hWif = (v24.get(id) ?? 0) + trades.vol;
     const state = states.get(id)!;
     const goldenAge = state.statuses.some((s) => s.type === "GOLDEN_AGE" && s.until > E);
-    const stats = computeStats({ marketCapEth, liquidityEth, volume24hEth, citizens }, state, state.warBonusPct);
+    const stats = computeStats({ marketCapWif, liquidityWif, volume24hWif, citizens }, state, state.warBonusPct);
 
     await sql`
-      INSERT INTO game_snapshots (nation_id, epoch, price_eth, market_cap_eth, liquidity_eth, volume_1h_eth, volume_24h_eth,
-        trades_1h, citizens, treasury_eth, civilization_score, economic_power, eth_usd)
-      VALUES (${id}, ${E}, ${priceEth}, ${marketCapEth}, ${liquidityEth}, ${trades.vol}, ${volume24hEth}, ${trades.cnt},
-        ${citizens}, ${tBal.get(id) ?? 0}, ${stats.civilizationScore}, ${stats.economicPower}, ${ethUsd})
+      INSERT INTO game_snapshots (nation_id, epoch, price_wif, market_cap_wif, liquidity_wif, volume_1h_wif, volume_24h_wif,
+        trades_1h, citizens, treasury_wif, civilization_score, economic_power, wif_usd)
+      VALUES (${id}, ${E}, ${priceWif}, ${marketCapWif}, ${liquidityWif}, ${trades.vol}, ${volume24hWif}, ${trades.cnt},
+        ${citizens}, ${tBal.get(id) ?? 0}, ${stats.civilizationScore}, ${stats.economicPower}, ${wifUsd})
       ON CONFLICT (nation_id, epoch) DO NOTHING`;
 
     // Market events
@@ -126,22 +126,22 @@ export async function tickEpoch(g: GameCtx, E: number): Promise<void> {
       r
         ? {
             at,
-            priceEth: Number(r.price_eth),
-            marketCapEth: Number(r.market_cap_eth),
-            liquidityEth: Number(r.liquidity_eth),
+            priceWif: Number(r.price_wif),
+            marketCapWif: Number(r.market_cap_wif),
+            liquidityWif: Number(r.liquidity_wif),
             citizens: Number(r.citizens),
-            volume1hEth: Number(r.volume_1h_eth),
-            volume24hEth: Number(r.volume_24h_eth),
+            volume1hWif: Number(r.volume_1h_wif),
+            volume24hWif: Number(r.volume_24h_wif),
             trades1h: Number(r.trades_1h),
           }
         : null;
     const athRow = ath.get(id);
     const detected = detectMarketEvents({
-      now: { at: E, priceEth, marketCapEth, liquidityEth, citizens, volume1hEth: trades.vol, volume24hEth, trades1h: trades.cnt },
+      now: { at: E, priceWif, marketCapWif, liquidityWif, citizens, volume1hWif: trades.vol, volume24hWif, trades1h: trades.cnt },
       hourAgo: toSnap(prev, hourStart),
       dayAgo: toSnap(day, E - 86400),
-      previousAthMarketCapEth: athRow?.mcap ?? 0,
-      athLiquidityEth: athRow?.liq ?? 0,
+      previousAthMarketCapWif: athRow?.mcap ?? 0,
+      athLiquidityWif: athRow?.liq ?? 0,
       graduated: n.graduatedAt !== null && n.graduatedAt < E,
       lastFired: state.lastFired,
     });
@@ -177,8 +177,8 @@ export async function tickEpoch(g: GameCtx, E: number): Promise<void> {
     const production = epochProduction(
       {
         citizens,
-        volume1hEth: trades.vol,
-        liquidityEth,
+        volume1hWif: trades.vol,
+        liquidityWif,
         votesCast: wVotes.get(id) ?? 0,
         economicPower: stats.economicPower,
         allies: state.allies,

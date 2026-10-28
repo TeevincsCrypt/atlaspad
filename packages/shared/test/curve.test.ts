@@ -11,7 +11,7 @@ describe("bonding curve port", () => {
     expect(c.lpReserve).toBe(SUPPLY / 5n);
     expect(c.curveSupply).toBe((SUPPLY * 4n) / 5n);
     expect(c.virtualTokens).toBe((c.curveSupply * c.curveSupply) / (c.curveSupply - c.lpReserve));
-    expect(c.virtualEth).toBe((GRAD * c.lpReserve) / (c.curveSupply - c.lpReserve));
+    expect(c.virtualWif).toBe((GRAD * c.lpReserve) / (c.curveSupply - c.lpReserve));
   });
 
   it("opening market cap is 31.25% of the graduation target with no founder allocation", () => {
@@ -27,9 +27,9 @@ describe("bonding curve port", () => {
     const q = quoteBuy(c, 50n * E18);
     expect(q.graduates).toBe(true);
     expect(q.tokensOut).toBe(c.curveSupply);
-    expect(q.ethUsed + q.refund).toBe(50n * E18);
+    expect(q.wifUsed + q.refund).toBe(50n * E18);
     const expectedGross = Number(GRAD) / 0.99;
-    expect(Number(q.ethUsed) / expectedGross).toBeCloseTo(1, 4);
+    expect(Number(q.wifUsed) / expectedGross).toBeCloseTo(1, 4);
   });
 
   it("charges a 1% fee on regular buys", () => {

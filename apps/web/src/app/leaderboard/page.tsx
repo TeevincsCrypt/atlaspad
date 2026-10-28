@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { LayoutGroup, motion } from "motion/react";
 import { ArrowDown, ArrowUp } from "lucide-react";
-import { formatCompact, formatEth, formatInt, formatPct, shortAddress, TIERS, type NationSummary } from "@atlaspad/shared";
+import { formatCompact, formatWif, formatInt, formatPct, shortAddress, TIERS, type NationSummary } from "@atlaspad/shared";
 import { useTopCitizens, useWorld } from "@/lib/api";
 import { Flag } from "@/components/emblem/Flag";
 import { DataUnavailable, EmptyState, Skeleton } from "@/components/ui/misc";
@@ -12,7 +12,7 @@ type Cat = { key: string; label: string; icon: string; value: (n: NationSummary)
 
 const CATEGORIES: Cat[] = [
   { key: "overall", label: "Overall Civilization", icon: "🏆", value: (n) => n.civilizationScore, fmt: (v) => v.toFixed(1), hint: "Civilization score: economy, population, military, influence and development" },
-  { key: "economy", label: "Largest Economy", icon: "🌎", value: (n) => n.marketCapEth, fmt: (v) => formatEth(v), hint: "Market cap (GDP)" },
+  { key: "economy", label: "Largest Economy", icon: "🌎", value: (n) => n.marketCapWif, fmt: (v) => formatWif(v), hint: "Market cap (GDP)" },
   { key: "citizens", label: "Most Citizens", icon: "👥", value: (n) => n.citizens, fmt: (v) => formatInt(v), hint: "Wallets holding ≥0.0001% of supply" },
   { key: "strongest", label: "Strongest Nation", icon: "⚔️", value: (n) => n.militaryPower, fmt: (v) => v.toFixed(0), hint: "Military power" },
   {
@@ -24,7 +24,7 @@ const CATEGORIES: Cat[] = [
     fmt: (v) => formatPct(v),
     hint: "Citizen growth over 24 hours (nations with 5+ citizens)",
   },
-  { key: "active", label: "Most Active", icon: "🔥", value: (n) => n.volume24hEth, fmt: (v) => formatEth(v), hint: "24h trading volume" },
+  { key: "active", label: "Most Active", icon: "🔥", value: (n) => n.volume24hWif, fmt: (v) => formatWif(v), hint: "24h trading volume" },
   { key: "developed", label: "Most Developed", icon: "🏗️", value: (n) => n.developmentScore + n.civilizationScore / 1000, fmt: (v) => `${Math.round(v / 12.5)} / 8`, hint: "Completed buildings" },
   { key: "influential", label: "Most Influential", icon: "👑", value: (n) => n.resources.influence, fmt: (v) => formatCompact(v), hint: "Influence (game resource)" },
 ];

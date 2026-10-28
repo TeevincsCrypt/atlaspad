@@ -31,10 +31,20 @@ export const anvilChain = defineChain({
   testnet: true,
 });
 
+/**
+ * $WIF on Robinhood Chain. Every nation is bought, sold, pooled and taxed in $WIF.
+ * The deploy script logs the token's symbol, decimals and supply before deploying; confirm them there.
+ */
+export const WIF_ADDRESS: Address = "0x5173b8eA6923c2d40267890D45C46a3480954773";
+/** $WIF decimals. AtlasPad's UI and indexer format $WIF amounts with this. */
+export const WIF_DECIMALS = 18;
+
 export interface DexInfrastructure {
   uniswapV2Factory: Address;
   uniswapV2Router: Address;
   weth: Address;
+  /** $WIF: the currency every AtlasPad nation is bought, sold and pooled against. */
+  wif: Address;
 }
 
 /** Canonical Uniswap V2 + WETH on Robinhood Chain (Uniswap docs v2 deployments table; sdk-core WETH9[4663]). */
@@ -42,6 +52,7 @@ export const ROBINHOOD_DEX: DexInfrastructure = {
   uniswapV2Factory: "0x8bceaa40b9acdfaedf85adf4ff01f5ad6517937f",
   uniswapV2Router: "0x89e5db8b5aa49aa85ac63f691524311aeb649eba",
   weth: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+  wif: WIF_ADDRESS,
 };
 
 export type NetworkKey = "robinhood" | "local";

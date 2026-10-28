@@ -14,7 +14,7 @@ interface AdminStatus {
     counts: Record<string, number>;
     errors: { id: number; at: string; scope: string; message: string }[];
     blocks: { number: number; hash: string; timestamp: number }[];
-    health: { lastIndexedBlock: number | null; lastIndexedAt: number | null; chainHeadBlock: number | null; lagBlocks: number | null; ethUsd: number | null; gameCursor: number | null };
+    health: { lastIndexedBlock: number | null; lastIndexedAt: number | null; chainHeadBlock: number | null; lagBlocks: number | null; wifUsd: number | null; gameCursor: number | null };
   }>;
   indexer: Timed<{ indexer: Record<string, unknown>; rpc: Record<string, unknown> }>;
   generatedAt: number;
@@ -68,7 +68,7 @@ export default function AdminPage() {
               <div>Lag {db.health.lagBlocks} blocks</div>
               <div>Last block {db.health.lastIndexedAt ? timeAgo(db.health.lastIndexedAt) : "—"}</div>
               <div>Game cursor {db.health.gameCursor ? timeAgo(db.health.gameCursor) : "—"}</div>
-              <div>ETH/USD {db.health.ethUsd ?? "not configured"}</div>
+              <div>WIF/USD {db.health.wifUsd ?? "not configured"}</div>
             </div>
           ) : (
             <p className="text-xs text-faint">Unavailable</p>

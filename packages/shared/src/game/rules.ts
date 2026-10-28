@@ -1,4 +1,4 @@
-import { ALLIANCE, BUILDINGS, type BuildingType, WAR, type Resources } from "./constants";
+import { ALLIANCE, BUILDINGS, type BuildingType, WAR, toMarketUnits, type Resources } from "./constants";
 import { canAfford } from "./resources";
 import { logScore } from "./stats";
 
@@ -66,10 +66,10 @@ export function validateWarDeclaration(c: WarDeclarationContext): RuleResult {
 export interface WarSideMetrics {
   citizensStart: number;
   citizensEnd: number;
-  marketCapStartEth: number;
-  marketCapEndEth: number;
-  /** Trading volume (ETH) during the war window. */
-  warVolumeEth: number;
+  marketCapStartWif: number;
+  marketCapEndWif: number;
+  /** Trading volume ($WIF) during the war window. */
+  warVolumeWif: number;
   economicPowerEnd: number;
   defensivePowerEnd: number;
   allies: number;
@@ -94,10 +94,10 @@ const r2 = (x: number) => Math.round(x * 100) / 100;
  */
 export function warScore(m: WarSideMetrics, isDefender: boolean): WarScoreBreakdown {
   const growthRaw = m.citizensStart > 0 ? m.citizensEnd / m.citizensStart - 1 : m.citizensEnd > 0 ? 1 : 0;
-  const momentumRaw = m.marketCapStartEth > 0 ? m.marketCapEndEth / m.marketCapStartEth - 1 : 0;
+  const momentumRaw = m.marketCapStartWif > 0 ? m.marketCapEndWif / m.marketCapStartWif - 1 : 0;
   const growth = 30 * ((clamp(growthRaw, -0.5, 1) + 0.5) / 1.5);
   const momentum = 25 * ((clamp(momentumRaw, -0.5, 1) + 0.5) / 1.5);
-  const activity = 25 * logScore(m.warVolumeEth, 0.001, 1_000);
+  const activity = 25 * logScore(toMarketUnits(m.warVolumeWif), 0.001, 1_000);
   const economy = 20 * (m.economicPowerEnd / 100);
   const defense = isDefender ? 10 * (m.defensivePowerEnd / 100) : 0;
   const subtotal = growth + momentum + activity + economy + defense;

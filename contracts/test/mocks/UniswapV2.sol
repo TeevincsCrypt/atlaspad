@@ -384,6 +384,22 @@ contract UniswapV2Router02 {
         }
     }
 
+    function swapExactTokensForTokens(
+        uint256 amountIn,
+        uint256 amountOutMin,
+        address[] calldata path,
+        address to,
+        uint256 deadline
+    ) external ensure(deadline) returns (uint256[] memory amounts) {
+        amounts = getAmountsOut(amountIn, path);
+        require(amounts[amounts.length - 1] >= amountOutMin, "UniswapV2Router: INSUFFICIENT_OUTPUT_AMOUNT");
+        require(
+            IERC20Minimal(path[0]).transferFrom(msg.sender, _pairFor(path[0], path[1]), amounts[0]),
+            "UniswapV2Router: TRANSFER_FROM_FAILED"
+        );
+        _swap(amounts, path, to);
+    }
+
     function swapExactETHForTokens(uint256 amountOutMin, address[] calldata path, address to, uint256 deadline)
         external
         payable

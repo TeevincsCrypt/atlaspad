@@ -16,15 +16,16 @@ import {
   validateWarDeclaration,
   type MarketSnapshot,
 } from "../src/game";
+import { WIF_MARKET_UNIT as U } from "../src/game/constants";
 
 const snap = (over: Partial<MarketSnapshot> = {}): MarketSnapshot => ({
   at: 1_800_000_000,
-  priceEth: 1e-9,
-  marketCapEth: 1,
-  liquidityEth: 0.5,
+  priceWif: 1e-9,
+  marketCapWif: 1 * U,
+  liquidityWif: 0.5 * U,
   citizens: 100,
-  volume1hEth: 0.01,
-  volume24hEth: 0.24,
+  volume1hWif: 0.01 * U,
+  volume24hWif: 0.24 * U,
   trades1h: 3,
   ...over,
 });
@@ -37,7 +38,7 @@ describe("stats", () => {
   });
 
   it("computes tiers and buildings multipliers", () => {
-    const base = { marketCapEth: 50, liquidityEth: 10, volume24hEth: 5, citizens: 2000 };
+    const base = { marketCapWif: 50 * U, liquidityWif: 10 * U, volume24hWif: 5 * U, citizens: 2000 };
     const none = computeStats(base, { buildings: new Set(), influence: 0, warWins: 0, allies: 0 });
     const bank = computeStats(base, { buildings: new Set([BuildingType.Bank]), influence: 0, warWins: 0, allies: 0 });
     expect(bank.economicPower).toBeGreaterThan(none.economicPower);
@@ -47,7 +48,7 @@ describe("stats", () => {
 
   it("an empty nation is a settlement", () => {
     const s = computeStats(
-      { marketCapEth: 0, liquidityEth: 0, volume24hEth: 0, citizens: 0 },
+      { marketCapWif: 0 * U, liquidityWif: 0 * U, volume24hWif: 0 * U, citizens: 0 },
       { buildings: new Set(), influence: 0, warWins: 0, allies: 0 },
     );
     expect(s.tier).toBe(0);
@@ -57,8 +58,8 @@ describe("stats", () => {
 
 describe("market events", () => {
   const base = {
-    previousAthMarketCapEth: 1,
-    athLiquidityEth: 0.5,
+    previousAthMarketCapWif: 1 * U,
+    athLiquidityWif: 0.5 * U,
     graduated: false,
     lastFired: {},
   };
@@ -66,8 +67,8 @@ describe("market events", () => {
   it("fires ECONOMIC_BOOM on +10% in an hour", () => {
     const ev = detectMarketEvents({
       ...base,
-      now: snap({ priceEth: 1.15e-9, marketCapEth: 1.0 }),
-      hourAgo: snap({ priceEth: 1e-9 }),
+      now: snap({ priceWif: 1.15e-9, marketCapWif: 1.0 * U }),
+      hourAgo: snap({ priceWif: 1e-9 }),
       dayAgo: null,
     });
     expect(ev.map((e) => e.type)).toContain("ECONOMIC_BOOM");
@@ -76,26 +77,26 @@ describe("market events", () => {
   it("fires GOLDEN_AGE on a new ATH with +50% over 24h, otherwise RECORD_HIGH", () => {
     const golden = detectMarketEvents({
       ...base,
-      now: snap({ priceEth: 2e-9, marketCapEth: 2 }),
-      hourAgo: snap({ priceEth: 1.9e-9 }),
-      dayAgo: snap({ priceEth: 1e-9 }),
+      now: snap({ priceWif: 2e-9, marketCapWif: 2 * U }),
+      hourAgo: snap({ priceWif: 1.9e-9 }),
+      dayAgo: snap({ priceWif: 1e-9 }),
     });
     expect(golden.find((e) => e.type === "GOLDEN_AGE")?.statusSeconds).toBe(86400);
     const record = detectMarketEvents({
       ...base,
-      now: snap({ priceEth: 1.2e-9, marketCapEth: 1.2 }),
-      hourAgo: snap({ priceEth: 1.19e-9 }),
-      dayAgo: snap({ priceEth: 1.1e-9 }),
+      now: snap({ priceWif: 1.2e-9, marketCapWif: 1.2 * U }),
+      hourAgo: snap({ priceWif: 1.19e-9 }),
+      dayAgo: snap({ priceWif: 1.1e-9 }),
     });
     expect(record.map((e) => e.type)).toContain("RECORD_HIGH");
   });
 
   it("respects cooldowns", () => {
-    const now = snap({ priceEth: 1.3e-9 });
+    const now = snap({ priceWif: 1.3e-9 });
     const ev = detectMarketEvents({
       ...base,
       now,
-      hourAgo: snap({ priceEth: 1e-9 }),
+      hourAgo: snap({ priceWif: 1e-9 }),
       dayAgo: null,
       lastFired: { ECONOMIC_BOOM: now.at - 3600 },
     });
@@ -105,9 +106,9 @@ describe("market events", () => {
   it("detects crises, population explosions and festivals", () => {
     const ev = detectMarketEvents({
       ...base,
-      now: snap({ priceEth: 0.4e-9, marketCapEth: 0.4, citizens: 200, volume1hEth: 1, volume24hEth: 1.23, liquidityEth: 0.2 }),
-      hourAgo: snap({ priceEth: 0.45e-9 }),
-      dayAgo: snap({ priceEth: 1e-9, citizens: 100, liquidityEth: 0.5 }),
+      now: snap({ priceWif: 0.4e-9, marketCapWif: 0.4 * U, citizens: 200, volume1hWif: 1 * U, volume24hWif: 1.23 * U, liquidityWif: 0.2 * U }),
+      hourAgo: snap({ priceWif: 0.45e-9 }),
+      dayAgo: snap({ priceWif: 1e-9, citizens: 100, liquidityWif: 0.5 * U }),
     });
     const types = ev.map((e) => e.type);
     expect(types).toContain("ECONOMIC_CRISIS");
@@ -119,16 +120,16 @@ describe("market events", () => {
   it("does not fire market events for micro nations", () => {
     const ev = detectMarketEvents({
       ...base,
-      now: snap({ priceEth: 2e-9, marketCapEth: 0.01 }),
-      hourAgo: snap({ priceEth: 1e-9 }),
+      now: snap({ priceWif: 2e-9, marketCapWif: 0.01 * U }),
+      hourAgo: snap({ priceWif: 1e-9 }),
       dayAgo: null,
     });
     expect(ev.map((e) => e.type)).not.toContain("ECONOMIC_BOOM");
   });
 
   it("whales and milestones", () => {
-    expect(isWhaleBuy(1, 10)).toBe(true);
-    expect(isWhaleBuy(0.1, 1)).toBe(false);
+    expect(isWhaleBuy(1 * U, 10 * U)).toBe(true);
+    expect(isWhaleBuy(0.1 * U, 1 * U)).toBe(false);
     expect(crossedMilestones(90, 1200, [10, 100, 1000])).toEqual([100, 1000]);
   });
 });
@@ -174,9 +175,9 @@ describe("rules", () => {
     const side = {
       citizensStart: 100,
       citizensEnd: 120,
-      marketCapStartEth: 1,
-      marketCapEndEth: 1.2,
-      warVolumeEth: 2,
+      marketCapStartWif: 1 * U,
+      marketCapEndWif: 1.2 * U,
+      warVolumeWif: 2 * U,
       economicPowerEnd: 40,
       defensivePowerEnd: 0,
       allies: 0,
@@ -184,7 +185,7 @@ describe("rules", () => {
     const tie = resolveWar(side, side, 1000);
     expect(tie.winner).toBe("defender");
     expect(tie.spoils).toBe(100);
-    const stronger = resolveWar({ ...side, citizensEnd: 200, warVolumeEth: 20 }, side, 10);
+    const stronger = resolveWar({ ...side, citizensEnd: 200, warVolumeWif: 20 * U }, side, 10);
     expect(stronger.winner).toBe("attacker");
     expect(stronger.spoils).toBe(50);
     expect(resolveWar(side, side, 0)).toEqual(resolveWar(side, side, 0));
@@ -208,7 +209,7 @@ describe("rules", () => {
 
   it("produces resources from activity", () => {
     const p = epochProduction(
-      { citizens: 100, volume1hEth: 0.1, liquidityEth: 1, votesCast: 2, economicPower: 30, allies: 1, goldenAge: false },
+      { citizens: 100, volume1hWif: 0.1 * U, liquidityWif: 1 * U, votesCast: 2, economicPower: 30, allies: 1, goldenAge: false },
       new Set([BuildingType.Factory]),
     );
     expect(p.materials).toBe(Math.round(42 * 1.25));

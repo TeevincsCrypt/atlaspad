@@ -29,7 +29,7 @@ These are defined in `packages/shared/src/chains.ts`.
 
 > The `--env-file-if-exists` flag needs Node 22.9 or newer, which is the repo's minimum (`engines.node >=22.9` in the root `package.json`).
 
-> **Empty means "unset" in the apps.** The web app and the indexer treat an empty value like a missing one, so a blank line in an `.env` file falls back to the default. That includes `NEXT_PUBLIC_ATLAS_NETWORK` / `ATLAS_NETWORK`, the RPC URLs, the contract addresses and deploy block, `ETH_USD_SOURCE`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_REALTIME_URL`, `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` and `DATABASE_POOL_MAX`. The exceptions are outside the apps:
+> **Empty means "unset" in the apps.** The web app and the indexer treat an empty value like a missing one, so a blank line in an `.env` file falls back to the default. That includes `NEXT_PUBLIC_ATLAS_NETWORK` / `ATLAS_NETWORK`, the RPC URLs, the contract addresses and deploy block, `WIF_USD_SOURCE`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_REALTIME_URL`, `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` and `DATABASE_POOL_MAX`. The exceptions are outside the apps:
 > - `SMOKE_NAME` / `SMOKE_SYMBOL`: empty becomes an empty string and the founding transaction reverts.
 > - The local tooling defaults written with `??` (`LOCAL_RPC_URL`, `TEST_DATABASE_URL`, `CHROMIUM_PATH`, and `DATABASE_URL` when `seed-local.ts` runs on its own) use an empty value as is.
 >
@@ -43,7 +43,7 @@ The web app (`NEXT_PUBLIC_ATLAS_*`) and the indexer (`ATLAS_*`) both pass their 
 
 1. **Network key.** It is `"robinhood"` when unset or empty. Anything other than `robinhood` or `local` throws `ConfigError`.
 2. **DEX addresses.**
-   - `robinhood`: the Uniswap V2 factory, the router and WETH always come from `ROBINHOOD_DEX` in `packages/shared/src/chains.ts`. The `*_UNISWAP_V2_FACTORY`, `*_UNISWAP_V2_ROUTER` and `*_WETH` variables are **ignored**.
+   - `robinhood`: the Uniswap V2 factory, the router, WETH and $WIF always come from `ROBINHOOD_DEX` in `packages/shared/src/chains.ts`. The `*_UNISWAP_V2_FACTORY`, `*_UNISWAP_V2_ROUTER` and `*_WETH` variables are **ignored**.
    - `local`: all three variables are **required**. Otherwise it throws `Local network requires uniswapV2Factory, uniswapV2Router and weth.`
 3. **Contracts.**
    - Each of launchpad, governor and treasury is validated as an address when set (non-empty). An invalid address throws `ConfigError`.
@@ -87,6 +87,8 @@ Every value below is visible to anyone. Never put a secret in a `NEXT_PUBLIC_*` 
 | `NEXT_PUBLIC_ATLAS_UNISWAP_V2_FACTORY` | Only for `local` | none | Ignored on `robinhood`. |
 | `NEXT_PUBLIC_ATLAS_UNISWAP_V2_ROUTER` | Only for `local` | none | Ignored on `robinhood`. |
 | `NEXT_PUBLIC_ATLAS_WETH` | Only for `local` | none | Ignored on `robinhood`. |
+| `NEXT_PUBLIC_ATLAS_WIF` | Only for `local` | none | The local $WIF stand-in (MockWIF). Ignored on `robinhood`, which uses `WIF_ADDRESS` from `packages/shared/src/chains.ts`. |
+| `NEXT_PUBLIC_GET_WIF_URL` | No | Uniswap app with $WIF as output | Where "Get $WIF" buttons link. |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | No | `""` | WalletConnect Cloud project id. When empty, the WalletConnect connector is omitted. Injected (EIP-6963) wallets and Coinbase Wallet are always offered. |
 | `NEXT_PUBLIC_REALTIME_URL` | No | `""` | Public base URL of the indexer HTTP server. The browser opens `EventSource(<url>/stream)`, and a trailing `/` is stripped. When empty, realtime is "disabled" and React Query polls instead (the nav shows "Polling"). |
 | `NEXT_PUBLIC_SITE_URL` | No (set it in production) | `http://localhost:3000` (when unset or empty) | Used for `metadataBase` in `app/layout.tsx` and for the WalletConnect and Coinbase Wallet app metadata (`url`, `icons`). A trailing `/` is stripped. Must be an absolute URL. Set it to your public origin in production (for example `https://your-domain.example`); otherwise metadata points at localhost. |
@@ -119,6 +121,7 @@ These are read at request time by route handlers, `src/proxy.ts`, `src/lib/admin
 | `ATLAS_UNISWAP_V2_FACTORY` | Only for `local` | none | Ignored on `robinhood`. |
 | `ATLAS_UNISWAP_V2_ROUTER` | Only for `local` | none | Ignored on `robinhood`. |
 | `ATLAS_WETH` | Only for `local` | none | Ignored on `robinhood`. |
+| `ATLAS_WIF` | Only for `local` | none | The local $WIF stand-in. Ignored on `robinhood`. |
 | `DATABASE_URL` | **Yes** | none | The indexer exits with `DATABASE_URL is required` when it is missing. `migrate-cli.ts` (the `migrate` script and `dist/migrate-cli.js`) and `rebuild.ts` also need it. **Secret.** |
 | `DATABASE_SSL` | No | off | Only `true` enables TLS (`ssl: "require"`). Applies to the main pool (10 connections, fixed) and to migrations. |
 | `PORT` | No | (see `INDEXER_PORT`) | HTTP port. Takes precedence over `INDEXER_PORT`. Integer ≥ 0. |
@@ -130,7 +133,7 @@ These are read at request time by route handlers, `src/proxy.ts`, `src/lib/admin
 | `INDEXER_CORS_ORIGIN` | No | `*` | Sent verbatim as `Access-Control-Allow-Origin` on every response, including `/stream`. It is a single origin (for example `https://your-domain.example`) or `*`, not a list. |
 | `INDEXER_RUN_MIGRATIONS` | No | on | Runs Drizzle migrations at startup unless the value is exactly `false`. |
 | `MIGRATIONS_DIR` | No | auto | Folder containing `meta/_journal.json`. If unset, the indexer searches in order: `<module dir>/drizzle` (that is `dist/drizzle` in builds), `<module dir>/../../../packages/db/drizzle`, then `<cwd>/../../packages/db/drizzle`. |
-| `ETH_USD_SOURCE` | No | `none` (when unset or empty) | `coinbase` polls `https://api.coinbase.com/v2/prices/ETH-USD/spot` every 60 s, but only while contracts are configured. The price is stored in `indexer_state.eth_usd`. It is used for USD display, recorded in the hourly snapshots, and feeds the `MCAP_1M_USD` ("Millionaire Economy") achievement, which cannot unlock without it. `none` disables it. Any other non-empty value means exit. |
+| `WIF_USD_SOURCE` | No | `none` (when unset or empty) | `dexscreener` polls `https://api.dexscreener.com/latest/dex/tokens/<WIF>` every 60 s and uses the most liquid $WIF pool, but only while contracts are configured. The price is stored in `indexer_state.wif_usd`. It is used for USD display, recorded in the hourly snapshots, and feeds the `MCAP_1M_USD` ("Millionaire Economy") achievement, which cannot unlock without it. `none` disables it. Any other non-empty value means exit. |
 | `EXCLUDED_ADDRESSES` | No | `""` | Comma-separated `address[:label]` entries; the label defaults to `Excluded`. These addresses are never counted as citizens and are upserted into `excluded_addresses` with `kind = protocol`. An invalid address means exit. Burn addresses, the Uniswap infrastructure (plus the known Robinhood Universal Routers, Permit2, etc.) and the AtlasPad contracts are already excluded automatically. |
 | `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn` or `error`; unknown values act as `info`. Output is JSON lines, with `warn` and `error` going to stderr. |
 
@@ -143,19 +146,19 @@ These are read at request time by route handlers, `src/proxy.ts`, `src/lib/admin
 | `EXPECTED_CHAIN_ID` | `Deploy.s.sol` (`vm.envUint`) | Yes | none | Must equal `block.chainid`. Use `4663`. |
 | `UNISWAP_V2_FACTORY` | `Deploy.s.sol` (`vm.envAddress`) | Yes | none | Robinhood: `0x8bceaa40b9acdfaedf85adf4ff01f5ad6517937f`. Preflight checks it has code and equals `router.factory()`. |
 | `UNISWAP_V2_ROUTER` | `Deploy.s.sol` | Yes | none | Robinhood: `0x89e5db8b5aa49aa85ac63f691524311aeb649eba`. Must have code. |
-| `WETH_ADDRESS` | `Deploy.s.sol` | Yes | none | Robinhood: `0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73`. Must have code and equal `router.WETH()`. |
+| `WIF_ADDRESS` | `Deploy.s.sol` | Yes | none | Robinhood: `0x5173b8eA6923c2d40267890D45C46a3480954773`. Must have code; preflight logs its symbol, decimals and supply. Must equal `WIF_ADDRESS` in `packages/shared/src/chains.ts`. |
 | `PROTOCOL_FEE_RECIPIENT` | `Deploy.s.sol` | Yes | none | Non-zero. **Immutable.** It receives the creation fees and the protocol share of trade fees through `withdrawProtocolFees()`, which anyone can call. A multisig is recommended. |
-| `GRADUATION_ETH_WEI` | `Deploy.s.sol` (`vm.envUint`) | Yes | none | Must be within 0.01–10 000 ETH. **Immutable.** It sets the curve shape for every nation. `DeployLocal.s.sol` does not read it. |
-| `CREATION_FEE_WEI` | `Deploy.s.sol` (`vm.envUint`) | Yes | none | Must be ≤ 1 ETH. **Immutable.** `DeployLocal.s.sol` does not read it. |
-| `LOCAL_GRADUATION_ETH_WEI` | `DeployLocal.s.sol` (`vm.envOr`) | No | `2000000000000000000` (2 ETH) | Graduation threshold for local anvil deployments only. |
-| `LOCAL_CREATION_FEE_WEI` | `DeployLocal.s.sol` (`vm.envOr`) | No | `0` | Creation fee for local anvil deployments only. |
+| `GRADUATION_WIF` | `Deploy.s.sol` (`vm.envUint`) | Yes | none | $WIF base units, within `1e6`–`1e36`; recommended 200,000 WIF (2 game market units). **Immutable.** It sets the curve shape for every nation. `DeployLocal.s.sol` does not read it. |
+| `CREATION_FEE_WIF` | `Deploy.s.sol` (`vm.envUint`) | Yes | none | $WIF base units, ≤ `GRADUATION_WIF`, burned on every founding; recommended 100 WIF. **Immutable.** `DeployLocal.s.sol` does not read it. |
+| `LOCAL_GRADUATION_WIF` | `DeployLocal.s.sol` (`vm.envOr`) | No | 200,000 WIF | Graduation threshold for local anvil deployments only. |
+| `LOCAL_CREATION_FEE_WIF` | `DeployLocal.s.sol` (`vm.envOr`) | No | 100 WIF | Creation fee (burned) for local anvil deployments only. |
 | `SMOKE_CONFIRM` | `SmokeTest.s.sol` | On any chain ≠ 31337 | `""` | Must be exactly `I_UNDERSTAND`, or the script reverts with `set SMOKE_CONFIRM=I_UNDERSTAND to spend real funds`. |
 | `SMOKE_NAME` | `SmokeTest.s.sol` | No | `Atlas Smoke Test` | The nation name: 2–32 characters from `[A-Za-z0-9 -.']`, no leading, trailing or double spaces. **Unique forever**, case-insensitive. |
 | `SMOKE_SYMBOL` | `SmokeTest.s.sol` | No | `SMOKE` | The ticker: 2–10 characters from `[A-Z0-9]`. **Unique forever.** |
-| `SMOKE_INITIAL_BUY_WEI` | `SmokeTest.s.sol` | No | `100000000000000` (0.0001 ETH) | The founder's initial curve buy, sent together with `creationFee`. |
-| `SMOKE_BUY_WEI` | `SmokeTest.s.sol` | No | `200000000000000` (0.0002 ETH) | The second buy. Half of the resulting balance is then sold back. |
+| `SMOKE_INITIAL_BUY_WIF` | `SmokeTest.s.sol` | No | 100 WIF | The founder's initial curve buy, approved and pulled together with `creationFee`. |
+| `SMOKE_BUY_WIF` | `SmokeTest.s.sol` | No | 200 WIF | The second buy. Half of the resulting balance is then sold back. |
 
-Foundry auto-loads `contracts/.env` for every script, including `DeployLocal.s.sol`, which `scripts/dev-local.sh`, `seed-local.ts` and the indexer integration test run. `DeployLocal.s.sol` reads only `LOCAL_GRADUATION_ETH_WEI` and `LOCAL_CREATION_FEE_WEI`, so production `GRADUATION_ETH_WEI` / `CREATION_FEE_WEI` values in `contracts/.env` never leak into local deployments. `LOCAL_*` values placed there do affect all three local flows.
+Foundry auto-loads `contracts/.env` for every script, including `DeployLocal.s.sol`, which `scripts/dev-local.sh`, `seed-local.ts` and the indexer integration test run. `DeployLocal.s.sol` reads only `LOCAL_GRADUATION_WIF` and `LOCAL_CREATION_FEE_WIF`, so production `GRADUATION_WIF` / `CREATION_FEE_WIF` values in `contracts/.env` never leak into local deployments. `LOCAL_*` values placed there do affect all three local flows.
 
 `VerifyDeployment.s.sol` reads no environment variables. It reads `contracts/deployments/<chainId>.json`.
 

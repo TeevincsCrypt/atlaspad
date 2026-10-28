@@ -12,7 +12,7 @@ import {
   decodePayload,
   formatCompact,
   formatDuration,
-  formatEth,
+  formatWif,
   shortAddress,
   timeAgo,
   type NationSummary,
@@ -89,7 +89,7 @@ export function ProposalCard({ p, nation, nationName }: { p: ProposalDTO; nation
           {body && <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-dim">{body}</p>}
           {decoded.kind === ProposalKind.Treasury && (
             <div className="mt-2 text-xs text-dim">
-              Sends <span className="text-fg">{formatEth(Number(decoded.amountWei) / 1e18)}</span> to{" "}
+              Sends <span className="text-fg">{formatWif(Number(decoded.amountWei) / 1e18)}</span> to{" "}
               <ExplorerLink kind="address" value={decoded.recipient} />
             </div>
           )}
@@ -193,7 +193,7 @@ export function ProposalCard({ p, nation, nationName }: { p: ProposalDTO; nation
             action={exec === "execute" ? `Enact proposal #${p.id}: ${describeAction(decoded, nationName)}` : `Withdraw proposal #${p.id}`}
             rows={[{ label: "Proposal", value: title }]}
             previewCall={exec === null ? null : { address: contracts.governor, abi: atlasGovernorAbi, functionName: exec, args: [BigInt(p.id)] }}
-            acknowledge={exec === "execute" && decoded.kind === ProposalKind.Treasury ? "I understand this transfers ETH out of the national treasury and cannot be undone." : undefined}
+            acknowledge={exec === "execute" && decoded.kind === ProposalKind.Treasury ? "I understand this transfers $WIF out of the national treasury and cannot be undone." : undefined}
             onConfirmed={() => {
               refresh();
               void qc.invalidateQueries({ queryKey: queryKeys.nation(nation.id) });

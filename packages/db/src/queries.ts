@@ -5,6 +5,7 @@
 import type { Sql, TransactionSql } from "postgres";
 import type {
   AllianceSummary,
+  FlywheelStats,
   IndexerHealth,
   NationSummary,
   NewsItem,
@@ -47,16 +48,17 @@ export function toSummary(r: Record<string, unknown>): NationSummary {
     graduated,
     graduatedAt: n(r.graduated_at),
     totalSupply: String(r.total_supply),
-    priceEth: n(r.price_eth),
-    marketCapEth: n(r.market_cap_eth),
-    liquidityEth: n(r.liquidity_eth),
-    volume24hEth: n(r.volume_24h_eth),
+    priceWif: n(r.price_wif),
+    marketCapWif: n(r.market_cap_wif),
+    liquidityWif: n(r.liquidity_wif),
+    volume24hWif: n(r.volume_24h_wif),
     trades24h: Number(r.trades_24h ?? 0),
     change1h: n(r.change_1h),
     change24h: n(r.change_24h),
-    athMarketCapEth: n(r.ath_market_cap_eth),
+    athMarketCapWif: n(r.ath_market_cap_wif),
     curveProgress: progress,
-    treasuryEth: Number(r.treasury_eth ?? 0),
+    treasuryWif: Number(r.treasury_wif ?? 0),
+    wifBurned: Number(r.wif_burned ?? 0) / 1e18,
     citizens: Number(r.citizens ?? 0),
     citizens24hAgo: n(r.citizens_24h_ago),
     economicPower: Number(r.economic_power ?? 0),
@@ -82,6 +84,24 @@ export function toSummary(r: Record<string, unknown>): NationSummary {
     buildings: ((r.built as number[]) ?? []).map(Number),
     warWins: Number(r.war_wins ?? 0),
     warLosses: Number(r.war_losses ?? 0),
+  };
+}
+
+/** World-wide $WIF flywheel totals (whole WIF). */
+export async function flywheelStats(sql: Db): Promise<FlywheelStats> {
+  const [r] = await sql`
+    SELECT
+      (SELECT COALESCE(sum(wif_burned), 0) FROM nations) AS burned,
+      (SELECT COALESCE(sum(graduation_wif), 0) FROM nations WHERE graduated) AS locked,
+      (SELECT COALESCE(sum(real_wif), 0) FROM nations WHERE NOT graduated) AS curves,
+      (SELECT COALESCE(sum(treasury_wif), 0) FROM game_nations) AS treasuries,
+      (SELECT COALESCE(sum(wif_amount), 0) FROM trades) AS volume`;
+  return {
+    wifBurned: Number(r?.burned ?? 0) / 1e18,
+    wifLocked: Number(r?.locked ?? 0) / 1e18,
+    wifInCurves: Number(r?.curves ?? 0) / 1e18,
+    wifInTreasuries: Number(r?.treasuries ?? 0),
+    wifVolume: Number(r?.volume ?? 0) / 1e18,
   };
 }
 
@@ -164,9 +184,9 @@ export async function newsItems(
   }));
 }
 
-export async function indexerHealth(sql: Db): Promise<IndexerHealth & { ethUsd: number | null; gameCursor: number | null }> {
+export async function indexerHealth(sql: Db): Promise<IndexerHealth & { wifUsd: number | null; gameCursor: number | null }> {
   const [s] = await sql`SELECT * FROM indexer_state WHERE id = 'main'`;
-  if (!s) return { lastIndexedBlock: null, lastIndexedAt: null, chainHeadBlock: null, lagBlocks: null, ethUsd: null, gameCursor: null };
+  if (!s) return { lastIndexedBlock: null, lastIndexedAt: null, chainHeadBlock: null, lagBlocks: null, wifUsd: null, gameCursor: null };
   const last = Number(s.last_block);
   const head = s.chain_head === null ? null : Number(s.chain_head);
   return {
@@ -174,7 +194,7 @@ export async function indexerHealth(sql: Db): Promise<IndexerHealth & { ethUsd: 
     lastIndexedAt: n(s.last_block_timestamp),
     chainHeadBlock: head,
     lagBlocks: head === null ? null : Math.max(0, head - last),
-    ethUsd: n(s.eth_usd),
+    wifUsd: n(s.wif_usd),
     gameCursor: n(s.game_cursor),
   };
 }

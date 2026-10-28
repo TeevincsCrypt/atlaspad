@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { ArrowRight, Coins, Globe2, Landmark, Swords, Users, Vote } from "lucide-react";
-import { formatCompact, formatEth, formatInt } from "@atlaspad/shared";
+import { formatCompact, formatWif, formatInt } from "@atlaspad/shared";
 import { useNews, useWorld } from "@/lib/api";
 import { network } from "@/lib/env";
 import { playSound } from "@/lib/sound";
@@ -11,6 +11,7 @@ import { AnimatedNumber } from "@/components/ui/AnimatedNumber";
 import { Flag } from "@/components/emblem/Flag";
 import { ChangePill } from "@/components/ui/ChangePill";
 import { NewsTicker } from "@/components/news/NewsTicker";
+import { WifFlywheel } from "@/components/flywheel/WifFlywheel";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -21,8 +22,7 @@ export default function LandingPage() {
   const nations = world.data?.nations ?? [];
   const available = world.isSuccess;
   const citizens = nations.reduce((s, n) => s + n.citizens, 0);
-  const volume = nations.reduce((s, n) => s + (n.volume24hEth ?? 0), 0);
-  const wars = world.data?.wars.filter((w) => w.status === "active").length ?? 0;
+  const volume = nations.reduce((s, n) => s + (n.volume24hWif ?? 0), 0);
   const top = [...nations].sort((a, b) => (a.rank ?? 1e9) - (b.rank ?? 1e9)).slice(0, 6);
 
   return (
@@ -38,7 +38,7 @@ export default function LandingPage() {
             className="mb-6 inline-flex items-center gap-2 rounded-full border border-line-strong bg-black/40 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.22em] text-dim backdrop-blur"
           >
             <span className="size-1.5 animate-pulse-soft rounded-full bg-up" />
-            Live on {network.chain.name}
+            Live on {network.chain.name} · powered by $WIF
           </motion.div>
           <h1 className="font-display text-[clamp(2.4rem,6.4vw,5.4rem)] font-semibold uppercase leading-[0.95] tracking-[-0.01em] text-fg">
             {["Every token", "is a"].map((line, i) => (
@@ -56,7 +56,7 @@ export default function LandingPage() {
             </motion.span>
           </h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1, delay: 1.1 }} className="mt-6 max-w-lg text-base leading-relaxed text-dim sm:text-lg">
-            Launch a token. Build a civilization. Become a citizen.
+            Launch a token. Build a civilization. Become a citizen. Every nation is bought, sold, taxed and pooled in $WIF.
           </motion.p>
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 1.3, ease }} className="mt-9 flex flex-wrap gap-3">
             <button
@@ -81,8 +81,8 @@ export default function LandingPage() {
             {[
               { label: "Nations", value: available ? nations.length : null, fmt: (n: number) => formatInt(n) },
               { label: "Citizens", value: available ? citizens : null, fmt: (n: number) => formatCompact(n) },
-              { label: "24h Volume", value: available ? volume : null, fmt: (n: number) => formatEth(n) },
-              { label: "Active Wars", value: available ? wars : null, fmt: (n: number) => formatInt(n) },
+              { label: "24h Volume", value: available ? volume : null, fmt: (n: number) => formatWif(n) },
+              { label: "$WIF Burned", value: available ? (world.data?.flywheel.wifBurned ?? 0) : null, fmt: (n: number) => formatWif(n) },
             ].map((s) => (
               <div key={s.label}>
                 <div className="label mb-1">{s.label}</div>
@@ -102,8 +102,8 @@ export default function LandingPage() {
       <section className="relative z-10 border-t border-line bg-ink/95 px-5 py-20 backdrop-blur sm:px-10 lg:px-16">
         <div className="mx-auto grid max-w-6xl gap-4 md:grid-cols-3">
           {[
-            { icon: Globe2, title: "Every token is a nation.", body: "Founding a nation launches a real token on a fair bonding curve. When the curve sells out, its liquidity is locked forever on Uniswap." },
-            { icon: Users, title: "Every holder is a citizen.", body: "Hold a nation's token and you're a citizen. Citizens vote on-chain: build, ally, declare war, and spend the national treasury." },
+            { icon: Globe2, title: "Every token is a nation.", body: "Founding a nation launches a real token on a fair $WIF bonding curve. When the curve sells out, its $WIF liquidity is locked forever on Uniswap." },
+            { icon: Users, title: "Every holder is a citizen.", body: "Buy a nation with $WIF and you're a citizen. Citizens vote on-chain: build, ally, declare war, and spend the national $WIF treasury." },
             { icon: Coins, title: "Markets shape the world.", body: "Real trades, holders and liquidity drive each nation's territory, cities, power and events — golden ages, crises and wars." },
           ].map((c, i) => (
             <motion.div
@@ -125,9 +125,11 @@ export default function LandingPage() {
           <span className="flex items-center gap-2"><Landmark className="size-3.5" /> No admin keys</span>
           <span className="flex items-center gap-2"><Vote className="size-3.5" /> On-chain governance</span>
           <span className="flex items-center gap-2"><Swords className="size-3.5" /> Deterministic wars</span>
-          <span className="flex items-center gap-2"><Coins className="size-3.5" /> 1% curve fee, disclosed</span>
+          <span className="flex items-center gap-2"><Coins className="size-3.5" /> 1% curve fee in $WIF · 0.25% burned</span>
         </div>
       </section>
+
+      <WifFlywheel stats={available ? (world.data?.flywheel ?? null) : null} />
 
       {/* TOP CIVILIZATIONS */}
       <section className="relative z-10 bg-ink px-5 pb-24 sm:px-10 lg:px-16">
@@ -165,7 +167,7 @@ export default function LandingPage() {
                       </span>
                     </span>
                     <span className="text-right">
-                      <span className="block font-mono text-xs text-fg">{formatEth(n.marketCapEth)}</span>
+                      <span className="block font-mono text-xs text-fg">{formatWif(n.marketCapWif)}</span>
                       <ChangePill value={n.change24h} />
                     </span>
                   </Link>

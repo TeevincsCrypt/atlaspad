@@ -39,7 +39,7 @@ export const uniswapV2PairAbi = [
   },
 ] as const;
 
-/** Minimal Uniswap V2 Router02 ABI (functions used for post-graduation trading). */
+/** Minimal Uniswap V2 Router02 ABI (post-graduation trading routes nation tokens ↔ $WIF). */
 export const uniswapV2RouterAbi = [
   { type: "function", name: "factory", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
   { type: "function", name: "WETH", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "address" }] },
@@ -50,6 +50,19 @@ export const uniswapV2RouterAbi = [
     inputs: [
       { name: "amountIn", type: "uint256" },
       { name: "path", type: "address[]" },
+    ],
+    outputs: [{ name: "amounts", type: "uint256[]" }],
+  },
+  {
+    type: "function",
+    name: "swapExactTokensForTokens",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "amountIn", type: "uint256" },
+      { name: "amountOutMin", type: "uint256" },
+      { name: "path", type: "address[]" },
+      { name: "to", type: "address" },
+      { name: "deadline", type: "uint256" },
     ],
     outputs: [{ name: "amounts", type: "uint256[]" }],
   },

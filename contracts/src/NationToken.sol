@@ -17,7 +17,7 @@ import {IUniswapV2Factory} from "./interfaces/IUniswapV2Factory.sol";
 ///    automatically self-delegated the first time they receive tokens, so citizens can vote without an
 ///    extra transaction. System addresses (launchpad, Uniswap pair, burn address) are never delegated.
 ///  - The only privileged action in this contract is `markGraduated()`, callable exactly once and only by
-///    the launchpad that deployed it. Before graduation, tokens cannot be sent to the token/WETH Uniswap V2
+///    the launchpad that deployed it. Before graduation, tokens cannot be sent to the token/WIF Uniswap V2
 ///    pair. This prevents anyone from seeding the pool at a manipulated price before the bonding curve
 ///    migrates its liquidity. After graduation the token is a plain ERC-20.
 contract NationToken is ERC20, ERC20Permit, ERC20Votes {
@@ -28,7 +28,7 @@ contract NationToken is ERC20, ERC20Permit, ERC20Votes {
     uint256 public immutable nationId;
     /// @notice The AtlasLaunchpad that founded this nation and holds the unsold supply.
     address public immutable launchpad;
-    /// @notice The token/WETH Uniswap V2 pair liquidity migrates into at graduation.
+    /// @notice The token/WIF Uniswap V2 pair liquidity migrates into at graduation.
     address public immutable pair;
 
     /// @notice True once the bonding curve has migrated liquidity to Uniswap V2.
@@ -47,14 +47,14 @@ contract NationToken is ERC20, ERC20Permit, ERC20Votes {
         uint256 totalSupply_,
         address launchpad_,
         address uniswapV2Factory,
-        address weth
+        address wif
     ) ERC20(name_, symbol_) ERC20Permit(name_) {
         launchpad = launchpad_;
         nationId = nationId_;
         // The pair may already exist if someone pre-computed this address and created it; that is harmless
         // because nobody can deposit this token into it before graduation.
-        address existing = IUniswapV2Factory(uniswapV2Factory).getPair(address(this), weth);
-        pair = existing != address(0) ? existing : IUniswapV2Factory(uniswapV2Factory).createPair(address(this), weth);
+        address existing = IUniswapV2Factory(uniswapV2Factory).getPair(address(this), wif);
+        pair = existing != address(0) ? existing : IUniswapV2Factory(uniswapV2Factory).createPair(address(this), wif);
         _mint(launchpad_, totalSupply_);
     }
 

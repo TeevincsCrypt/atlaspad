@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { Swords } from "lucide-react";
-import { decodeEmblem, formatDuration, formatEth, formatInt, formatPct, timeAgo, TIERS, type NationSummary, type WarSummary } from "@atlaspad/shared";
+import { decodeEmblem, formatDuration, formatWif, formatInt, formatPct, timeAgo, TIERS, type NationSummary, type WarSummary } from "@atlaspad/shared";
 import { useNews, useWorld } from "@/lib/api";
 import { Flag } from "@/components/emblem/Flag";
 import { ChangePill } from "@/components/ui/ChangePill";
@@ -65,7 +65,7 @@ function NationCard({ n, meta }: { n: NationSummary; meta?: React.ReactNode }) {
             <ChangePill value={n.change24h} />
           </div>
           <div className="mt-2.5 flex justify-between text-xs">
-            <span className="text-dim">{formatEth(n.marketCapEth)}</span>
+            <span className="text-dim">{formatWif(n.marketCapWif)}</span>
             <span className="text-dim">{formatInt(n.citizens)} citizens</span>
           </div>
           {meta && <div className="mt-2 border-t border-line pt-2 text-[11px] text-dim">{meta}</div>}
@@ -124,7 +124,7 @@ export default function DiscoverPage() {
     const by = (f: (n: NationSummary) => number | null, filter: (n: NationSummary) => boolean = () => true) =>
       nations.filter((n) => filter(n) && f(n) !== null).sort((a, b) => (f(b) ?? 0) - (f(a) ?? 0)).slice(0, 8);
     const growth = (n: NationSummary) => (n.citizens24hAgo && n.citizens24hAgo > 0 ? n.citizens / n.citizens24hAgo - 1 : null);
-    const mcaps = nations.map((n) => n.marketCapEth ?? 0).sort((a, b) => a - b);
+    const mcaps = nations.map((n) => n.marketCapWif ?? 0).sort((a, b) => a - b);
     const median = mcaps[Math.floor(mcaps.length / 2)] ?? 0;
     const explosionIds = [...new Set((news.data ?? []).filter((e) => e.type === "POPULATION_EXPLOSION" && e.nationId).map((e) => e.nationId!))];
     return {
@@ -133,7 +133,7 @@ export default function DiscoverPage() {
       explosion: explosionIds.map(byId).filter(Boolean).slice(0, 8) as NationSummary[],
       top: [...nations].sort((a, b) => (a.rank ?? 1e9) - (b.rank ?? 1e9)).slice(0, 8),
       newest: [...nations].sort((a, b) => b.createdAt - a.createdAt).slice(0, 8),
-      hidden: by((n) => n.civilizationScore, (n) => (n.marketCapEth ?? 0) <= median),
+      hidden: by((n) => n.civilizationScore, (n) => (n.marketCapWif ?? 0) <= median),
       growthOf: growth,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

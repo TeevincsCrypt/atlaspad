@@ -1,11 +1,13 @@
 "use client";
 import { useMemo, useState } from "react";
-import { useAccount, useBalance, useConnect, useDisconnect, type Connector } from "wagmi";
+import { useAccount, useBalance, useConnect, useDisconnect, useReadContract, type Connector } from "wagmi";
+import { formatEther, formatUnits } from "viem";
+import { nationTokenAbi } from "@atlaspad/shared/abis";
 import { ArrowRight, Loader2, LogOut, QrCode, Smartphone, User, Wallet } from "lucide-react";
 import Link from "next/link";
-import { formatEth, shortAddress } from "@atlaspad/shared";
+import { WIF_DECIMALS, formatWif, shortAddress } from "@atlaspad/shared";
 import { friendlyError } from "@/lib/errors";
-import { network } from "@/lib/env";
+import { getWifUrl, network, wifToken } from "@/lib/env";
 import { useUi } from "@/lib/store";
 import { Dialog } from "../ui/Dialog";
 import { CopyButton, ExplorerLink } from "../ui/misc";
@@ -32,6 +34,7 @@ export function WalletModal() {
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const balance = useBalance({ address, chainId: network.chain.id, query: { enabled: Boolean(address) } });
+  const wifBalance = useReadContract({ address: wifToken, abi: nationTokenAbi, functionName: "balanceOf", args: [address!], chainId: network.chain.id, query: { enabled: Boolean(address) } });
 
   // Prefer EIP-6963 discovered wallets; hide the generic injected entry when specific ones exist.
   const list = useMemo(() => {
@@ -79,7 +82,11 @@ export function WalletModal() {
               </div>
               <div>
                 <div className="label mb-1">Balance</div>
-                <div className="font-mono text-fg">{balance.data ? formatEth(Number(balance.data.value) / 1e18) : "—"}</div>
+                <div className="font-mono text-fg">{wifBalance.data !== undefined ? formatWif(Number(formatUnits(wifBalance.data, WIF_DECIMALS))) : "—"}</div>
+                <div className="font-mono text-[11px] text-faint">{balance.data ? `${Number(formatEther(balance.data.value)).toPrecision(3)} ETH for gas` : ""}</div>
+                <a href={getWifUrl} target="_blank" rel="noreferrer" className="font-mono text-[11px] text-gold-bright hover:underline">
+                  Get $WIF →
+                </a>
               </div>
             </div>
           </div>
