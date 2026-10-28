@@ -1,0 +1,9 @@
+.git
+**/node_modules
+**/dist
+**/.next
+contracts
+brand
+apps/web/src
+apps/web/public
+*.md
