@@ -1,0 +1,95 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>
+  @font-face { font-family: Unbounded; font-weight: 500; src: url(unbounded-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 600; src: url(unbounded-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 700; src: url(unbounded-latin-700-normal.woff2) format("woff2"); }
+  html, body { margin: 0; width: 1500px; height: 500px; overflow: hidden; background: #f8f4ec; }
+  .stage { position: relative; width: 1500px; height: 500px; }
+  svg.art { position: absolute; inset: 0; }
+  /* X overlays the profile picture bottom-left and may crop top/bottom: copy sits mid-height, right of the avatar. */
+  .copy { position: absolute; left: 110px; top: 112px; width: 780px; }
+  .brand { display: flex; align-items: center; gap: 20px; }
+  .word { font-family: Unbounded; font-weight: 600; font-size: 62px; letter-spacing: 0.2em; color: #17120c; }
+  .line1 { margin-top: 26px; font-family: Unbounded; font-weight: 500; font-size: 30px; color: #2b2219; }
+  .line2 { margin-top: 8px; font-family: Unbounded; font-weight: 700; font-size: 30px;
+    background: linear-gradient(100deg, #c99a45 0%, #a77a2c 50%, #7a571d 100%); -webkit-background-clip: text; color: transparent; }
+  .meta { margin-top: 26px; font-family: "JetBrains Mono", monospace; font-size: 15px; letter-spacing: 0.26em; color: #8c806b; text-transform: uppercase; }
+  .meta b { color: #a77a2c; font-weight: 500; }
+  .live { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #1fae7a; box-shadow: 0 0 10px #35d29a; margin-right: 12px; vertical-align: 2px; }
+</style></head><body>
+<div class="stage">
+<svg class="art" width="1500" height="500" viewBox="0 0 1500 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="paper" cx="75%" cy="45%" r="80%">
+      <stop offset="0" stop-color="#fffdf6"/><stop offset="0.55" stop-color="#f7f1e4"/><stop offset="1" stop-color="#ede3cf"/>
+    </radialGradient>
+    <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+      <path d="M50 0H0V50" fill="none" stroke="#a77a2c" stroke-opacity="0.08" stroke-width="1"/>
+    </pattern>
+    <radialGradient id="warm" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#f3d58f" stop-opacity="0.5"/><stop offset="1" stop-color="#f3d58f" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fade" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#f8f4ec" stop-opacity="0.92"/><stop offset="0.45" stop-color="#f8f4ec" stop-opacity="0.5"/><stop offset="0.6" stop-color="#f8f4ec" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#6f4f1a" flood-opacity="0.2"/>
+    </filter>
+    <radialGradient id="pin" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#d9a648" stop-opacity="0.55"/><stop offset="1" stop-color="#d9a648" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1500" height="500" fill="url(#paper)"/>
+  <rect width="1500" height="500" fill="url(#grid)"/>
+
+  <!-- chart rings and bearings around the compass, like a navigator's map -->
+  <g fill="none" stroke="#a77a2c" stroke-linecap="round">
+    <circle cx="1170" cy="250" r="330" stroke-opacity="0.12" stroke-width="1.2"/>
+    <circle cx="1170" cy="250" r="260" stroke-opacity="0.18" stroke-width="1.2" stroke-dasharray="2 8"/>
+    <circle cx="1170" cy="250" r="190" stroke-opacity="0.22" stroke-width="1.4"/>
+    <g id="ticks" stroke-opacity="0.35" stroke-width="1.4"></g>
+    <path d="M760 250 H1500 M1170 -20 V520" stroke-opacity="0.12" stroke-width="1"/>
+    <path d="M880 -40 L1460 540 M1460 -40 L880 540" stroke-opacity="0.08" stroke-width="1"/>
+  </g>
+
+  <!-- nations on the chart and trade routes between them -->
+  <g fill="none" stroke="#a77a2c" stroke-width="2" stroke-dasharray="2 9" stroke-linecap="round" stroke-opacity="0.7">
+    <path d="M905 120 Q 1000 60 1080 110"/>
+    <path d="M1300 420 Q 1400 380 1430 300"/>
+    <path d="M900 390 Q 960 450 1060 420"/>
+  </g>
+  <g>
+    <circle cx="905" cy="120" r="22" fill="url(#pin)"/><circle cx="905" cy="120" r="6" fill="#b48a3c"/>
+    <circle cx="1430" cy="300" r="20" fill="url(#pin)"/><circle cx="1430" cy="300" r="5.5" fill="#b48a3c"/>
+    <circle cx="900" cy="390" r="18" fill="url(#pin)"/><circle cx="900" cy="390" r="5" fill="#b48a3c"/>
+  </g>
+
+  <circle cx="1170" cy="250" r="230" fill="url(#warm)"/>
+  <g filter="url(#shadow)" transform="translate(1170 250) scale(1.9) translate(-100 -100)"><defs><linearGradient id="hb-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9b56a"/><stop offset="0.5" stop-color="#b08433"/><stop offset="1" stop-color="#6f4f1a"/></linearGradient><radialGradient id="hb-core" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.35" stop-color="#fff3cc" stop-opacity="0.95"/><stop offset="1" stop-color="#f6dc9a" stop-opacity="0"/></radialGradient></defs><path d="M65.96 47.58 A62.5 62.5 0 0 1 134.04 47.58 L119.95 59.10 A45.5 45.5 0 0 0 80.05 59.10 Z" fill="url(#hb-ring)"/><path d="M152.42 65.96 A62.5 62.5 0 0 1 152.42 134.04 L140.90 119.95 A45.5 45.5 0 0 0 140.90 80.05 Z" fill="url(#hb-ring)"/><path d="M134.04 152.42 A62.5 62.5 0 0 1 65.96 152.42 L80.05 140.90 A45.5 45.5 0 0 0 119.95 140.90 Z" fill="url(#hb-ring)"/><path d="M47.58 134.04 A62.5 62.5 0 0 1 47.58 65.96 L59.10 80.05 A45.5 45.5 0 0 0 59.10 119.95 Z" fill="url(#hb-ring)"/><path d="M152.33 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#c99d4a"/><path d="M152.33 47.67 L111.00 100.00 L100.00 100.00 Z" fill="#7e5a1f"/><path d="M152.33 152.33 L111.00 100.00 L100.00 100.00 Z" fill="#c99d4a"/><path d="M152.33 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#7e5a1f"/><path d="M47.67 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#c99d4a"/><path d="M47.67 152.33 L89.00 100.00 L100.00 100.00 Z" fill="#7e5a1f"/><path d="M47.67 47.67 L89.00 100.00 L100.00 100.00 Z" fill="#c99d4a"/><path d="M47.67 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#7e5a1f"/><path d="M100.00 4.00 L90.81 90.81 L100.00 100.00 Z" fill="#e2bf72"/><path d="M100.00 4.00 L109.19 90.81 L100.00 100.00 Z" fill="#9a7029"/><path d="M196.00 100.00 L109.19 90.81 L100.00 100.00 Z" fill="#e2bf72"/><path d="M196.00 100.00 L109.19 109.19 L100.00 100.00 Z" fill="#9a7029"/><path d="M100.00 196.00 L109.19 109.19 L100.00 100.00 Z" fill="#e2bf72"/><path d="M100.00 196.00 L90.81 109.19 L100.00 100.00 Z" fill="#9a7029"/><path d="M4.00 100.00 L90.81 109.19 L100.00 100.00 Z" fill="#e2bf72"/><path d="M4.00 100.00 L90.81 90.81 L100.00 100.00 Z" fill="#9a7029"/><circle cx="100" cy="100" r="22" fill="url(#hb-core)"/></g>
+
+  <rect width="1500" height="500" fill="url(#fade)"/>
+</svg>
+
+<div class="copy">
+  <div class="brand">
+    <svg width="70" height="70" viewBox="0 0 200 200"><defs><linearGradient id="hm-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d9b56a"/><stop offset="0.5" stop-color="#b08433"/><stop offset="1" stop-color="#6f4f1a"/></linearGradient><radialGradient id="hm-core" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.35" stop-color="#fff3cc" stop-opacity="0.95"/><stop offset="1" stop-color="#f6dc9a" stop-opacity="0"/></radialGradient></defs><path d="M65.96 47.58 A62.5 62.5 0 0 1 134.04 47.58 L119.95 59.10 A45.5 45.5 0 0 0 80.05 59.10 Z" fill="url(#hm-ring)"/><path d="M152.42 65.96 A62.5 62.5 0 0 1 152.42 134.04 L140.90 119.95 A45.5 45.5 0 0 0 140.90 80.05 Z" fill="url(#hm-ring)"/><path d="M134.04 152.42 A62.5 62.5 0 0 1 65.96 152.42 L80.05 140.90 A45.5 45.5 0 0 0 119.95 140.90 Z" fill="url(#hm-ring)"/><path d="M47.58 134.04 A62.5 62.5 0 0 1 47.58 65.96 L59.10 80.05 A45.5 45.5 0 0 0 59.10 119.95 Z" fill="url(#hm-ring)"/><path d="M152.33 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#c99d4a"/><path d="M152.33 47.67 L111.00 100.00 L100.00 100.00 Z" fill="#7e5a1f"/><path d="M152.33 152.33 L111.00 100.00 L100.00 100.00 Z" fill="#c99d4a"/><path d="M152.33 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#7e5a1f"/><path d="M47.67 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#c99d4a"/><path d="M47.67 152.33 L89.00 100.00 L100.00 100.00 Z" fill="#7e5a1f"/><path d="M47.67 47.67 L89.00 100.00 L100.00 100.00 Z" fill="#c99d4a"/><path d="M47.67 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#7e5a1f"/><path d="M100.00 4.00 L90.81 90.81 L100.00 100.00 Z" fill="#e2bf72"/><path d="M100.00 4.00 L109.19 90.81 L100.00 100.00 Z" fill="#9a7029"/><path d="M196.00 100.00 L109.19 90.81 L100.00 100.00 Z" fill="#e2bf72"/><path d="M196.00 100.00 L109.19 109.19 L100.00 100.00 Z" fill="#9a7029"/><path d="M100.00 196.00 L109.19 109.19 L100.00 100.00 Z" fill="#e2bf72"/><path d="M100.00 196.00 L90.81 109.19 L100.00 100.00 Z" fill="#9a7029"/><path d="M4.00 100.00 L90.81 109.19 L100.00 100.00 Z" fill="#e2bf72"/><path d="M4.00 100.00 L90.81 90.81 L100.00 100.00 Z" fill="#9a7029"/><circle cx="100" cy="100" r="22" fill="url(#hm-core)"/></svg>
+    <div class="word">ATLASPAD</div>
+  </div>
+  <div class="line1">Every token is a nation.</div>
+  <div class="line2">Every nation runs on $WIF.</div>
+  <div class="meta"><span class="live"></span>Found · Trade · Govern · Conquer <b>— Robinhood Chain</b></div>
+</div>
+</div>
+<script>
+  // Compass-rose bearing ticks every 10 degrees (long every 45).
+  const NS = "http://www.w3.org/2000/svg", g = document.getElementById("ticks");
+  for (let d = 0; d < 360; d += 10) {
+    const a = (d - 90) * Math.PI / 180, long = d % 45 === 0;
+    const r1 = 190, r2 = long ? 214 : 202;
+    const l = document.createElementNS(NS, "line");
+    l.setAttribute("x1", 1170 + r1 * Math.cos(a)); l.setAttribute("y1", 250 + r1 * Math.sin(a));
+    l.setAttribute("x2", 1170 + r2 * Math.cos(a)); l.setAttribute("y2", 250 + r2 * Math.sin(a));
+    g.appendChild(l);
+  }
+</script>
+</body></html>
