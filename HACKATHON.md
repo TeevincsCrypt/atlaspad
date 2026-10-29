@@ -93,7 +93,7 @@ Run everything yourself: [README.md](README.md#commands).
 ## 5. Go-live checklist (do this before submissions close: 2 Nov 2026, 17:30 UTC)
 
 The rules require a live project and real transactions. The sandbox that built this could not reach Robinhood
-Chain, so **the team lead must deploy**. Step-by-step for Windows: [SETUP_GUIDE.md](SETUP_GUIDE.md). Reference: [DEPLOYMENT.md](DEPLOYMENT.md).
+Chain, so **the team lead must deploy**. Easiest path (deploy from your browser with one script): [SETUP_GUIDE.md](SETUP_GUIDE.md). Reference: [DEPLOYMENT.md](DEPLOYMENT.md).
 
 1. **Confirm $WIF.** `WIF_ADDRESS` is `0x5173b8eA6923c2d40267890D45C46a3480954773`
    (`packages/shared/src/chains.ts` and `.env.example`). The deploy preflight logs its symbol, decimals and supply.

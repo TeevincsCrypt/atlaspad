@@ -1,0 +1,6 @@
+{
+  "name": "AtlasPad deploy",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "postCreateCommand": "git submodule update --init --recursive --depth 1; curl -L https://foundry.paradigm.xyz | bash; ~/.foundry/bin/foundryup",
+  "remoteEnv": { "PATH": "${containerEnv:PATH}:/home/vscode/.foundry/bin" }
+}

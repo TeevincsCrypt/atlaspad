@@ -7,6 +7,39 @@ You will fill in settings in three places: your computer (contracts), **Railway*
 
 ---
 
+## The easy way: deploy from your browser (recommended)
+
+If your Windows setup keeps fighting you, skip it. GitHub Codespaces gives you a ready-made Linux computer in your browser, with a fast connection and none of the PATH, DNS or download problems.
+
+1. Use a **fresh wallet** as the deployer (new address, not your main one). It needs about **0.01 ETH** on Robinhood Chain for gas, plus **about 400 $WIF** if you want to run the smoke test from it. The deployer has no special powers after the deploy, so a throwaway wallet is fine.
+2. Open `https://github.com/TeevincsCrypt/atlaspad`, click the green **Code** button, open the **Codespaces** tab and click **Create codespace on claude/dreamy-dirac-hojyxe**. Wait 2 to 4 minutes. A code editor opens in the browser.
+3. Open a terminal in it (menu **Terminal, New Terminal**). If `forge --version` says "not found", run: `curl -L https://foundry.paradigm.xyz | bash` then `~/.foundry/bin/foundryup`.
+4. Save the deployer key, once. It asks you to paste the private key (nothing shows as you paste) and to choose a password:
+   ```bash
+   cast wallet import deployer --interactive
+   cast wallet address --account deployer
+   ```
+5. Deploy. It asks 3 questions, runs the free dry run, **stops by itself if $WIF does not have 18 decimals**, and only sends the real transactions after you type `DEPLOY`:
+   ```bash
+   bash scripts/deploy-mainnet.sh
+   ```
+   If anything fails, copy the output to Claude. Nothing is lost: it never sends the real transactions unless the dry run passed.
+6. First proof transactions (needs about 400 $WIF in the deployer wallet):
+   ```bash
+   cd contracts
+   SMOKE_NAME="Atlas Genesis" SMOKE_SYMBOL=GENESIS SMOKE_CONFIRM=I_UNDERSTAND forge script script/SmokeTest.s.sol --rpc-url robinhood --account deployer --broadcast
+   cd ..
+   ```
+7. After you have your database URL and Railway URL (Parts 4 and 5), print the variables to paste:
+   ```bash
+   bash scripts/print-env.sh "postgresql://YOUR-DATABASE-URL" "https://YOUR-RAILWAY-URL" "https://useatlaspad.vercel.app"
+   ```
+8. When you are done, **delete the codespace** (github.com/codespaces, the three dots, Delete), because your deployer key is saved inside it. Move any leftover funds out of the deployer wallet first.
+
+You can then continue with Part 4 (Railway) and Part 5 (Vercel) below. Parts 0 to 3 are the manual way, kept as a backup.
+
+---
+
 ## Part 0. Get ready
 
 | Need | How |
@@ -103,7 +136,7 @@ forge script script/SmokeTest.s.sol --rpc-url robinhood --account deployer --bro
 
 ## Part 3. Print your hosting variables
 
-From the repository root (this fills in the addresses and the start block for you):
+From the repository root (this fills in the addresses and the start block for you). In Git Bash or Codespaces you can use `bash scripts/print-env.sh "DATABASE_URL" "RAILWAY_URL" "SITE_URL"` instead.
 
 ```powershell
 cd "$HOME\atlaspad"
