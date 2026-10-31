@@ -107,7 +107,7 @@ export default function NationPage({ params }: { params: Promise<{ id: string }>
             </Link>
           </div>
         </div>
-        <NationHeader nation={nation} wifUsd={detail.data.wifUsd} territoryRank={territoryRank} />
+        <NationHeader nation={nation} wifUsd={detail.data.wifUsd} territoryRank={territoryRank} socials={detail.data.socials} />
 
         <div className="sticky top-14 z-20 -mx-4 mt-8 border-b border-line bg-ink/85 px-4 py-2 backdrop-blur-xl sm:-mx-6 sm:px-6">
           <Tabs tabs={TABS.map((t) => ({ key: t.key, label: t.label }))} value={tab} onChange={setTab} />

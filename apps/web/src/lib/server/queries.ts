@@ -14,7 +14,9 @@ import {
   type CandleDTO,
   type CitizenProfile,
   type HolderDTO,
+  type NationSocials,
   type NationSummary,
+  type PositionDTO,
   type ProposalDTO,
   type TradeDTO,
   type TreasuryTxDTO,
@@ -73,6 +75,7 @@ export interface NationDetail {
     graduationWif: number | null;
   };
   wifUsd: number | null;
+  socials: NationSocials | null;
 }
 
 export async function getNationDetail(sql: Sql, id: number): Promise<NationDetail | null> {
@@ -80,7 +83,7 @@ export async function getNationDetail(sql: Sql, id: number): Promise<NationDetai
   if (!nation) return null;
   const [raw] = await sql`SELECT * FROM nations WHERE id = ${id}`;
   const now = await chainNow(sql);
-  const [buildings, achievements, wars, allianceRow, invites, ledger, holderCount, health] = await Promise.all([
+  const [buildings, achievements, wars, allianceRow, invites, ledger, holderCount, health, socials] = await Promise.all([
     sql`SELECT * FROM game_buildings WHERE nation_id = ${id} ORDER BY started_at`,
     sql`SELECT code, unlocked_at FROM game_nation_achievements WHERE nation_id = ${id} ORDER BY unlocked_at`,
     warSummaries(sql, { nationId: id, limit: 50 }),
@@ -91,6 +94,7 @@ export async function getNationDetail(sql: Sql, id: number): Promise<NationDetai
     sql`SELECT at, influence, culture, energy, materials, reason FROM game_resource_ledger WHERE nation_id = ${id} AND reason <> 'Hourly production' ORDER BY at DESC LIMIT 40`,
     sql`SELECT count(*)::int AS c FROM holders WHERE nation_id = ${id}`,
     indexerHealth(sql),
+    getSocials(sql, id),
   ]);
   const a = allianceRow[0];
   return {
@@ -128,6 +132,7 @@ export async function getNationDetail(sql: Sql, id: number): Promise<NationDetai
       graduationWif: raw!.graduation_wif === null ? null : Number(raw!.graduation_wif) / WAD,
     },
     wifUsd: health.wifUsd,
+    socials,
   };
 }
 
@@ -479,6 +484,70 @@ export async function getCitizen(sql: Sql, address: string): Promise<CitizenProf
       timestamp: Number(v.timestamp),
     })),
   };
+}
+
+/** Profit and loss per nation for one wallet: average cost from its buys, realized on sells, unrealized at today's price. */
+export async function getPositions(sql: Sql, address: string): Promise<PositionDTO[]> {
+  const a = address.toLowerCase();
+  const rows = await sql`
+    SELECT t.nation_id,
+           n.name, n.ticker, n.emblem, n.metadata_uri,
+           COALESCE(h.balance, 0)::text AS balance,
+           COALESCE(sum(t.wif_amount) FILTER (WHERE t.is_buy), 0)::text AS buy_wif,
+           COALESCE(sum(t.token_amount) FILTER (WHERE t.is_buy), 0)::text AS buy_tokens,
+           COALESCE(sum(t.wif_amount) FILTER (WHERE NOT t.is_buy), 0)::text AS sell_wif,
+           COALESCE(sum(t.token_amount) FILTER (WHERE NOT t.is_buy), 0)::text AS sell_tokens,
+           count(*)::int AS trades,
+           max(t.timestamp) AS last_at
+    FROM trades t
+    JOIN nations n ON n.id = t.nation_id
+    LEFT JOIN holders h ON h.nation_id = t.nation_id AND h.address = ${a}
+    WHERE t.trader = ${a}
+    GROUP BY t.nation_id, n.name, n.ticker, n.emblem, n.metadata_uri, h.balance
+    ORDER BY last_at DESC
+    LIMIT 100`;
+  if (rows.length === 0) return [];
+  const prices = new Map((await nationSummaries(sql, { ids: rows.map((r) => Number(r.nation_id)) })).map((n) => [n.id, n.priceWif]));
+  return rows.map((r) => {
+    const w = (v: unknown) => Number(v) / WAD;
+    const balance = w(r.balance);
+    const boughtWif = w(r.buy_wif);
+    const boughtTokens = w(r.buy_tokens);
+    const soldWif = w(r.sell_wif);
+    const soldTokens = w(r.sell_tokens);
+    const avg = boughtTokens > 0 ? boughtWif / boughtTokens : null;
+    const price = prices.get(Number(r.nation_id)) ?? null;
+    // Tokens still held that were bought through trades; anything above that arrived by transfer and has no known cost.
+    const costed = Math.max(0, Math.min(balance, boughtTokens - soldTokens));
+    const realizedWif = avg === null ? soldWif : soldWif - Math.min(soldTokens, boughtTokens) * avg;
+    return {
+      nationId: Number(r.nation_id),
+      name: r.name as string,
+      ticker: r.ticker as string,
+      emblem: String(r.emblem),
+      metadataUri: (r.metadata_uri as string) ?? "",
+      balance,
+      boughtWif,
+      soldWif,
+      avgCostWif: avg,
+      priceWif: price,
+      valueWif: price === null ? null : balance * price,
+      realizedWif,
+      unrealizedWif: price === null || avg === null ? null : costed * (price - avg),
+      trades: Number(r.trades),
+    };
+  });
+}
+
+/** A nation's founder-set social links, or null when none are set (or the table has not been migrated yet). */
+export async function getSocials(sql: Sql, id: number): Promise<NationSocials | null> {
+  try {
+    const [r] = await sql`SELECT x, telegram, website FROM nation_socials WHERE nation_id = ${id}`;
+    return r ? { x: r.x as string, telegram: r.telegram as string, website: r.website as string } : null;
+  } catch (err) {
+    if ((err as { code?: string })?.code === "42P01") return null;
+    throw err;
+  }
 }
 
 export async function getTopCitizens(sql: Sql, limit: number) {

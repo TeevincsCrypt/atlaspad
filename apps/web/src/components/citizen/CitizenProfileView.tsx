@@ -11,6 +11,7 @@ import {
   formatInt,
   shortAddress,
   timeAgo,
+  type PositionDTO,
 } from "@atlaspad/shared";
 import { useCitizen, useWorld } from "@/lib/api";
 import { Flag } from "../emblem/Flag";
@@ -31,7 +32,7 @@ export function CitizenProfileView({ address }: { address: string }) {
   const byId = (id: number) => world.data?.nations.find((n) => n.id === id);
   if (q.isError) return <DataUnavailable reason="This citizen profile could not be loaded." />;
   if (!q.data) return <Skeleton className="h-96" />;
-  const { profile, trades, proposals } = q.data;
+  const { profile, trades, proposals, positions = [] } = q.data;
   const nextRank = CITIZEN_RANKS.find((r) => r.minXp > profile.xp);
   const prevRank = [...CITIZEN_RANKS].reverse().find((r) => r.minXp <= profile.xp)!;
   const unlocked = new Map(profile.achievements.map((a) => [a.code, a]));
@@ -88,6 +89,8 @@ export function CitizenProfileView({ address }: { address: string }) {
           ))}
         </div>
       </header>
+
+      <PnlPanel positions={positions} />
 
       <Panel title="Achievements" label={`${profile.achievements.length} / ${citizenAchievements.length} collected`}>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -198,5 +201,77 @@ export function CitizenProfileView({ address }: { address: string }) {
         )}
       </Panel>
     </div>
+  );
+}
+
+const signed = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${formatWif(Math.abs(v))}`;
+const tone = (v: number | null) => (v === null || Math.abs(v) < 1e-9 ? "text-dim" : v > 0 ? "text-up" : "text-down");
+
+/** Profit and loss per nation, from this wallet's indexed trades (average-cost method, in $WIF). */
+function PnlPanel({ positions }: { positions: PositionDTO[] }) {
+  const realized = positions.reduce((s, p) => s + p.realizedWif, 0);
+  const unrealized = positions.reduce((s, p) => s + (p.unrealizedWif ?? 0), 0);
+  const value = positions.reduce((s, p) => s + (p.valueWif ?? 0), 0);
+  const total = realized + unrealized;
+  return (
+    <Panel title="Profit & loss" label="From on-chain trades · in $WIF">
+      {positions.length === 0 ? (
+        <EmptyState title="No trades yet" body="Profit and loss appears here after this wallet buys or sells a nation." />
+      ) : (
+        <>
+          <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-4">
+            {[
+              { k: "Total P&L", v: signed(total), c: tone(total) },
+              { k: "Unrealized", v: signed(unrealized), c: tone(unrealized) },
+              { k: "Realized", v: signed(realized), c: tone(realized) },
+              { k: "Holdings value", v: formatWif(value), c: "text-fg" },
+            ].map((x) => (
+              <div key={x.k} className="bg-panel/90 px-4 py-3">
+                <div className="label mb-1">{x.k}</div>
+                <div className={`font-display text-lg tabular ${x.c}`}>{x.v}</div>
+              </div>
+            ))}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left font-mono text-xs">
+              <thead className="text-[10px] uppercase tracking-[0.14em] text-faint">
+                <tr>
+                  <th className="py-2 font-normal">Nation</th>
+                  <th className="py-2 text-right font-normal">Holding</th>
+                  <th className="py-2 text-right font-normal">Avg cost → now</th>
+                  <th className="py-2 text-right font-normal">Value</th>
+                  <th className="py-2 text-right font-normal">Unrealized</th>
+                  <th className="py-2 text-right font-normal">Realized</th>
+                </tr>
+              </thead>
+              <tbody>
+                {positions.map((p) => {
+                  const pct = p.avgCostWif && p.priceWif ? p.priceWif / p.avgCostWif - 1 : null;
+                  return (
+                    <tr key={p.nationId} className="border-t border-line">
+                      <td className="py-2">
+                        <Link href={`/nation/${p.nationId}`} className="flex items-center gap-2 hover:text-gold-bright">
+                          <Flag emblem={p.emblem} image={p.metadataUri} size={22} />
+                          <span className="truncate text-fg">${p.ticker}</span>
+                        </Link>
+                      </td>
+                      <td className="py-2 text-right text-dim">{formatCompact(p.balance)}</td>
+                      <td className="py-2 text-right text-dim">
+                        {p.avgCostWif ? p.avgCostWif.toPrecision(3) : "—"} → {p.priceWif ? p.priceWif.toPrecision(3) : "—"}
+                        {pct !== null && <span className={`ml-1.5 ${tone(pct)}`}>({pct >= 0 ? "+" : ""}{(pct * 100).toFixed(1)}%)</span>}
+                      </td>
+                      <td className="py-2 text-right text-fg">{p.valueWif === null ? "—" : formatWif(p.valueWif)}</td>
+                      <td className={`py-2 text-right ${tone(p.unrealizedWif)}`}>{p.unrealizedWif === null ? "—" : signed(p.unrealizedWif)}</td>
+                      <td className={`py-2 text-right ${tone(p.realizedWif)}`}>{signed(p.realizedWif)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-3 text-[11px] text-faint">Average-cost method. Tokens received by transfer have no known cost and are left out of unrealized P&amp;L.</p>
+        </>
+      )}
+    </Panel>
   );
 }

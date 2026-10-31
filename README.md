@@ -36,6 +36,15 @@ Burns, locked liquidity and treasury balances are on-chain counters (`totalWifBu
 
 `/` landing globe · `/world` interactive map (search, filters, hover cards, live events) · `/discover` · `/found` 8-step founding wizard · `/nation/[id]` (Overview, Economy, Citizens, Government, Infrastructure, Military, Diplomacy, History, Treasury) · `/war/[id]` · `/alliance/[id]` · `/leaderboard` (Overall Civilization, Largest Economy, Most Citizens, Strongest Nation, Fastest Growing, Most Active, Most Developed, Most Influential) · `/news` · `/my-nations` · `/profile` and `/citizen/[address]` · `/admin` (HTTP Basic auth, disabled unless configured).
 
+### Trader features
+
+- **Live $WIF burn counter** on the landing page, from indexed `WifBurned` events.
+- **Pulse columns** on Discover: *Just founded*, *About to graduate* (by curve progress) and *Graduated*.
+- **Watchlist**: star any nation; starred nations get their own Discover section (stored in the browser).
+- **Profit & loss** on every citizen profile: average cost, realized and unrealized P&L per nation, from on-chain trades.
+- **Social links** (X, Telegram, website) per nation. The founder sets them with a free signed message (no gas), during founding or later from the nation page; links are normalised to `x.com`, `t.me` and `https` URLs.
+- **Share cards**: every `/nation/[id]` link unfurls on X, Telegram and Discord with the nation's flag, market cap, citizens, stage and $WIF burned, plus a one-click *Share on X* button.
+
 ## Quick start (local chain)
 
 Requirements: Node ≥ 22.9, pnpm 10, [Foundry](https://book.getfoundry.sh/) (`forge`, `anvil`, `cast`), PostgreSQL 16 with a database `atlaspad` owned by `atlas:atlas` (or set `DATABASE_URL`).

@@ -468,3 +468,17 @@ export const gameCitizenXp = pgTable(
   },
   (t) => [primaryKey({ columns: [t.address, t.ref] }), index("game_citizen_xp_at_idx").on(t.at)],
 );
+
+// ---------------------------------------------------------------------------------------------
+// Off-chain profile data (not derived from the chain, so it survives re-indexing)
+// ---------------------------------------------------------------------------------------------
+
+/** A nation's social links, set by its founder with a signed message (see apps/web/src/app/api/nations/[id]/socials). */
+export const nationSocials = pgTable("nation_socials", {
+  nationId: integer("nation_id").primaryKey(),
+  x: text("x").notNull().default(""),
+  telegram: text("telegram").notNull().default(""),
+  website: text("website").notNull().default(""),
+  signer: text("signer").notNull(),
+  updatedAt: unix("updated_at").notNull(),
+});

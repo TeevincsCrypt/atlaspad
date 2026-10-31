@@ -233,6 +233,29 @@ export interface CitizenshipDTO {
   isFounder: boolean;
 }
 
+/** A wallet's position in one nation, from its indexed trades (average-cost method, all values in $WIF). */
+export interface PositionDTO {
+  nationId: number;
+  name: string;
+  ticker: string;
+  emblem: string;
+  metadataUri: string;
+  /** Tokens held now (whole tokens). */
+  balance: number;
+  /** $WIF spent on buys and received from sells. */
+  boughtWif: number;
+  soldWif: number;
+  /** Average buy price, $WIF per token; null when the wallet never bought. */
+  avgCostWif: number | null;
+  priceWif: number | null;
+  /** Current value of the balance at the current price. */
+  valueWif: number | null;
+  realizedWif: number;
+  /** Null when the price is unknown or the balance was not bought through trades (e.g. a transfer in). */
+  unrealizedWif: number | null;
+  trades: number;
+}
+
 export interface CitizenProfile {
   address: string;
   xp: number;

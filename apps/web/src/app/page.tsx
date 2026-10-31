@@ -12,6 +12,7 @@ import { Flag } from "@/components/emblem/Flag";
 import { ChangePill } from "@/components/ui/ChangePill";
 import { NewsTicker } from "@/components/news/NewsTicker";
 import { WifFlywheel } from "@/components/flywheel/WifFlywheel";
+import { BurnCounter } from "@/components/flywheel/BurnCounter";
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -28,7 +29,7 @@ export default function LandingPage() {
   return (
     <div className="relative">
       {/* HERO */}
-      <section className="relative flex min-h-[100dvh] items-center px-5 pt-20 sm:px-10 lg:px-16">
+      <section className="relative flex min-h-[100dvh] items-center px-5 pb-16 pt-20 sm:px-10 lg:px-16">
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink via-ink/70 to-transparent lg:via-ink/40" />
         <div className="relative z-10 max-w-2xl">
           <motion.div
@@ -76,13 +77,18 @@ export default function LandingPage() {
             </Link>
           </motion.div>
 
+          <BurnCounter
+            burned={available ? (world.data?.flywheel.wifBurned ?? 0) : null}
+            wifUsd={world.data?.wifUsd ?? null}
+            volume={available ? (world.data?.flywheel.wifVolume ?? null) : null}
+          />
+
           {/* Live world indicators — real data only */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6, duration: 1 }} className="mt-12 grid max-w-xl grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6, duration: 1 }} className="mt-5 grid max-w-xl grid-cols-3 gap-x-8 gap-y-5">
             {[
               { label: "Nations", value: available ? nations.length : null, fmt: (n: number) => formatInt(n) },
               { label: "Citizens", value: available ? citizens : null, fmt: (n: number) => formatCompact(n) },
               { label: "24h Volume", value: available ? volume : null, fmt: (n: number) => formatWif(n) },
-              { label: "$WIF Burned", value: available ? (world.data?.flywheel.wifBurned ?? 0) : null, fmt: (n: number) => formatWif(n) },
             ].map((s) => (
               <div key={s.label}>
                 <div className="label mb-1">{s.label}</div>

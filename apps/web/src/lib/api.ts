@@ -6,7 +6,9 @@ import type {
   CitizenProfile,
   HolderDTO,
   NationSummary,
+  NationSocials,
   NewsItem,
+  PositionDTO,
   ProposalDTO,
   TradeDTO,
   TreasuryTxDTO,
@@ -104,6 +106,7 @@ export interface NationDetail {
     graduationWif: number | null;
   };
   wifUsd: number | null;
+  socials?: NationSocials | null;
 }
 
 export function useNation(id: number) {
@@ -215,7 +218,7 @@ export function useAlliance(id: number) {
 export function useCitizen(address: string | undefined) {
   return useQuery({
     queryKey: queryKeys.citizen(address ?? ""),
-    queryFn: () => api<{ profile: CitizenProfile; trades: (TradeDTO & { nationId: number })[]; proposals: ProposalDTO[] }>(`/api/citizens/${address}`),
+    queryFn: () => api<{ profile: CitizenProfile; trades: (TradeDTO & { nationId: number })[]; proposals: ProposalDTO[]; positions?: PositionDTO[] }>(`/api/citizens/${address}`),
     enabled: Boolean(address),
     staleTime: 10_000,
   });
