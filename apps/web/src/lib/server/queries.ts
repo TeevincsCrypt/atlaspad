@@ -550,6 +550,74 @@ export async function getSocials(sql: Sql, id: number): Promise<NationSocials | 
   }
 }
 
+export interface SellPnl {
+  txHash: string;
+  nationId: number;
+  name: string;
+  ticker: string;
+  emblem: string;
+  metadataUri: string;
+  trader: string;
+  timestamp: number;
+  tokensSold: number;
+  wifReceived: number;
+  /** Average buy price before this sale ($WIF per token); null when the tokens never went through a buy. */
+  entryPriceWif: number | null;
+  exitPriceWif: number;
+  /** Realized profit on this sale in $WIF and as a fraction (0.5 = +50%); null without an entry price. */
+  pnlWif: number | null;
+  pnlPct: number | null;
+  /** Seconds between the wallet's first buy of this nation and this sale. */
+  heldSeconds: number | null;
+}
+
+/**
+ * The PnL of one sale, computed from indexed on-chain trades only: the sale(s) in this transaction against the
+ * wallet's average buy price before it. Returns null until the transaction is indexed (or if it holds no sale).
+ */
+export async function getSellPnl(sql: Sql, txHash: string): Promise<SellPnl | null> {
+  const tx = txHash.toLowerCase();
+  const [s] = await sql`
+    SELECT t.nation_id, t.trader, min(t.block_number) AS block, min(t.log_index) AS log_index, max(t.timestamp) AS ts,
+           sum(t.token_amount)::text AS tokens, sum(t.wif_amount)::text AS wif,
+           n.name, n.ticker, n.emblem, n.metadata_uri
+    FROM trades t JOIN nations n ON n.id = t.nation_id
+    WHERE t.tx_hash = ${tx} AND NOT t.is_buy
+    GROUP BY t.nation_id, t.trader, n.name, n.ticker, n.emblem, n.metadata_uri
+    ORDER BY sum(t.wif_amount) DESC
+    LIMIT 1`;
+  if (!s) return null;
+  const [b] = await sql`
+    SELECT COALESCE(sum(wif_amount), 0)::text AS wif, COALESCE(sum(token_amount), 0)::text AS tokens, min(timestamp) AS first_at
+    FROM trades
+    WHERE nation_id = ${s.nation_id} AND trader = ${s.trader} AND is_buy
+      AND (block_number, log_index) < (${s.block}::bigint, ${s.log_index}::int)`;
+  const tokensSold = Number(s.tokens) / WAD;
+  const wifReceived = Number(s.wif) / WAD;
+  const boughtTokens = Number(b?.tokens ?? 0) / WAD;
+  const boughtWif = Number(b?.wif ?? 0) / WAD;
+  const entry = boughtTokens > 0 ? boughtWif / boughtTokens : null;
+  const exit = tokensSold > 0 ? wifReceived / tokensSold : 0;
+  const cost = entry === null ? null : entry * tokensSold;
+  return {
+    txHash: tx,
+    nationId: Number(s.nation_id),
+    name: s.name as string,
+    ticker: s.ticker as string,
+    emblem: String(s.emblem),
+    metadataUri: (s.metadata_uri as string) ?? "",
+    trader: s.trader as string,
+    timestamp: Number(s.ts),
+    tokensSold,
+    wifReceived,
+    entryPriceWif: entry,
+    exitPriceWif: exit,
+    pnlWif: cost === null ? null : wifReceived - cost,
+    pnlPct: cost === null || cost === 0 ? null : wifReceived / cost - 1,
+    heldSeconds: b?.first_at === null || b?.first_at === undefined ? null : Math.max(0, Number(s.ts) - Number(b.first_at)),
+  };
+}
+
 export async function getTopCitizens(sql: Sql, limit: number) {
   const now = await chainNow(sql);
   const rows = await sql`SELECT * FROM (${XP_SQL(sql, now)}) x ORDER BY rank LIMIT ${limit}`;

@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { motion } from "motion/react";
-import { Lock } from "lucide-react";
+import { useState } from "react";
+import { Lock, ReceiptText } from "lucide-react";
+import { PnlCardDialog } from "../pnl/PnlCard";
 import {
   ACHIEVEMENTS,
   CITIZEN_RANKS,
@@ -28,6 +30,7 @@ const RARITY: Record<string, string> = {
 
 export function CitizenProfileView({ address }: { address: string }) {
   const q = useCitizen(address);
+  const [pnlTx, setPnlTx] = useState<string | null>(null);
   const world = useWorld();
   const byId = (id: number) => world.data?.nations.find((n) => n.id === id);
   if (q.isError) return <DataUnavailable reason="This citizen profile could not be loaded." />;
@@ -191,7 +194,14 @@ export function CitizenProfileView({ address }: { address: string }) {
                 <span className={t.side === "buy" ? "text-up" : "text-down"}>
                   {t.side.toUpperCase()} {byId(t.nationId)?.ticker ? `$${byId(t.nationId)?.ticker}` : `#${t.nationId}`}
                 </span>
-                <span className="text-dim">{formatWif(t.wifAmount)}</span>
+                <span className="flex items-center gap-2 text-dim">
+                  {formatWif(t.wifAmount)}
+                  {t.side === "sell" && (
+                    <button onClick={() => setPnlTx(t.txHash)} className="inline-flex items-center gap-1 rounded border border-gold/30 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em] text-gold-bright hover:bg-gold/10">
+                      <ReceiptText className="size-3" /> PnL card
+                    </button>
+                  )}
+                </span>
                 <ExplorerLink kind="tx" value={t.txHash} className="text-faint">
                   {timeAgo(t.timestamp)}
                 </ExplorerLink>
@@ -200,6 +210,7 @@ export function CitizenProfileView({ address }: { address: string }) {
           </div>
         )}
       </Panel>
+      <PnlCardDialog tx={pnlTx} onClose={() => setPnlTx(null)} />
     </div>
   );
 }
