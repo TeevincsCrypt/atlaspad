@@ -41,20 +41,30 @@ export async function POST(req: Request) {
   if (!kind) return json({ error: "Use a PNG, JPEG, WebP or GIF image." }, { status: 415 });
 
   const name = `${createHash("sha256").update(bytes).digest("hex").slice(0, 32)}.${kind.ext}`;
-  const res = await fetch(`${base}/storage/v1/object/${EMBLEM_BUCKET}/${name}`, {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${key}`,
-      apikey: key,
-      "content-type": kind.type,
-      "cache-control": "max-age=31536000",
-      "x-upsert": "true",
-    },
-    body: bytes,
-  });
+  // Legacy service_role keys are JWTs and go in both headers. The newer secret keys (sb_secret_...) are not JWTs:
+  // Supabase only accepts them in the apikey header.
+  const auth: Record<string, string> = key.startsWith("eyJ") ? { apikey: key, authorization: `Bearer ${key}` } : { apikey: key };
+  let res: Response;
+  try {
+    res = await fetch(`${base}/storage/v1/object/${EMBLEM_BUCKET}/${name}`, {
+      method: "POST",
+      headers: { ...auth, "content-type": kind.type, "cache-control": "max-age=31536000", "x-upsert": "true" },
+      body: bytes,
+    });
+  } catch (err) {
+    console.error("[emblem-image] storage unreachable", err);
+    return json({ error: "Image storage is unreachable. Check NEXT_PUBLIC_SUPABASE_URL (https://<project>.supabase.co)." }, { status: 502 });
+  }
   if (!res.ok) {
-    console.error("[emblem-image] storage upload failed", res.status, (await res.text()).slice(0, 300));
-    return json({ error: "The image could not be stored. Try again in a moment." }, { status: 502 });
+    const body = (await res.text()).slice(0, 300);
+    console.error("[emblem-image] storage upload failed", res.status, body);
+    // Tell the operator what to fix; none of these messages contain secrets.
+    const error = /bucket not found/i.test(body)
+      ? `The Supabase Storage bucket "${EMBLEM_BUCKET}" does not exist. Create it (Storage, New bucket, name ${EMBLEM_BUCKET}, Public on).`
+      : res.status === 401 || res.status === 403 || /jws|jwt|invalid.*key|unauthorized|row-level security/i.test(body)
+        ? "Supabase rejected the storage key. Set SUPABASE_SERVICE_ROLE_KEY to this project's service_role or secret key (not the anon or publishable key)."
+        : `The image could not be stored (storage answered ${res.status}). Try again in a moment.`;
+    return json({ error }, { status: 502 });
   }
   return json({ url: emblemPublicUrl(name) });
 }
