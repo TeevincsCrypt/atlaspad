@@ -442,7 +442,7 @@ export function MilitaryTab({ nation, detail, onPropose }: { nation: NationSumma
             return (
               <Link key={w.id} href={`/war/${w.id}`} className="panel-flat flex items-center gap-4 p-4 transition hover:border-line-strong">
                 <Swords className={`size-5 ${w.status === "active" ? "text-war" : "text-faint"}`} />
-                {enemy && <Flag emblem={enemy.emblem} size={36} />}
+                {enemy && <Flag emblem={enemy.emblem} image={enemy.metadataUri} size={36} />}
                 <div className="min-w-0 flex-1">
                   <div className="text-sm text-fg">
                     {w.attackerId === nation.id ? "Declared war on" : "Attacked by"} {enemy?.name ?? `Nation #${enemyId}`}
@@ -489,7 +489,7 @@ export function DiplomacyTab({ nation, detail, onPropose }: { nation: NationSumm
                 const n = byId(id);
                 return (
                   <Link key={id} href={`/nation/${id}`} className="flex items-center gap-2 rounded-lg border border-line px-2.5 py-1.5 hover:border-line-strong">
-                    {n && <Flag emblem={n.emblem} size={22} />}
+                    {n && <Flag emblem={n.emblem} image={n.metadataUri} size={22} />}
                     <span className="text-xs text-fg">{n?.name ?? `#${id}`}</span>
                     {id === detail.alliance!.leaderId && <Badge tone="gold">Leader</Badge>}
                   </Link>
@@ -553,7 +553,7 @@ export function DiplomacyTab({ nation, detail, onPropose }: { nation: NationSumm
               const n = byId(id);
               return (
                 <Link key={id} href={`/nation/${id}`} className="flex items-center gap-2 rounded-lg border border-war/30 px-2.5 py-1.5">
-                  {n && <Flag emblem={n.emblem} size={22} />}
+                  {n && <Flag emblem={n.emblem} image={n.metadataUri} size={22} />}
                   <span className="text-xs text-fg">{n?.name ?? `#${id}`}</span>
                 </Link>
               );

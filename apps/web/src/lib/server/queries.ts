@@ -436,7 +436,7 @@ export async function getCitizen(sql: Sql, address: string): Promise<CitizenProf
   const now = await chainNow(sql);
   const [xpRow] = await sql`SELECT * FROM (${XP_SQL(sql, now)}) x WHERE address = ${a}`;
   const holdings = await sql`
-    SELECT h.nation_id, h.balance, h.first_held_at, n.name, n.ticker, n.emblem, n.total_supply, n.founder
+    SELECT h.nation_id, h.balance, h.first_held_at, n.name, n.ticker, n.emblem, n.metadata_uri, n.total_supply, n.founder
     FROM holders h JOIN nations n ON n.id = h.nation_id
     WHERE h.address = ${a} AND h.balance >= n.total_supply / 1000000 ORDER BY h.balance DESC`;
   const founded = await sql`SELECT id FROM nations WHERE founder = ${a} ORDER BY id`;
@@ -458,6 +458,7 @@ export async function getCitizen(sql: Sql, address: string): Promise<CitizenProf
       name: h.name as string,
       ticker: h.ticker as string,
       emblem: String(h.emblem),
+      metadataUri: (h.metadata_uri as string) ?? "",
       balance: String(h.balance),
       share: Number((BigInt(h.balance as string) * 1_000_000n) / BigInt(h.total_supply as string)) / 1_000_000,
       since: Number(h.first_held_at),
@@ -487,7 +488,7 @@ export async function getTopCitizens(sql: Sql, limit: number) {
 }
 
 export async function getSearchIndex(sql: Sql) {
-  const nations = await sql`SELECT id, name, ticker, token, founder, emblem FROM nations ORDER BY id`;
+  const nations = await sql`SELECT id, name, ticker, token, founder, emblem, metadata_uri FROM nations ORDER BY id`;
   const alliances = await sql`SELECT id, name FROM game_alliances WHERE active ORDER BY id`;
   return {
     nations: nations.map((n) => ({
@@ -497,6 +498,7 @@ export async function getSearchIndex(sql: Sql) {
       token: n.token as string,
       founder: n.founder as string,
       emblem: String(n.emblem),
+      metadataUri: (n.metadata_uri as string) ?? "",
     })),
     alliances: alliances.map((a) => ({ id: Number(a.id), name: a.name as string })),
   };

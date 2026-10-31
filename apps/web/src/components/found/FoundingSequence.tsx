@@ -35,6 +35,7 @@ export function FoundingSequence({
   name,
   ticker,
   emblem,
+  image,
   hash,
   nationId,
   error,
@@ -45,6 +46,7 @@ export function FoundingSequence({
   name: string;
   ticker: string;
   emblem: bigint;
+  image?: string | null;
   hash: Hash | null;
   nationId: number | null;
   error: string | null;
@@ -134,7 +136,7 @@ export function FoundingSequence({
                   <motion.line x1="200" y1="150" x2="200" y2="150" stroke="#9aa2b5" strokeWidth="2" animate={{ y2: 96 }} transition={{ duration: 1.1 }} />
                   <motion.foreignObject x="202" width="64" height="44" initial={{ y: 140 }} animate={{ y: 96 }} transition={{ duration: 1.1 }}>
                     <motion.div animate={{ skewY: [0, -5, 0, 4, 0] }} transition={{ repeat: Infinity, duration: 2.8 }} style={{ transformOrigin: "left center" }}>
-                      <Flag emblem={emblem} size={60} rounded={false} />
+                      <Flag emblem={emblem} image={image} size={60} rounded={false} />
                     </motion.div>
                   </motion.foreignObject>
                 </motion.g>

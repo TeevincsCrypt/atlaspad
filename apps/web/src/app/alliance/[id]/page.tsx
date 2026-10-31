@@ -28,7 +28,7 @@ export default function AlliancePage({ params }: { params: Promise<{ id: string 
           {current.map((n, i) => (
             <motion.div key={n.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
               <Link href={`/nation/${n.id}`} className="flex flex-col items-center gap-2">
-                <Flag emblem={n.emblem} size={72} glow={n.id === alliance.leaderId} />
+                <Flag emblem={n.emblem} image={n.metadataUri} size={72} glow={n.id === alliance.leaderId} />
                 <span className="font-display text-xs uppercase tracking-wide text-fg">{n.name}</span>
                 {n.id === alliance.leaderId && <Badge tone="gold">Leader</Badge>}
               </Link>
@@ -68,7 +68,7 @@ export default function AlliancePage({ params }: { params: Promise<{ id: string 
                 const n = byId(i.nationId);
                 return (
                   <Link key={i.nationId} href={`/nation/${i.nationId}`} className="flex items-center gap-3 rounded-lg border border-line px-3 py-2">
-                    {n && <Flag emblem={n.emblem} size={26} />}
+                    {n && <Flag emblem={n.emblem} image={n.metadataUri} size={26} />}
                     <span className="flex-1 text-sm text-fg">{n?.name}</span>
                     <span className="font-mono text-[10px] text-faint">invited {timeAgo(i.invitedAt)}</span>
                   </Link>

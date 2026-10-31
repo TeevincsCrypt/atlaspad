@@ -10,7 +10,7 @@ import { useUi } from "@/lib/store";
 import { Flag } from "../emblem/Flag";
 
 type Result =
-  | { kind: "nation"; id: number; name: string; ticker: string; emblem: string; hint: string }
+  | { kind: "nation"; id: number; name: string; ticker: string; emblem: string; metadataUri?: string; hint: string }
   | { kind: "alliance"; id: number; name: string }
   | { kind: "citizen"; address: string };
 
@@ -119,7 +119,7 @@ export function SearchPalette() {
                   className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left ${i === cursor ? "bg-white/[0.06]" : ""}`}
                 >
                   {r.kind === "nation" ? (
-                    <Flag emblem={r.emblem} size={28} />
+                    <Flag emblem={r.emblem} image={r.metadataUri} size={28} />
                   ) : r.kind === "alliance" ? (
                     <Shield className="size-5 text-gold" />
                   ) : (

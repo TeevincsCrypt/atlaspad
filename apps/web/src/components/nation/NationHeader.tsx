@@ -38,7 +38,7 @@ export function NationHeader({ nation, wifUsd, territoryRank }: { nation: Nation
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex items-center gap-5">
           <motion.div initial={{ opacity: 0, rotateY: -60 }} animate={{ opacity: 1, rotateY: 0 }} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}>
-            <Flag emblem={nation.emblem} size={96} glow />
+            <Flag emblem={nation.emblem} image={nation.metadataUri} size={96} glow />
           </motion.div>
           <div className="min-w-0">
             <div className="mb-1.5 flex flex-wrap items-center gap-1.5">

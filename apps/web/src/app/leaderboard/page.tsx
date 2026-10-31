@@ -97,7 +97,7 @@ export default function LeaderboardPage() {
                             {moved > 0 && <ArrowUp className="size-3.5 text-up" />}
                             {moved < 0 && <ArrowDown className="size-3.5 text-down" />}
                           </span>
-                          <Flag emblem={n.emblem} size={40} />
+                          <Flag emblem={n.emblem} image={n.metadataUri} size={40} />
                           <span className="min-w-0 flex-1">
                             <span className="block truncate font-display text-sm uppercase tracking-wide text-fg">{n.name}</span>
                             <span className="font-mono text-[11px] text-faint">

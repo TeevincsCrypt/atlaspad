@@ -223,6 +223,8 @@ export interface CitizenshipDTO {
   name: string;
   ticker: string;
   emblem: string;
+  /** The nation's metadataURI (an uploaded image URL, if any). */
+  metadataUri: string;
   balance: string;
   share: number;
   since: number;

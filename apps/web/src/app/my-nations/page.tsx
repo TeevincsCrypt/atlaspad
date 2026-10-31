@@ -58,7 +58,7 @@ export default function MyNationsPage() {
                   if (!n) return null;
                   return (
                     <Link key={id} href={`/nation/${id}`} className="panel flex items-center gap-4 p-4 hover:border-line-strong">
-                      <Flag emblem={n.emblem} size={56} glow />
+                      <Flag emblem={n.emblem} image={n.metadataUri} size={56} glow />
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-display text-base uppercase text-fg">{n.name}</div>
                         <div className="font-mono text-[11px] text-faint">
@@ -82,7 +82,7 @@ export default function MyNationsPage() {
                 const n = byId(c.nationId);
                 return (
                   <Link key={c.nationId} href={`/nation/${c.nationId}`} className="panel flex items-center gap-3 p-4 hover:border-line-strong">
-                    <Flag emblem={c.emblem} size={40} />
+                    <Flag emblem={c.emblem} image={c.metadataUri} size={40} />
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm text-fg">{c.name}</div>
                       <div className="font-mono text-[11px] text-faint">

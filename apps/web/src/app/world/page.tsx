@@ -84,7 +84,7 @@ export default function WorldPage() {
                         onClick={() => effects.emit({ kind: "focus", nationId: n.id })}
                         className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-white/5"
                       >
-                        <Flag emblem={n.emblem} size={22} />
+                        <Flag emblem={n.emblem} image={n.metadataUri} size={22} />
                         <span className="flex-1 truncate text-xs text-fg">{n.name}</span>
                         <span className="font-mono text-[10px] text-faint">${n.ticker}</span>
                       </button>
@@ -194,7 +194,7 @@ function NationCardBody({ n }: { n: NationSummary }) {
   return (
     <>
       <div className="flex items-center gap-3">
-        <Flag emblem={n.emblem} size={40} />
+        <Flag emblem={n.emblem} image={n.metadataUri} size={40} />
         <div className="min-w-0">
           <div className="truncate font-display text-sm uppercase tracking-wide text-fg">{n.name}</div>
           <div className="font-mono text-[11px] text-faint">

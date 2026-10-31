@@ -17,6 +17,9 @@ const executablePath = process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium-1
 const suffix = Date.now().toString(36).slice(-4).toUpperCase();
 const NAME = `Testopia ${suffix}`;
 const TICKER = `T${suffix}`;
+// Uploaded as the nation image when the deployment has image uploads enabled (NEXT_PUBLIC_SUPABASE_URL).
+const UPLOAD_IMAGE = resolve(here, "../../../brand/atlaspad-logo-400.png");
+let uploaded = false;
 
 const browser = await chromium.launch({ executablePath, args: ["--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] });
 const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
@@ -69,6 +72,12 @@ await step("wizard: description, theme, symbol", async () => {
   await page.getByRole("button", { name: /Space/ }).click();
   await page.getByRole("button", { name: /Continue/ }).click();
   await page.getByText("Design your national symbol").waitFor();
+  if (await page.getByRole("button", { name: /Upload an image/ }).isVisible()) {
+    await page.locator('input[type="file"]').setInputFiles(UPLOAD_IMAGE);
+    await page.locator('svg image[href*="/storage/v1/object/public/emblems/"]').first().waitFor({ timeout: 20000 });
+    uploaded = true;
+    await shot("00-uploaded-image");
+  }
   await page.getByRole("button", { name: /Continue/ }).click();
 });
 
@@ -109,6 +118,7 @@ await step("open the new nation (indexed)", async () => {
   await page.waitForURL(/\/nation\/\d+/);
   nationUrl = page.url();
   await page.getByRole("heading", { name: NAME, exact: false }).waitFor({ timeout: 60000 });
+  if (uploaded) await page.locator('svg image[href*="/storage/v1/object/public/emblems/"]').first().waitFor({ timeout: 30000 });
 });
 
 await step("approve $WIF for the curve (if needed)", async () => {

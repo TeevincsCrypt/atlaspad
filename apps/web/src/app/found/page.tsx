@@ -25,6 +25,7 @@ import { useAtlasTx } from "@/lib/tx";
 import { Button } from "@/components/ui/Button";
 import { Flag } from "@/components/emblem/Flag";
 import { EmblemEditor } from "@/components/emblem/EmblemEditor";
+import { EmblemUpload } from "@/components/emblem/EmblemUpload";
 import { FoundingSequence } from "@/components/found/FoundingSequence";
 
 const STEPS = ["Name", "Ticker", "Description", "Theme", "Symbol", "Token", "Review", "Launch"] as const;
@@ -74,6 +75,8 @@ export default function FoundPage() {
   const [theme, setTheme] = useState(5);
   // The theme presets the emblem until the founder customizes it.
   const [customEmblem, setCustomEmblem] = useState<bigint | null>(null);
+  // Optional uploaded picture; its URL is written on-chain as the nation's metadataURI.
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [supply, setSupply] = useState(1_000_000_000n);
   const [founderBps, setFounderBps] = useState(0);
   const [initialBuy, setInitialBuy] = useState("");
@@ -137,7 +140,7 @@ export default function FoundPage() {
             name: name.trim(),
             symbol: ticker,
             description: description.trim(),
-            metadataURI: "",
+            metadataURI: imageUrl ?? "",
             theme,
             emblem,
             totalSupply: totalSupplyWei,
@@ -272,13 +275,16 @@ export default function FoundPage() {
                 </Step>
               )}
               {step === 4 && (
-                <Step title="Design your national symbol" sub="Your flag is generated from a single on-chain value — no external hosting.">
-                  <EmblemEditor
-                    value={emblem}
-                    onChange={(v) => {
-                      setCustomEmblem(v);
-                    }}
-                  />
+                <Step title="Design your national symbol" sub="Design a flag from a single on-chain value, or upload your own image.">
+                  <div className="space-y-5">
+                    <EmblemUpload value={imageUrl} onChange={setImageUrl} />
+                    <EmblemEditor
+                      value={emblem}
+                      onChange={(v) => {
+                        setCustomEmblem(v);
+                      }}
+                    />
+                  </div>
                 </Step>
               )}
               {step === 5 && (
@@ -341,7 +347,7 @@ export default function FoundPage() {
                 <Step title="Review your nation" sub="Everything below is written permanently on-chain.">
                   <div className="space-y-4">
                     <div className="flex items-center gap-4 rounded-xl border border-line p-4">
-                      <Flag emblem={emblem} size={72} glow />
+                      <Flag emblem={emblem} image={imageUrl} size={72} glow />
                       <div>
                         <div className="font-display text-2xl uppercase text-fg">{name}</div>
                         <div className="font-mono text-sm text-dim">
@@ -354,6 +360,7 @@ export default function FoundPage() {
                       {[
                         ["Total supply", `${formatCompact(Number(supply))} (fixed, minted once to the launchpad)`],
                         ["Founder allocation", `${founderBps / 100}% · 30-day vesting · claimable after graduation`],
+                        ["Symbol", imageUrl ? "Uploaded image (flag colors used on the map)" : "Generated flag"],
                         ["Initial buy", initialBuyWei ? wif(initialBuyWei) : "None"],
                         ["Founding fee", `${wif(fee)} · burned forever`],
                         ["Trade fee on the curve", "1% in $WIF (0.5% to your nation's treasury · 0.25% burned · 0.25% to the protocol)"],
@@ -454,8 +461,8 @@ export default function FoundPage() {
           <div className="sticky top-24 space-y-4">
             <div className="panel overflow-hidden">
               <div className="relative grid h-56 place-items-center" style={{ background: `radial-gradient(circle at 50% 60%, ${t.palette[0]}33, transparent 70%)` }}>
-                <motion.div key={String(emblem)} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="animate-float">
-                  <Flag emblem={emblem} size={150} glow />
+                <motion.div key={`${emblem}-${imageUrl ?? ""}`} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="animate-float">
+                  <Flag emblem={emblem} image={imageUrl} size={150} glow />
                 </motion.div>
               </div>
               <div className="border-t border-line p-4">
@@ -475,6 +482,7 @@ export default function FoundPage() {
         name={name}
         ticker={ticker}
         emblem={emblem}
+        image={imageUrl}
         hash={tx.hash}
         nationId={nationId}
         error={tx.error?.message ?? null}
