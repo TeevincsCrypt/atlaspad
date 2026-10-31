@@ -42,8 +42,16 @@ describe("stats", () => {
     const none = computeStats(base, { buildings: new Set(), influence: 0, warWins: 0, allies: 0 });
     const bank = computeStats(base, { buildings: new Set([BuildingType.Bank]), influence: 0, warWins: 0, allies: 0 });
     expect(bank.economicPower).toBeGreaterThan(none.economicPower);
-    expect(none.tier).toBe(tierForScore(none.civilizationScore));
+    expect(none.tier).toBe(tierForScore(none.civilizationScore, base.citizens));
     expect(none.territoryCells).toBeGreaterThanOrEqual(6);
+  });
+
+  it("stages need both the civilization score and the citizens", () => {
+    expect(tierForScore(90, 5_000)).toBe(4); // Empire
+    expect(tierForScore(90, 999)).toBe(3); // score is Empire-level, but 1,000 citizens are required: Metropolis
+    expect(tierForScore(90, 49)).toBe(1); // Town needs 10, City needs 50
+    expect(tierForScore(20, 100_000)).toBe(1); // plenty of citizens, but score only reaches Town
+    expect(tierForScore(100, 0)).toBe(0); // nobody lives there: Settlement
   });
 
   it("an empty nation is a settlement", () => {

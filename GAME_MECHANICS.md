@@ -162,15 +162,18 @@ Civilization score uses the already-rounded component scores. Some reference poi
 | 10,000 | 80.0 | 100,000 | 80.0 | 1,000 | 0.833 |
 | 100,000 | 100 | 1,000,000 | 100 | 10,000 | 1.000 |
 
-**Tiers.** A nation's tier is the highest tier whose minimum its civilization score reaches (`TIERS` in `constants.ts`):
+**Tiers (stages).** A nation's tier is the highest tier whose minimum civilization score AND minimum citizen count it both meets (`TIERS` in `constants.ts`):
 
-| Tier | Name | Minimum civilization score |
-| --- | --- | --- |
-| 0 | Settlement | 0 |
-| 1 | Town | 15 |
-| 2 | City | 35 |
-| 3 | Metropolis | 55 |
-| 4 | Empire | 75 |
+| Tier | Name | Minimum civilization score | Minimum citizens |
+| --- | --- | --- | --- |
+| 0 | Settlement | 0 | 0 |
+| 1 | Town | 15 | 10 |
+| 2 | City | 35 | 50 |
+| 3 | Metropolis | 55 | 250 |
+| 4 | Empire | 75 | 1,000 |
+
+A nation needs **both** minimums for a stage; its stage is the highest one it fully qualifies for. A nation with an
+Empire-level score but 400 citizens is a Metropolis. The nation page shows exactly what the next stage still needs.
 
 **When statistics are computed:**
 

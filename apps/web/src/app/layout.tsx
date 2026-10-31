@@ -8,6 +8,7 @@ import { WalletModal } from "@/components/wallet/WalletModal";
 import { Toaster } from "@/components/ui/Toaster";
 import { WorldStage } from "@/components/world/WorldStage";
 import { CinematicLayer } from "@/components/cinematic/CinematicLayer";
+import { IntroCinematic } from "@/components/cinematic/IntroCinematic";
 import { publicEnv } from "@/lib/env";
 
 export const metadata: Metadata = {
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <TopNav />
           <StatusBanner />
           <main className="relative z-10 min-h-[100dvh] pb-20 sm:pb-0">{children}</main>
+          <IntroCinematic />
           <CinematicLayer />
           <WalletModal />
           <SearchPalette />

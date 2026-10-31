@@ -71,9 +71,10 @@ export function developmentScore(s: NationGameState): number {
   return round1((s.buildings.size / 8) * 100);
 }
 
-export function tierForScore(score: number): number {
+/** The highest stage whose civilization-score AND citizen minimums are both met. */
+export function tierForScore(score: number, citizens: number): number {
   let t = 0;
-  for (const tier of TIERS) if (score >= tier.minScore) t = tier.tier;
+  for (const tier of TIERS) if (score >= tier.minScore && citizens >= tier.minCitizens) t = tier.tier;
   return t;
 }
 
@@ -100,7 +101,7 @@ export function computeStats(m: NationMetrics, s: NationGameState, warBonusPct =
     populationScore: pop,
     developmentScore: dev,
     civilizationScore: civ,
-    tier: tierForScore(civ),
+    tier: tierForScore(civ, m.citizens),
     territoryCells: territoryCells(civ, warBonusPct),
   };
 }

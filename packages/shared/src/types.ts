@@ -67,6 +67,8 @@ export interface NationSummary {
   buildings: number[];
   warWins: number;
   warLosses: number;
+  /** Set only on the web app's illustrative demo nations, which are not on-chain and cannot be traded. */
+  demo?: true;
 }
 
 export interface WarSummary {
