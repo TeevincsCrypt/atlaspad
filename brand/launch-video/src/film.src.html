@@ -1,0 +1,529 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>AtlasPad launch film</title>
+<style>
+  @font-face { font-family: Unbounded; font-weight: 500; src: url(unbounded-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 600; src: url(unbounded-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 700; src: url(unbounded-latin-700-normal.woff2) format("woff2"); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #04050a; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; color: #eef0f6; font-family: Inter, sans-serif;
+    background: radial-gradient(ellipse at 50% 42%, #15120a 0%, #08090f 52%, #04050a 100%); }
+  #grid { position: absolute; inset: -60px; background-image:
+      linear-gradient(rgba(214,178,110,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(214,178,110,.045) 1px, transparent 1px);
+    background-size: 60px 60px; mask-image: radial-gradient(ellipse at 50% 45%, black 20%, transparent 75%); -webkit-mask-image: radial-gradient(ellipse at 50% 45%, black 20%, transparent 75%); }
+  #grain { position: absolute; inset: 0; opacity: .07; mix-blend-mode: overlay; pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  #vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.65) 100%); }
+  canvas { position: absolute; inset: 0; }
+  .scene { position: absolute; inset: 0; display: none; }
+  .hl { position: absolute; left: 0; right: 0; margin: 0; text-align: center; font-family: Unbounded; font-weight: 600; font-size: 62px; letter-spacing: -.01em; line-height: 1.12; }
+  .hl.xl { font-size: 92px; font-weight: 700; }
+  .hl span { display: inline-block; white-space: pre; }
+  .gold, .hl .gold { background: linear-gradient(100deg, #fbe6ad 0%, #e2bd72 45%, #b48a43 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .mono { font-family: "JetBrains Mono", monospace; letter-spacing: .22em; text-transform: uppercase; }
+  .panel { position: absolute; background: linear-gradient(180deg, rgba(22,26,40,.92), rgba(13,16,26,.92)); border: 1px solid rgba(255,255,255,.09);
+    border-radius: 22px; box-shadow: 0 40px 120px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05); }
+  .label { font-family: "JetBrains Mono", monospace; font-size: 15px; letter-spacing: .2em; text-transform: uppercase; color: #6f7891; }
+  .row { display: flex; justify-content: space-between; align-items: center; padding: 16px 26px; border-bottom: 1px solid rgba(255,255,255,.06); font-size: 24px; color: #9aa2b5; }
+  .row b { color: #eef0f6; font-weight: 600; font-family: "JetBrains Mono", monospace; font-size: 23px; }
+  .btn { display: grid; place-items: center; height: 74px; border-radius: 16px; font-family: Unbounded; font-weight: 600; font-size: 24px; }
+  .btn.gold-btn { background: linear-gradient(180deg, #f3d58f, #c79e52); color: #1a1306; box-shadow: 0 0 0 1px rgba(255,230,170,.5), 0 20px 50px -16px rgba(214,178,110,.8); }
+  .btn.ghost { border: 1px solid rgba(255,255,255,.14); color: #c9cfdc; }
+  .chip { position: absolute; width: 470px; height: 104px; display: flex; align-items: center; gap: 20px; padding: 0 26px; }
+  .chip .ic { font-size: 40px; width: 52px; text-align: center; }
+  .chip .t { font-family: Unbounded; font-weight: 600; font-size: 25px; color: #eef0f6; }
+  .chip .s { font-family: "JetBrains Mono", monospace; font-size: 15px; color: #7c859b; margin-top: 6px; letter-spacing: .02em; }
+  .stamp { position: absolute; padding: 10px 22px; border: 3px solid #35d29a; color: #35d29a; border-radius: 12px; font-family: Unbounded; font-weight: 700; font-size: 30px; letter-spacing: .06em; background: rgba(8,24,18,.85); box-shadow: 0 0 40px rgba(53,210,154,.35); }
+  .node { position: absolute; width: 360px; padding: 16px 20px; text-align: left; }
+  .node .t { font-family: Unbounded; font-weight: 600; font-size: 23px; }
+  .node .s { font-family: "JetBrains Mono", monospace; font-size: 15px; color: #8c95aa; margin-top: 6px; }
+  .shot { position: absolute; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); background: #05060b; box-shadow: 0 60px 140px -30px rgba(0,0,0,.9), 0 0 0 1px rgba(0,0,0,.4); }
+  .chrome { height: 38px; background: #10131d; display: flex; align-items: center; gap: 9px; padding: 0 16px; border-bottom: 1px solid rgba(255,255,255,.06); }
+  .chrome i { width: 12px; height: 12px; border-radius: 50%; background: #2a3044; display: block; }
+  .chrome .url { margin-left: 18px; font-family: "JetBrains Mono", monospace; font-size: 14px; color: #8c95aa; background: #070910; padding: 5px 14px; border-radius: 8px; }
+  .feat { position: absolute; width: 620px; height: 132px; display: flex; gap: 22px; align-items: center; padding: 0 30px; }
+  .feat .d { width: 26px; height: 26px; transform: rotate(45deg); background: linear-gradient(135deg, #fbe6ad, #b48a43); border-radius: 4px; flex: none; box-shadow: 0 0 20px rgba(243,213,143,.5); }
+  .feat .t { font-family: Unbounded; font-weight: 600; font-size: 27px; }
+  .feat .s { font-family: "JetBrains Mono", monospace; font-size: 16px; color: #8c95aa; margin-top: 8px; }
+  .pill { position: absolute; left: 50%; padding: 18px 46px; border-radius: 999px; font-family: Unbounded; font-weight: 700; font-size: 40px; color: #1a1306;
+    background: linear-gradient(180deg, #f8dea0, #c79e52); box-shadow: 0 0 0 1px rgba(255,235,180,.6), 0 30px 80px -20px rgba(214,178,110,.9), 0 0 60px rgba(243,213,143,.35); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="grid"></div>
+  <canvas id="dust" width="1920" height="1080"></canvas>
+  <div id="rays" style="position:absolute;left:50%;top:40%;width:3000px;height:3000px;margin:-1500px 0 0 -1500px;opacity:0;
+    background:repeating-conic-gradient(from 0deg, rgba(243,213,143,.10) 0deg 3.2deg, transparent 3.2deg 15deg);
+    mask-image:radial-gradient(circle, black 2%, transparent 42%);-webkit-mask-image:radial-gradient(circle, black 2%, transparent 42%);"></div>
+
+  <!-- 1 HOOK -->
+  <section class="scene" id="s1">
+    <h1 class="hl xl" id="s1a" style="top:300px" data-text="Most tokens launch."></h1>
+    <h1 class="hl xl" id="s1b" style="top:415px" data-text="Then they're *forgotten.*"></h1>
+    <svg id="s1chart" width="900" height="200" viewBox="0 0 900 200" style="position:absolute;left:510px;top:610px;overflow:visible">
+      <polyline id="s1line" fill="none" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"
+        points="0,170 90,166 170,158 240,150 300,120 350,70 390,22 420,8 450,40 480,110 520,150 580,168 680,176 800,180 900,182" />
+      <circle id="s1dot" r="9" fill="#ff5a6e" />
+    </svg>
+    <div class="mono" id="s1sub" style="position:absolute;left:0;right:0;top:850px;text-align:center;font-size:22px;color:#7c859b">launch · pump · dump · forgotten</div>
+  </section>
+
+  <!-- 2 QUESTION -->
+  <section class="scene" id="s2">
+    <svg id="s2rings" width="900" height="900" viewBox="-450 -450 900 900" style="position:absolute;left:510px;top:90px">
+      <circle r="300" fill="none" stroke="rgba(214,178,110,.18)" stroke-width="1.5" stroke-dasharray="4 10"/>
+      <circle r="390" fill="none" stroke="rgba(214,178,110,.10)" stroke-width="1.5"/>
+      <circle r="210" fill="none" stroke="rgba(214,178,110,.12)" stroke-width="1"/>
+    </svg>
+    <h1 class="hl xl" id="s2a" style="top:420px" data-text="What if a token was a *nation?*"></h1>
+  </section>
+
+  <!-- 3 LOGO -->
+  <section class="scene" id="s3">
+    <div id="s3mark" style="position:absolute;left:750px;top:170px;width:420px;height:420px;filter:drop-shadow(0 0 50px rgba(243,213,143,.55))">
+      <svg width="420" height="420" viewBox="0 0 200 200">%%COMPASS_A%%</svg>
+    </div>
+    <div id="s3ring" style="position:absolute;left:810px;top:230px;width:300px;height:300px;border-radius:50%;border:2px solid rgba(251,230,173,.8)"></div>
+    <h1 class="hl" id="s3word" style="top:640px;font-size:104px;font-weight:600;letter-spacing:.3em;padding-left:.3em" data-letters="ATLASPAD"></h1>
+    <h1 class="hl" id="s3t1" style="top:806px;font-size:40px;font-weight:500;color:#dfe3ec" data-text="Every token is a nation."></h1>
+    <h1 class="hl" id="s3t2" style="top:866px;font-size:40px;font-weight:700" data-text="*Every nation runs on $WIF.*"></h1>
+  </section>
+
+  <!-- 4 FOUND -->
+  <section class="scene" id="s4">
+    <h1 class="hl" id="s4h" style="top:110px" data-text="Found a nation in *60 seconds.*"></h1>
+    <div class="panel" id="s4card" style="left:500px;top:270px;width:920px;height:580px">
+      <div style="padding:26px 30px 0">
+        <div class="label">Found a nation · step 8 of 8</div>
+        <div id="s4bar" style="display:flex;gap:6px;margin-top:14px">%%BARS%%</div>
+      </div>
+      <div style="display:flex;gap:30px;padding:28px 30px 0">
+        <svg id="s4flag" width="270" height="180" viewBox="0 0 60 40" style="border-radius:8px;flex:none;filter:drop-shadow(0 0 24px rgba(76,175,80,.45))">
+          <rect width="60" height="40" fill="#3fa34d"/><polygon points="0,0 30,20 0,40" fill="#0d1f0f"/><rect y="20" width="60" height="20" fill="#ffd23f" opacity=".95"/>
+          <polygon points="0,0 30,20 0,40" fill="#0d1f0f"/>
+          <svg x="2" y="12" width="17" height="17" viewBox="0 0 24 24" fill="#7CD957"><path d="%%FROG%%"/></svg>
+          <rect width="60" height="40" fill="url(#sheen)"/>
+          <defs><linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".25"/></linearGradient></defs>
+        </svg>
+        <div style="flex:1;border:1px solid rgba(255,255,255,.07);border-radius:14px;overflow:hidden">
+          <div class="row"><span>Name</span><b id="s4name"></b></div>
+          <div class="row"><span>Ticker</span><b id="s4tick"></b></div>
+          <div class="row"><span>Supply</span><b>1,000,000,000 · fixed</b></div>
+          <div class="row" id="s4fee"><span>Founding fee</span><b><span class="gold">100 WIF</span> · 🔥 burned</b></div>
+        </div>
+      </div>
+      <div style="padding:22px 30px 0;display:flex;gap:14px;flex-wrap:wrap;font-family:'JetBrains Mono',monospace;font-size:16px;color:#8c95aa">
+        <span>✓ no mint</span><span>✓ no admin keys</span><span>✓ LP burned at graduation</span><span>✓ treasury run by citizens</span>
+      </div>
+      <div class="btn gold-btn" id="s4btn" style="position:absolute;left:30px;right:30px;bottom:30px">Found Pepeland</div>
+    </div>
+  </section>
+
+  <!-- 5 CITIZENS -->
+  <section class="scene" id="s5">
+    <h1 class="hl" id="s5h" style="top:110px" data-text="Every holder is a *citizen.*"></h1>
+    <svg id="s5hex" width="760" height="700" viewBox="-380 -350 760 700" style="position:absolute;left:200px;top:260px;overflow:visible">%%HEXES%%</svg>
+    <div id="s5panel" style="position:absolute;left:1060px;top:300px;width:620px">
+      <div class="label">Citizens of $PEPE</div>
+      <div id="s5count" style="font-family:Unbounded;font-weight:700;font-size:150px;line-height:1.05;margin-top:8px" class="gold">0</div>
+      <div id="s5ladder" style="margin-top:30px;display:grid;gap:12px">%%LADDER%%</div>
+    </div>
+  </section>
+
+  <!-- 6 GOVERN -->
+  <section class="scene" id="s6">
+    <h1 class="hl" id="s6h" style="top:110px" data-text="Citizens vote. *Nations act.*"></h1>
+    %%CHIPS%%
+    <div class="panel" id="s6vote" style="left:420px;top:600px;width:1080px;height:250px;padding:30px 36px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <div><div class="label">Proposal #12 · Pepeland</div><div style="font-family:Unbounded;font-weight:600;font-size:34px;margin-top:10px">Declare war on Dogeland</div></div>
+        <div class="mono" style="font-size:16px;color:#8c95aa">1-day vote · on-chain</div>
+      </div>
+      <div style="margin-top:30px;height:22px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;display:flex">
+        <div id="s6for" style="height:100%;background:linear-gradient(90deg,#c79e52,#f3d58f);width:0"></div>
+        <div id="s6against" style="height:100%;background:#ff5a6e;opacity:.7;width:0"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:19px">
+        <span id="s6forT" style="color:#f3d58f">For 0%</span><span id="s6agT" style="color:#ff8a98">Against 0%</span>
+      </div>
+      <div class="stamp" id="s6stamp" style="right:40px;top:-34px;border-color:#f3d58f;color:#f3d58f;background:rgba(30,24,10,.9);box-shadow:0 0 40px rgba(243,213,143,.35)">PASSED</div>
+    </div>
+  </section>
+
+  <!-- 7 FLYWHEEL -->
+  <section class="scene" id="s7">
+    <h1 class="hl" id="s7h" style="top:90px" data-text="Every nation runs on *$WIF.*"></h1>
+    <svg id="s7svg" width="1920" height="1080" style="position:absolute;left:0;top:0">
+      <defs><linearGradient id="fwg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe6ad"/><stop offset="1" stop-color="#b48a43"/></linearGradient>
+        <radialGradient id="pulseg"><stop offset="0" stop-color="#fff6dc"/><stop offset=".4" stop-color="#f3d58f"/><stop offset="1" stop-color="#f3d58f" stop-opacity="0"/></radialGradient></defs>
+      <circle id="s7circle" cx="960" cy="615" r="285" fill="none" stroke="url(#fwg)" stroke-width="4" stroke-dasharray="1791" stroke-dashoffset="1791" transform="rotate(-90 960 615)"/>
+      <circle id="s7pulse" r="40" fill="url(#pulseg)"/>
+    </svg>
+    <div id="s7center" style="position:absolute;left:760px;top:540px;width:400px;text-align:center">
+      <div class="gold" style="font-family:Unbounded;font-weight:700;font-size:96px;line-height:1">$WIF</div>
+      <div class="mono" style="font-size:16px;color:#8c95aa;margin-top:12px">the flywheel</div>
+    </div>
+    %%NODES%%
+  </section>
+
+  <!-- 8 TRADE -->
+  <section class="scene" id="s8">
+    <h1 class="hl" id="s8h" style="top:100px" data-text="Every trade *burns $WIF.*"></h1>
+    <canvas id="s8flames" width="1920" height="1080"></canvas>
+    <div class="panel" id="s8card" style="left:560px;top:235px;width:800px;height:640px">
+      <div style="padding:28px 32px 18px;display:flex;justify-content:space-between;align-items:baseline">
+        <div style="font-family:Unbounded;font-weight:600;font-size:34px">Buy $PEPE</div><div class="mono" style="font-size:14px;color:#8c95aa">AtlasPad bonding curve</div>
+      </div>
+      <div class="row"><span>You pay</span><b>500 WIF</b></div>
+      <div class="row"><span>You receive</span><b>7.6M $PEPE</b></div>
+      <div class="row"><span>Trade fee (1%)</span><b>5 WIF</b></div>
+      <div class="row" style="font-size:19px"><span>0.5% treasury · 0.25% burned · 0.25% protocol</span></div>
+      <div class="row" id="s8burn" style="border-bottom:0"><span style="color:#eef0f6">$WIF burned by this trade</span><b class="gold" style="font-size:28px">1.25 WIF 🔥</b></div>
+      <div style="position:absolute;left:32px;right:32px;bottom:30px;display:flex;gap:16px">
+        <div class="btn ghost" style="flex:1">Reject</div>
+        <div class="btn gold-btn" id="s8btn" style="flex:2">Confirm</div>
+      </div>
+      <div class="stamp" id="s8stamp" style="right:-40px;top:-30px">ON-CHAIN ✓</div>
+    </div>
+    <div id="s8tx" style="position:absolute;left:0;right:0;top:920px;text-align:center;font-family:'JetBrains Mono',monospace;font-size:22px;color:#f3d58f"></div>
+  </section>
+
+  <!-- 9 WORLD -->
+  <section class="scene" id="s9">
+    <h1 class="hl" id="s9h" style="top:80px" data-text="A living world, *shaped by the market.*"></h1>
+    <div id="s9wrap" style="position:absolute;left:260px;top:220px;width:1400px;height:820px;perspective:1800px">
+      <div class="shot" id="s9main" style="left:0;top:0;width:1400px;height:820px;transform-origin:50% 30%">
+        <div class="chrome"><i></i><i></i><i></i><span class="url">atlaswif.xyz/world</span></div>
+        <div style="height:782px;background:url(shot-world.png) center 46%/1430px auto no-repeat"></div>
+      </div>
+      <div class="mono" id="s9tag" style="position:absolute;right:20px;bottom:18px;font-size:13px;color:#8c95aa;background:rgba(5,6,11,.8);padding:6px 12px;border-radius:8px">demo nations shown</div>
+    </div>
+    <div class="shot" id="s9found" style="left:60px;top:560px;width:600px;height:420px">
+      <div class="chrome"><i></i><i></i><i></i><span class="url">atlaswif.xyz/found</span></div>
+      <div style="height:382px;background:url(shot-found.png) -300px -40px/1660px auto no-repeat"></div>
+    </div>
+    <div class="shot" id="s9globe" style="left:1360px;top:150px;width:500px;height:520px">
+      <div class="chrome"><i></i><i></i><i></i><span class="url">atlaswif.xyz</span></div>
+      <div style="height:482px;background:url(shot-landing.png) -560px -30px/1300px auto no-repeat"></div>
+    </div>
+  </section>
+
+  <!-- 10 BUILT ON -->
+  <section class="scene" id="s10">
+    <h1 class="hl" id="s10h" style="top:250px" data-text="Built on *Robinhood Chain,* end to end."></h1>
+    %%FEATS%%
+  </section>
+
+  <!-- 11 FINALE -->
+  <section class="scene" id="s11">
+    <div id="s11planet" style="position:absolute;left:160px;top:640px;width:1600px;height:1600px;border-radius:50%;overflow:hidden;
+      background:url(shot-landing.png) -1310px -100px/3920px auto no-repeat;box-shadow:0 0 120px rgba(140,170,255,.25), inset 0 30px 80px rgba(160,190,255,.25);
+      mask-image:linear-gradient(180deg, black 0%, black 30%, transparent 62%);-webkit-mask-image:linear-gradient(180deg, black 0%, black 30%, transparent 62%)"></div>
+    <div id="s11mark" style="position:absolute;left:820px;top:90px;width:280px;height:280px;filter:drop-shadow(0 0 40px rgba(243,213,143,.6))">
+      <svg width="280" height="280" viewBox="0 0 200 200">%%COMPASS_C%%</svg>
+    </div>
+    <h1 class="hl" id="s11word" style="top:400px;font-size:124px;font-weight:600;letter-spacing:.28em;padding-left:.28em" data-letters="ATLASPAD"></h1>
+    <h1 class="hl" id="s11t1" style="top:572px;font-size:36px;font-weight:500;color:#dfe3ec" data-text="Every token is a nation."></h1>
+    <h1 class="hl" id="s11t2" style="top:624px;font-size:36px;font-weight:700" data-text="*Every nation runs on $WIF.*"></h1>
+    <div class="pill" id="s11pill" style="top:720px">atlaswif.xyz</div>
+    <div class="mono" id="s11foot" style="position:absolute;left:0;right:0;top:850px;text-align:center;font-size:18px;color:#d9dfeb;text-shadow:0 2px 12px #000">Live on Robinhood Chain · Powered by $WIF</div>
+  </section>
+
+  <canvas id="burst" width="1920" height="1080"></canvas>
+  <div id="flash" style="position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 50% 40%, #fff8e1 0%, rgba(243,213,143,.6) 30%, transparent 70%)"></div>
+  <div id="grain"></div>
+  <div id="vignette"></div>
+  <div id="fade" style="position:absolute;inset:0;background:#000;opacity:0;pointer-events:none"></div>
+</div>
+
+<script>
+// ---------- helpers ----------
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const prog = (t, a, d) => clamp((t - a) / d);
+const eOut = (x) => 1 - Math.pow(1 - x, 3);
+const eExpo = (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x));
+const eInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eBack = (x) => { const c = 1.70158, c3 = c + 1; return 1 + c3 * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
+
+// Headlines: words revealed out of blur; *word* is gold.
+document.querySelectorAll("[data-text]").forEach((h) => {
+  const parts = h.dataset.text.match(/\*[^*]+\*|[^\s*]+/g);
+  h.innerHTML = "";
+  parts.forEach((p, i) => {
+    const gold = p.startsWith("*");
+    const words = (gold ? p.slice(1, -1) : p).split(" ");
+    words.forEach((w, j) => {
+      const s = document.createElement("span");
+      s.textContent = w + " ";
+      if (gold) s.className = "gold";
+      h.appendChild(s);
+    });
+  });
+});
+document.querySelectorAll("[data-letters]").forEach((h) => {
+  h.innerHTML = h.dataset.letters.split("").map((c) => `<span>${c}</span>`).join("");
+});
+function reveal(h, t, start, step = 0.085, dur = 0.6) {
+  [...h.children].forEach((s, i) => {
+    const p = prog(t, start + i * step, dur), e = eOut(p);
+    s.style.opacity = p;
+    s.style.filter = `blur(${(1 - e) * 16}px)`;
+    s.style.transform = `translateY(${(1 - e) * 26}px)`;
+  });
+}
+// Scene envelope: fade/blur in, and out with a slight push.
+function scene(id, t, a, b, inD = 0.35, outD = 0.4) {
+  const el = $(id);
+  if (t < a || t > b) { el.style.display = "none"; return false; }
+  el.style.display = "block";
+  const pin = prog(t, a, inD), pout = prog(t, b - outD, outD);
+  el.style.opacity = Math.min(eOut(pin), 1 - pout);
+  el.style.filter = pout > 0 ? `blur(${pout * 10}px)` : "none";
+  el.style.transform = `scale(${1 + pout * 0.04})`;
+  return true;
+}
+function pop(el, t, a, d = 0.5, from = 0.85, rise = 24) {
+  const p = prog(t, a, d), e = eBack(p);
+  el.style.opacity = clamp(p * 1.6);
+  el.style.transform = `translateY(${(1 - eOut(p)) * rise}px) scale(${lerp(from, 1, e)})`;
+}
+
+// ---------- particles ----------
+const BURSTS = [];
+function makeBurst(t0, cx, cy, n, seed, power = 1) {
+  const r = rng(seed), ps = [];
+  for (let i = 0; i < n; i++) {
+    const a = r() * Math.PI * 2, sp = (260 + r() * 1250) * power;
+    ps.push({ a, sp, life: 1.3 + r() * 1.8, size: 1.2 + r() * 3.6, hue: r(), streak: r() < 0.35 });
+  }
+  BURSTS.push({ t0, cx, cy, ps });
+}
+makeBurst(7.0, 960, 380, 260, 7, 1.15);
+makeBurst(15.6, 960, 855, 90, 21, 0.55);
+makeBurst(45.0, 960, 230, 300, 45, 1.2);
+function drawBursts(t) {
+  const c = $("burst"), x = c.getContext("2d");
+  x.clearRect(0, 0, 1920, 1080);
+  x.globalCompositeOperation = "lighter";
+  for (const b of BURSTS) {
+    const dt = t - b.t0;
+    if (dt < 0 || dt > 3.4) continue;
+    for (const p of b.ps) {
+      if (dt > p.life) continue;
+      const k = 2.4, d = (p.sp * (1 - Math.exp(-k * dt))) / k;
+      const px = b.cx + Math.cos(p.a) * d, py = b.cy + Math.sin(p.a) * d + 40 * dt * dt;
+      const al = (1 - dt / p.life) ** 1.4;
+      const col = p.hue < 0.55 ? `rgba(243,213,143,${al})` : p.hue < 0.85 ? `rgba(255,246,220,${al})` : `rgba(255,170,90,${al})`;
+      if (p.streak) {
+        const v = p.sp * Math.exp(-k * dt) * 0.05;
+        x.strokeStyle = col; x.lineWidth = p.size * 0.7; x.beginPath();
+        x.moveTo(px, py); x.lineTo(px - Math.cos(p.a) * v, py - Math.sin(p.a) * v); x.stroke();
+      } else {
+        x.fillStyle = col; x.beginPath(); x.arc(px, py, p.size, 0, Math.PI * 2); x.fill();
+      }
+    }
+  }
+}
+const DUST = (() => { const r = rng(99); return Array.from({ length: 110 }, () => ({ x: r() * 1920, y: r() * 1080, vx: (r() - 0.5) * 14, vy: -4 - r() * 12, s: 0.6 + r() * 1.8, ph: r() * 6.28, g: r() < 0.5 })); })();
+function drawDust(t) {
+  const c = $("dust"), x = c.getContext("2d");
+  x.clearRect(0, 0, 1920, 1080);
+  for (const d of DUST) {
+    const px = ((d.x + d.vx * t) % 1920 + 1920) % 1920, py = ((d.y + d.vy * t) % 1080 + 1080) % 1080;
+    const a = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 1.3 + d.ph));
+    x.fillStyle = d.g ? `rgba(243,213,143,${a})` : `rgba(207,214,234,${a * 0.7})`;
+    x.beginPath(); x.arc(px, py, d.s, 0, Math.PI * 2); x.fill();
+  }
+}
+const FLAMES = (() => { const r = rng(8); return Array.from({ length: 70 }, () => ({ x: 560 + 420 + r() * 330, t0: 32.9 + r() * 2.6, life: 0.8 + r() * 1.2, sp: 90 + r() * 160, s: 2 + r() * 5, sw: r() * 6.28 })); })();
+function drawFlames(t) {
+  const c = $("s8flames"), x = c.getContext("2d");
+  x.clearRect(0, 0, 1920, 1080);
+  x.globalCompositeOperation = "lighter";
+  for (const f of FLAMES) {
+    const dt = t - f.t0; if (dt < 0 || dt > f.life) continue;
+    const al = 1 - dt / f.life, py = 620 - f.sp * dt, px = f.x + Math.sin(dt * 6 + f.sw) * 10;
+    x.fillStyle = `rgba(255,${Math.round(150 + 80 * al)},80,${al * 0.9})`;
+    x.beginPath(); x.arc(px, py, f.s * al + 1, 0, Math.PI * 2); x.fill();
+  }
+}
+
+// ---------- the timeline ----------
+const NODE_ANGLES = [-90, -18, 54, 126, 198];
+const LADDER = [0, 10, 50, 250, 1000];
+window.render = function (t) {
+  drawDust(t);
+  drawBursts(t);
+  $("grain").style.backgroundPosition = `${Math.floor(t * 30 * 37) % 256}px ${Math.floor(t * 30 * 53) % 256}px`;
+  $("grid").style.transform = `translateY(${(t * 6) % 60}px)`;
+
+  // impact flash + camera shake
+  const fl = Math.max(Math.exp(-Math.max(0, t - 7.0) * 6) * (t >= 7.0 ? 1 : 0), Math.exp(-Math.max(0, t - 45.0) * 6) * (t >= 45.0 ? 1 : 0));
+  $("flash").style.opacity = fl * 0.85;
+  const shake = (t >= 7 && t < 7.6 ? (7.6 - t) : t >= 45 && t < 45.6 ? (45.6 - t) : 0) * 14;
+  $("stage").style.transform = shake ? `translate(${Math.sin(t * 90) * shake}px, ${Math.cos(t * 77) * shake}px)` : "none";
+  // light rays behind logo moments
+  const raysOn = Math.max(t >= 7 && t <= 12 ? Math.min(prog(t, 7, 0.6), 1 - prog(t, 11.5, 0.5)) : 0, t >= 45 ? Math.min(prog(t, 45, 0.8), 1 - prog(t, 50.2, 0.8)) : 0);
+  $("rays").style.opacity = raysOn;
+  $("rays").style.transform = `rotate(${t * 7}deg)`;
+  $("rays").style.top = t >= 40 ? "21%" : "35%";
+
+  // 1 HOOK 0-4
+  if (scene("s1", t, 0, 4.0, 0.2)) {
+    reveal($("s1a"), t, 0.25); reveal($("s1b"), t, 1.35);
+    const line = $("s1line"), L = 1180, p = eInOut(prog(t, 0.6, 2.2));
+    line.setAttribute("stroke-dasharray", L); line.setAttribute("stroke-dashoffset", L * (1 - p));
+    line.setAttribute("stroke", p > 0.48 ? "#ff5a6e" : "#35d29a");
+    const pt = line.getPointAtLength(L * p * 0.995 + 0.001);
+    $("s1dot").setAttribute("cx", pt.x); $("s1dot").setAttribute("cy", pt.y);
+    $("s1dot").setAttribute("fill", p > 0.48 ? "#ff5a6e" : "#35d29a"); $("s1dot").style.opacity = p > 0 ? 1 : 0;
+    $("s1chart").style.opacity = clamp(prog(t, 0.5, 0.4));
+    $("s1sub").style.opacity = prog(t, 2.5, 0.6);
+  }
+  // 2 QUESTION 4-7
+  if (scene("s2", t, 4.0, 7.0, 0.3, 0.35)) {
+    reveal($("s2a"), t, 4.25, 0.11, 0.7);
+    $("s2rings").style.opacity = 0.4 + 0.6 * prog(t, 4.2, 1.5);
+    $("s2rings").style.transform = `rotate(${(t - 4) * 14}deg) scale(${lerp(0.9, 1.12, prog(t, 4, 3))})`;
+  }
+  // 3 LOGO 7-12
+  if (scene("s3", t, 7.0, 12.0, 0.05, 0.5)) {
+    const m = prog(t, 7.0, 1.5);
+    $("s3mark").style.transform = `scale(${lerp(0.25, 1, eBack(m))}) rotate(${lerp(-140, 0, eExpo(m))}deg)`;
+    $("s3mark").style.opacity = clamp(m * 3);
+    const r = prog(t, 7.0, 1.3);
+    $("s3ring").style.opacity = (1 - r) * (r > 0 ? 1 : 0); $("s3ring").style.transform = `scale(${lerp(0.4, 4.2, eOut(r))})`;
+    [...$("s3word").children].forEach((s, i) => {
+      const p = prog(t, 7.7 + i * 0.07, 0.7), e = eOut(p);
+      s.style.opacity = p; s.style.filter = `blur(${(1 - e) * 18}px)`; s.style.transform = `translateY(${(1 - e) * 30}px) scale(${lerp(1.4, 1, e)})`;
+    });
+    reveal($("s3t1"), t, 8.9); reveal($("s3t2"), t, 9.7, 0.12);
+  }
+  // 4 FOUND 12-17
+  if (scene("s4", t, 12.0, 17.0)) {
+    reveal($("s4h"), t, 12.15);
+    pop($("s4card"), t, 12.3, 0.6, 0.94, 50);
+    [...$("s4bar").children].forEach((b, i) => { b.style.background = t > 12.5 + i * 0.07 ? "#d6b26e" : "rgba(255,255,255,.08)"; });
+    const name = "Pepeland", tick = "$PEPE";
+    $("s4name").textContent = name.slice(0, Math.round(prog(t, 12.9, 0.8) * name.length)) + (t > 12.9 && t < 13.9 && Math.floor(t * 4) % 2 ? "|" : "");
+    $("s4tick").textContent = tick.slice(0, Math.round(prog(t, 13.75, 0.45) * tick.length));
+    pop($("s4flag"), t, 13.1, 0.6, 0.6, 0);
+    const fee = prog(t, 14.5, 0.4) * (1 - prog(t, 15.8, 0.6));
+    $("s4fee").style.background = `rgba(243,213,143,${fee * 0.13})`;
+    $("s4fee").style.boxShadow = `inset 3px 0 0 rgba(243,213,143,${fee})`;
+    const pressed = t >= 15.45 && t < 15.6, done = t >= 15.6;
+    $("s4btn").style.transform = pressed ? "scale(.96)" : "scale(1)";
+    $("s4btn").textContent = done ? "Founded ✓  ·  tx 0x9a1f…c42e" : "Found Pepeland";
+    $("s4btn").style.background = done ? "linear-gradient(180deg,#43e0a8,#1fae7a)" : "";
+    $("s4btn").style.color = done ? "#04140d" : "";
+  }
+  // 5 CITIZENS 17-21
+  if (scene("s5", t, 17.0, 21.0)) {
+    reveal($("s5h"), t, 17.15);
+    const p = eInOut(prog(t, 17.6, 2.7)), n = Math.round(Math.pow(p, 2.2) * 1284);
+    $("s5count").textContent = n.toLocaleString("en-US");
+    $("s5panel").style.opacity = prog(t, 17.4, 0.5);
+    $("s5hex").querySelectorAll("polygon").forEach((h) => {
+      const ring = +h.dataset.r, on = n >= LADDER[ring];
+      const k = clamp((n - LADDER[ring]) / Math.max(1, LADDER[ring] * 0.6 + 4));
+      h.style.opacity = on ? 0.25 + 0.75 * k : 0.06;
+      h.style.transform = `scale(${on ? lerp(0.6, 1, eBack(k)) : 0.92})`;
+    });
+    [...$("s5ladder").children].forEach((row, i) => {
+      const on = n >= LADDER[i] && t > 17.6;
+      row.style.opacity = on ? 1 : 0.35;
+      row.style.borderColor = on ? "rgba(243,213,143,.55)" : "rgba(255,255,255,.08)";
+      row.querySelector(".ck").style.opacity = on ? 1 : 0;
+    });
+  }
+  // 6 GOVERN 21-25
+  if (scene("s6", t, 21.0, 25.0)) {
+    reveal($("s6h"), t, 21.15);
+    document.querySelectorAll("#s6 .chip").forEach((c, i) => pop(c, t, 21.45 + i * 0.12, 0.5, 0.9, 30));
+    pop($("s6vote"), t, 22.4, 0.5, 0.95, 40);
+    const v = eOut(prog(t, 22.9, 1.0));
+    $("s6for").style.width = `${72 * v}%`; $("s6against").style.width = `${28 * v}%`;
+    $("s6forT").textContent = `For ${Math.round(72 * v)}%`; $("s6agT").textContent = `Against ${Math.round(28 * v)}%`;
+    const st = prog(t, 24.0, 0.35);
+    $("s6stamp").style.opacity = st; $("s6stamp").style.transform = `rotate(${lerp(-25, -8, eBack(st))}deg) scale(${lerp(2.2, 1, eOut(st))})`;
+  }
+  // 7 FLYWHEEL 25-31.5
+  if (scene("s7", t, 25.0, 31.5)) {
+    reveal($("s7h"), t, 25.15);
+    $("s7circle").setAttribute("stroke-dashoffset", 1791 * (1 - eInOut(prog(t, 25.6, 1.6))));
+    pop($("s7center"), t, 25.5, 0.7, 0.6, 0);
+    const pa = (-90 + Math.max(0, t - 27.2) * 125) * Math.PI / 180;
+    const on = t > 27.2;
+    $("s7pulse").setAttribute("cx", 960 + 285 * Math.cos(pa)); $("s7pulse").setAttribute("cy", 615 + 285 * Math.sin(pa));
+    $("s7pulse").style.opacity = on ? 1 : 0;
+    document.querySelectorAll("#s7 .node").forEach((nd, i) => {
+      pop(nd, t, 25.8 + i * 0.28, 0.55, 0.8, 0);
+      const na = NODE_ANGLES[i] * Math.PI / 180;
+      let diff = Math.abs(((pa - na) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI);
+      const glow = on ? clamp(1 - diff / 0.7) : 0;
+      nd.style.borderColor = `rgba(243,213,143,${0.12 + 0.75 * glow})`;
+      nd.style.boxShadow = `0 0 ${50 * glow}px rgba(243,213,143,${0.45 * glow}), 0 40px 120px -30px rgba(0,0,0,.8)`;
+    });
+  }
+  // 8 TRADE 31.5-36
+  if (scene("s8", t, 31.5, 36.0)) {
+    reveal($("s8h"), t, 31.65);
+    pop($("s8card"), t, 31.8, 0.6, 0.94, 50);
+    const b = prog(t, 32.6, 0.4);
+    $("s8burn").style.background = `rgba(255,140,60,${b * 0.12})`;
+    $("s8burn").style.boxShadow = `inset 3px 0 0 rgba(255,170,90,${b})`;
+    drawFlames(t);
+    const pressed = t >= 33.25 && t < 33.4, signed = t >= 33.4;
+    $("s8btn").style.transform = pressed ? "scale(.96)" : "scale(1)";
+    $("s8btn").textContent = signed ? "Signed" : "Confirm";
+    const st = prog(t, 33.75, 0.35);
+    $("s8stamp").style.opacity = st; $("s8stamp").style.transform = `rotate(${lerp(-30, -9, eBack(st))}deg) scale(${lerp(2.4, 1, eOut(st))})`;
+    const tx = "0x7f3c9a…e21b  ·  WifBurned(1.25 WIF) → 0x…dEaD";
+    $("s8tx").textContent = tx.slice(0, Math.round(prog(t, 34.0, 1.0) * tx.length));
+  }
+  // 9 WORLD 36-41
+  if (scene("s9", t, 36.0, 41.0)) {
+    reveal($("s9h"), t, 36.15);
+    const w = prog(t, 36.2, 4.6);
+    $("s9main").style.transform = `rotateX(${lerp(14, 3, eOut(w))}deg) scale(${lerp(0.9, 1.0, eOut(w))})`;
+    $("s9main").style.opacity = clamp(prog(t, 36.2, 0.5));
+    $("s9tag").style.opacity = prog(t, 37.2, 0.5);
+    pop($("s9found"), t, 37.8, 0.7, 0.85, 80); $("s9found").style.transform += " rotate(-4deg)";
+    pop($("s9globe"), t, 38.1, 0.7, 0.85, -80); $("s9globe").style.transform += " rotate(4deg)";
+  }
+  // 10 BUILT 41-45
+  if (scene("s10", t, 41.0, 45.0, 0.35, 0.3)) {
+    reveal($("s10h"), t, 41.15);
+    document.querySelectorAll("#s10 .feat").forEach((f, i) => pop(f, t, 41.6 + i * 0.2, 0.55, 0.92, 30));
+  }
+  // 11 FINALE 45-51
+  if (scene("s11", t, 45.0, 51.1, 0.05, 0.1)) {
+    const pl = eOut(prog(t, 45.0, 3.2));
+    $("s11planet").style.transform = `translateY(${lerp(380, 0, pl)}px) rotate(${(t - 45) * 1.5}deg)`;
+    $("s11planet").style.opacity = clamp(prog(t, 45.0, 1.2)) * 0.9;
+    const m = prog(t, 45.0, 1.3);
+    $("s11mark").style.transform = `scale(${lerp(0.3, 1, eBack(m))}) rotate(${lerp(-120, 0, eExpo(m))}deg)`;
+    $("s11mark").style.opacity = clamp(m * 3);
+    [...$("s11word").children].forEach((s, i) => {
+      const p = prog(t, 45.5 + i * 0.06, 0.7), e = eOut(p);
+      s.style.opacity = p; s.style.filter = `blur(${(1 - e) * 18}px)`; s.style.transform = `translateY(${(1 - e) * 30}px)`;
+    });
+    reveal($("s11t1"), t, 46.3); reveal($("s11t2"), t, 46.9, 0.1);
+    const pp = prog(t, 47.6, 0.6);
+    $("s11pill").style.opacity = clamp(pp * 2);
+    $("s11pill").style.transform = `translateX(-50%) scale(${lerp(0.6, 1, eBack(pp))})`;
+    $("s11foot").style.opacity = prog(t, 48.3, 0.8);
+  }
+  $("fade").style.opacity = prog(t, 50.2, 0.9);
+};
+window.render(0);
+</script>
+</body>
+</html>
