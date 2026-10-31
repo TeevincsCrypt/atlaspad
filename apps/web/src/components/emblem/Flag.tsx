@@ -1,6 +1,7 @@
 "use client";
 import { memo, useId } from "react";
 import { decodeEmblem, type Emblem, type Glyph } from "@atlaspad/shared";
+import { emblemImage } from "@/lib/emblem-image";
 
 /** 24×24 glyph artwork. Drawn with `currentColor` so the flag decides the color. */
 export const GLYPH_PATHS: Record<Glyph, React.ReactNode> = {
@@ -127,13 +128,16 @@ export interface FlagProps {
   rounded?: boolean;
   glow?: boolean;
   title?: string;
+  /** The nation's metadataURI. If it is an uploaded image from this deployment's storage, it replaces the drawn flag. */
+  image?: string | null;
 }
 
-/** A nation's flag, rendered entirely from its on-chain emblem value. */
-export const Flag = memo(function Flag({ emblem, size = 36, className = "", rounded = true, glow = false, title }: FlagProps) {
+/** A nation's flag: its uploaded image if it has one, otherwise drawn from its on-chain emblem value. */
+export const Flag = memo(function Flag({ emblem, size = 36, className = "", rounded = true, glow = false, title, image }: FlagProps) {
   const id = useId().replace(/:/g, "");
   const e = decodeEmblem(emblem);
   const g = glyphPlacement(e);
+  const img = emblemImage(image);
   return (
     <svg
       viewBox="0 0 60 40"
@@ -150,11 +154,25 @@ export const Flag = memo(function Flag({ emblem, size = 36, className = "", roun
           <stop offset="0.5" stopColor="#fff" stopOpacity="0" />
           <stop offset="1" stopColor="#000" stopOpacity="0.25" />
         </linearGradient>
+        {img && (
+          <clipPath id={`${id}-clip`}>
+            <rect width="60" height="40" rx={rounded ? 2.5 : 0} />
+          </clipPath>
+        )}
       </defs>
-      <Pattern e={e} id={id} />
-      <svg x={g.x} y={g.y} width={g.size} height={g.size} viewBox="0 0 24 24" fill={g.color} style={{ color: g.color }}>
-        {GLYPH_PATHS[e.glyph]}
-      </svg>
+      {img ? (
+        <>
+          <rect width="60" height="40" fill={e.primary} />
+          <image href={img} width="60" height="40" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${id}-clip)`} />
+        </>
+      ) : (
+        <>
+          <Pattern e={e} id={id} />
+          <svg x={g.x} y={g.y} width={g.size} height={g.size} viewBox="0 0 24 24" fill={g.color} style={{ color: g.color }}>
+            {GLYPH_PATHS[e.glyph]}
+          </svg>
+        </>
+      )}
       <rect width="60" height="40" fill={`url(#${id}-sheen)`} />
       <rect x=".5" y=".5" width="59" height="39" fill="none" stroke="#fff" strokeOpacity="0.12" rx={rounded ? 2.5 : 0} />
     </svg>

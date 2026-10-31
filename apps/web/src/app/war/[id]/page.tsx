@@ -26,7 +26,7 @@ function Side({ n, align, winner, start }: { n: NationSummary; align: "left" | "
   const momentum = start.marketCapWif > 0 && n.marketCapWif !== null ? n.marketCapWif / start.marketCapWif - 1 : null;
   return (
     <motion.div initial={{ opacity: 0, x: align === "left" ? -40 : 40 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }} className={`flex flex-col ${align === "left" ? "items-start text-left" : "items-end text-right"}`}>
-      <Flag emblem={n.emblem} size={110} glow />
+      <Flag emblem={n.emblem} image={n.metadataUri} size={110} glow />
       <Link href={`/nation/${n.id}`} className="mt-4 font-display text-2xl font-semibold uppercase tracking-wide text-fg hover:text-gold-bright sm:text-3xl">
         {n.name}
       </Link>

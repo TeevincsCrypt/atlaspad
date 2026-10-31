@@ -245,7 +245,7 @@ export function useStatus() {
 }
 
 export interface SearchIndex {
-  nations: { id: number; name: string; ticker: string; token: string; founder: string; emblem: string }[];
+  nations: { id: number; name: string; ticker: string; token: string; founder: string; emblem: string; metadataUri: string }[];
   alliances: { id: number; name: string }[];
 }
 

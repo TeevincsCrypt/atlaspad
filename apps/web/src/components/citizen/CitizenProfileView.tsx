@@ -120,7 +120,7 @@ export function CitizenProfileView({ address }: { address: string }) {
             <div className="space-y-2">
               {profile.citizenships.map((c) => (
                 <Link key={c.nationId} href={`/nation/${c.nationId}`} className="flex items-center gap-3 rounded-lg border border-line px-3 py-2.5 hover:border-line-strong">
-                  <Flag emblem={c.emblem} size={32} />
+                  <Flag emblem={c.emblem} image={c.metadataUri} size={32} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-fg">{c.name}</span>
                     <span className="font-mono text-[10px] text-faint">
@@ -169,7 +169,7 @@ export function CitizenProfileView({ address }: { address: string }) {
               const n = byId(id);
               return (
                 <Link key={id} href={`/nation/${id}`} className="flex items-center gap-2 rounded-lg border border-gold/30 px-3 py-2 hover:border-gold/60">
-                  {n && <Flag emblem={n.emblem} size={26} />}
+                  {n && <Flag emblem={n.emblem} image={n.metadataUri} size={26} />}
                   <span className="text-sm text-fg">{n?.name ?? `#${id}`}</span>
                 </Link>
               );

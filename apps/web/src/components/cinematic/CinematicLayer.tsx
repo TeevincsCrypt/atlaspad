@@ -62,7 +62,7 @@ function CinematicBanner({ c, compact }: { c: { type: string; nationId: number; 
         className="pointer-events-none fixed inset-x-0 top-16 z-[70] flex justify-center px-4"
       >
         <div className="panel flex max-w-xl items-center gap-3 px-4 py-2.5" style={{ boxShadow: `0 0 40px -10px ${theme.accent}` }}>
-          {a && <Flag emblem={a.emblem} size={30} />}
+          {a && <Flag emblem={a.emblem} image={a.metadataUri} size={30} />}
           <div className="min-w-0">
             <div className="font-mono text-[10px] uppercase tracking-[0.2em]" style={{ color: theme.accent }}>
               {theme.label}
@@ -94,14 +94,14 @@ function CinematicBanner({ c, compact }: { c: { type: string; nationId: number; 
         />
         {isWar && a && b ? (
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="mb-4 flex items-center gap-5">
-            <Flag emblem={a.emblem} size={64} glow />
+            <Flag emblem={a.emblem} image={a.metadataUri} size={64} glow />
             <span className="font-display text-2xl text-war">⚔</span>
-            <Flag emblem={b.emblem} size={64} glow />
+            <Flag emblem={b.emblem} image={b.metadataUri} size={64} glow />
           </motion.div>
         ) : (
           a && (
             <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.3 }} className="mb-4">
-              <Flag emblem={a.emblem} size={72} glow />
+              <Flag emblem={a.emblem} image={a.metadataUri} size={72} glow />
             </motion.div>
           )
         )}

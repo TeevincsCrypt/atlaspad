@@ -159,7 +159,7 @@ export default function LandingPage() {
                 <motion.div key={n.id} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.06 }}>
                   <Link href={`/nation/${n.id}`} className="panel flex items-center gap-4 p-4 transition hover:border-line-strong">
                     <span className="w-6 font-mono text-xs text-faint">#{n.rank ?? "—"}</span>
-                    <Flag emblem={n.emblem} size={44} />
+                    <Flag emblem={n.emblem} image={n.metadataUri} size={44} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-display text-sm uppercase tracking-wide text-fg">{n.name}</span>
                       <span className="block font-mono text-[11px] text-faint">

@@ -89,6 +89,8 @@ Every value below is visible to anyone. Never put a secret in a `NEXT_PUBLIC_*` 
 | `NEXT_PUBLIC_ATLAS_WETH` | Only for `local` | none | Ignored on `robinhood`. |
 | `NEXT_PUBLIC_ATLAS_WIF` | Only for `local` | none | The local $WIF stand-in (MockWIF). Ignored on `robinhood`, which uses `WIF_ADDRESS` from `packages/shared/src/chains.ts`. |
 | `NEXT_PUBLIC_GET_WIF_URL` | No | Uniswap app with $WIF as output | Where "Get $WIF" buttons link. |
+| `NEXT_PUBLIC_SUPABASE_URL` | No | none | Supabase project URL. Turns on nation image uploads, stored in the public Storage bucket `emblems`. Only images from that bucket are ever displayed. |
+| `SUPABASE_SERVICE_ROLE_KEY` | With the above | none | **Secret.** Server-only key used by `/api/emblem-image` to store uploads (PNG, JPEG, WebP or GIF, up to 1 MB, checked by content). |
 | `NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID` | No | `""` | WalletConnect Cloud project id. When empty, the WalletConnect connector is omitted. Injected (EIP-6963) wallets and Coinbase Wallet are always offered. |
 | `NEXT_PUBLIC_REALTIME_URL` | No | `""` | Public base URL of the indexer HTTP server. The browser opens `EventSource(<url>/stream)`, and a trailing `/` is stripped. When empty, realtime is "disabled" and React Query polls instead (the nav shows "Polling"). |
 | `NEXT_PUBLIC_SITE_URL` | No (set it in production) | `http://localhost:3000` (when unset or empty) | Used for `metadataBase` in `app/layout.tsx` and for the WalletConnect and Coinbase Wallet app metadata (`url`, `icons`). A trailing `/` is stripped. Must be an absolute URL. Set it to your public origin in production (for example `https://your-domain.example`); otherwise metadata points at localhost. |

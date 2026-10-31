@@ -54,7 +54,7 @@ function NationCard({ n, meta }: { n: NationSummary; meta?: React.ReactNode }) {
         <div className="relative border-b border-line" style={{ background: `radial-gradient(circle at 50% 60%, ${decodeEmblem(n.emblem).primary}22, transparent 70%)` }}>
           <TerritoryPreview n={n} />
           <div className="absolute left-3 top-3 transition group-hover:scale-110">
-            <Flag emblem={n.emblem} size={30} />
+            <Flag emblem={n.emblem} image={n.metadataUri} size={30} />
           </div>
           <span className="absolute right-3 top-3 font-mono text-[10px] text-faint">#{n.rank ?? "—"}</span>
         </div>
@@ -82,7 +82,7 @@ function WarCard({ w, byId }: { w: WarSummary; byId: (id: number) => NationSumma
   return (
     <Link href={`/war/${w.id}`} className="panel flex items-center justify-between gap-3 border-war/25 p-4 transition hover:border-war/50">
       <div className="flex items-center gap-2">
-        {a && <Flag emblem={a.emblem} size={36} />}
+        {a && <Flag emblem={a.emblem} image={a.metadataUri} size={36} />}
         <span className="truncate font-display text-xs uppercase text-fg">{a?.name}</span>
       </div>
       <div className="flex flex-col items-center">
@@ -91,7 +91,7 @@ function WarCard({ w, byId }: { w: WarSummary; byId: (id: number) => NationSumma
       </div>
       <div className="flex items-center gap-2">
         <span className="truncate font-display text-xs uppercase text-fg">{d?.name}</span>
-        {d && <Flag emblem={d.emblem} size={36} />}
+        {d && <Flag emblem={d.emblem} image={d.metadataUri} size={36} />}
       </div>
     </Link>
   );
