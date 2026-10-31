@@ -15,6 +15,7 @@ import {
   formatCompact,
   formatWif,
   initialCurve,
+  normalizeSocials,
   quoteBuy,
   type Emblem,
 } from "@atlaspad/shared";
@@ -27,6 +28,7 @@ import { Flag } from "@/components/emblem/Flag";
 import { EmblemEditor } from "@/components/emblem/EmblemEditor";
 import { EmblemUpload } from "@/components/emblem/EmblemUpload";
 import { FoundingSequence } from "@/components/found/FoundingSequence";
+import { pendingSocialsKey } from "@/components/nation/SocialLinks";
 
 const STEPS = ["Name", "Ticker", "Description", "Theme", "Symbol", "Token", "Review", "Launch"] as const;
 const NAME_RE = /^[A-Za-z0-9 .'-]+$/;
@@ -72,6 +74,8 @@ export default function FoundPage() {
   const [name, setName] = useState("");
   const [ticker, setTicker] = useState("");
   const [description, setDescription] = useState("");
+  const [socials, setSocials] = useState({ x: "", telegram: "", website: "" });
+  const socialsNorm = normalizeSocials(socials);
   const [theme, setTheme] = useState(5);
   // The theme presets the emblem until the founder customizes it.
   const [customEmblem, setCustomEmblem] = useState<bigint | null>(null);
@@ -158,7 +162,7 @@ export default function FoundPage() {
   const canNext = [
     !validateName(name.trim()) && nameAvail.data === true && dName === name.trim(),
     !validateTicker(ticker) && tickerAvail.data === true && dTicker === ticker,
-    description.length <= 280,
+    description.length <= 280 && socialsNorm.ok,
     true,
     true,
     initialBuyWei !== null && !buyPreview?.tooLarge,
@@ -181,6 +185,14 @@ export default function FoundPage() {
   const launch = async () => {
     if (!call) return;
     setSequence(true);
+    // Remember the links; the new nation's page asks the founder to sign once to save them.
+    try {
+      if (socialsNorm.ok && (socialsNorm.socials.x || socialsNorm.socials.telegram || socialsNorm.socials.website)) {
+        localStorage.setItem(pendingSocialsKey(ticker), JSON.stringify(socialsNorm.socials));
+      }
+    } catch {
+      /* storage unavailable */
+    }
     const receipt = await tx.send(call);
     if (!receipt) return;
     for (const log of receipt.logs) {
@@ -250,6 +262,27 @@ export default function FoundPage() {
                 <Step title="Describe your nation" sub="Stored on-chain in the founding event. Up to 280 characters.">
                   <textarea autoFocus value={description} onChange={(e) => setDescription(e.target.value.slice(0, 280))} rows={4} placeholder="A swamp republic of frogs and memes." className={`${input} text-base`} />
                   <div className="mt-2 text-right font-mono text-[11px] text-faint">{description.length}/280</div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                    {(
+                      [
+                        ["x", "X (optional)", "@yournation"],
+                        ["telegram", "Telegram (optional)", "t.me/yournation"],
+                        ["website", "Website (optional)", "yournation.xyz"],
+                      ] as const
+                    ).map(([k, label, ph]) => (
+                      <label key={k} className="block">
+                        <span className="label mb-1.5 block">{label}</span>
+                        <input
+                          value={socials[k]}
+                          onChange={(e) => setSocials({ ...socials, [k]: e.target.value })}
+                          placeholder={ph}
+                          className={`h-11 w-full rounded-lg border bg-black/30 px-3 font-mono text-sm text-fg outline-none placeholder:text-faint focus:border-gold/60 ${!socialsNorm.ok && socialsNorm.field === k ? "border-down/60" : "border-line-strong"}`}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  {!socialsNorm.ok && <div className="mt-2 text-xs text-down">Check the {socialsNorm.field === "x" ? "X" : socialsNorm.field} link.</div>}
+                  <p className="mt-2 text-[11px] text-faint">Links are saved after founding with one free signature from your wallet, and you can change them any time.</p>
                 </Step>
               )}
               {step === 3 && (

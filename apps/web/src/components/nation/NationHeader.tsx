@@ -11,6 +11,7 @@ import {
   formatInt,
   formatUsd,
   shortAddress,
+  type NationSocials,
   type NationSummary,
 } from "@atlaspad/shared";
 import { AnimatedNumber } from "../ui/AnimatedNumber";
@@ -18,6 +19,7 @@ import { Badge } from "../ui/Badge";
 import { ChangePill } from "../ui/ChangePill";
 import { CopyButton, ExplorerLink, Progress } from "../ui/misc";
 import { Flag } from "../emblem/Flag";
+import { SocialLinks } from "./SocialLinks";
 import { useNow } from "@/lib/hooks";
 
 const STATUS_BADGE: Record<string, { label: string; tone: "gold" | "down" | "up" | "warn"; icon: React.ReactNode }> = {
@@ -29,7 +31,17 @@ const STATUS_BADGE: Record<string, { label: string; tone: "gold" | "down" | "up"
   MARKET_CRASH: { label: "Market crash", tone: "down", icon: <TrendingDown className="size-3" /> },
 };
 
-export function NationHeader({ nation, wifUsd, territoryRank }: { nation: NationSummary; wifUsd: number | null; territoryRank: number | null }) {
+export function NationHeader({
+  nation,
+  wifUsd,
+  territoryRank,
+  socials,
+}: {
+  nation: NationSummary;
+  wifUsd: number | null;
+  territoryRank: number | null;
+  socials?: NationSocials | null;
+}) {
   const now = useNow();
   const statuses = nation.statuses.filter((s) => s.until > now);
   const usd = (eth: number | null) => (wifUsd !== null && eth !== null ? formatUsd(eth * wifUsd) : null);
@@ -68,6 +80,7 @@ export function NationHeader({ nation, wifUsd, territoryRank }: { nation: Nation
             >
               {nation.name}
             </motion.h1>
+
             <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-xs text-dim">
               <ExplorerLink kind="token" value={nation.token}>
                 ${nation.ticker}
@@ -85,6 +98,7 @@ export function NationHeader({ nation, wifUsd, territoryRank }: { nation: Nation
               <span>Founded {formatDate(nation.createdAt)}</span>
             </div>
             <StageLine nation={nation} />
+            <SocialLinks nation={nation} socials={socials} />
           </div>
         </div>
         <div className="flex items-end gap-6">
