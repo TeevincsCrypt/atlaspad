@@ -32,7 +32,31 @@ export function EmptyState({ icon, title, body, action }: { icon?: React.ReactNo
   );
 }
 
-export function CopyButton({ value, className = "" }: { value: string; className?: string }) {
+/** Copies text. Falls back to a hidden text field where the Clipboard API is blocked (common in wallet browsers). */
+async function copyText(value: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(value);
+    return true;
+  } catch {
+    try {
+      const el = document.createElement("textarea");
+      el.value = value;
+      el.setAttribute("readonly", "");
+      el.style.position = "fixed";
+      el.style.opacity = "0";
+      document.body.appendChild(el);
+      el.select();
+      el.setSelectionRange(0, value.length);
+      const ok = document.execCommand("copy");
+      el.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+export function CopyButton({ value, className = "", label = "Copy" }: { value: string; className?: string; label?: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
@@ -40,12 +64,14 @@ export function CopyButton({ value, className = "" }: { value: string; className
       onClick={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        void navigator.clipboard.writeText(value).then(() => {
+        void copyText(value).then((ok) => {
+          if (!ok) return;
           setDone(true);
           setTimeout(() => setDone(false), 1200);
         });
       }}
-      aria-label="Copy"
+      aria-label={label}
+      title={label}
     >
       {done ? <Check className="size-3.5 text-up" /> : <Copy className="size-3.5" />}
     </button>

@@ -35,6 +35,9 @@ interface UiState {
   setActiveCinematic: (c: UiState["activeCinematic"]) => void;
   introPlaying: boolean;
   setIntroPlaying: (p: boolean) => void;
+  /** Show the clearly-labelled demo nations on the world map and list. */
+  showDemo: boolean;
+  setShowDemo: (on: boolean) => void;
 }
 
 export const useUi = create<UiState>()(
@@ -70,6 +73,8 @@ export const useUi = create<UiState>()(
       setActiveCinematic: (activeCinematic) => set({ activeCinematic }),
       introPlaying: false,
       setIntroPlaying: (introPlaying) => set({ introPlaying }),
+      showDemo: true,
+      setShowDemo: (showDemo) => set({ showDemo }),
     }),
     {
       name: "atlaspad-ui",
@@ -79,6 +84,7 @@ export const useUi = create<UiState>()(
         seenAchievements: s.seenAchievements,
         cinematicsOn: s.cinematicsOn,
         mapFilter: s.mapFilter,
+        showDemo: s.showDemo,
       }),
     },
   ),

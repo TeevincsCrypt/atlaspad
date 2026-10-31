@@ -182,12 +182,16 @@ export const BUILDINGS: readonly BuildingDef[] = [
   },
 ] as const;
 
+/**
+ * Stages of a nation. A nation reaches a stage when BOTH its civilization score and its citizen count meet the
+ * stage's minimums; its stage is the highest one it qualifies for.
+ */
 export const TIERS = [
-  { tier: 0, key: "settlement", name: "Settlement", minScore: 0 },
-  { tier: 1, key: "town", name: "Town", minScore: 15 },
-  { tier: 2, key: "city", name: "City", minScore: 35 },
-  { tier: 3, key: "metropolis", name: "Metropolis", minScore: 55 },
-  { tier: 4, key: "empire", name: "Empire", minScore: 75 },
+  { tier: 0, key: "settlement", name: "Settlement", minScore: 0, minCitizens: 0 },
+  { tier: 1, key: "town", name: "Town", minScore: 15, minCitizens: 10 },
+  { tier: 2, key: "city", name: "City", minScore: 35, minCitizens: 50 },
+  { tier: 3, key: "metropolis", name: "Metropolis", minScore: 55, minCitizens: 250 },
+  { tier: 4, key: "empire", name: "Empire", minScore: 75, minCitizens: 1000 },
 ] as const;
 
 /** One game epoch: resources accrue and market events are evaluated once per hour. */

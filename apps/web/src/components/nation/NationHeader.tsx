@@ -16,7 +16,7 @@ import {
 import { AnimatedNumber } from "../ui/AnimatedNumber";
 import { Badge } from "../ui/Badge";
 import { ChangePill } from "../ui/ChangePill";
-import { ExplorerLink, Progress } from "../ui/misc";
+import { CopyButton, ExplorerLink, Progress } from "../ui/misc";
 import { Flag } from "../emblem/Flag";
 import { useNow } from "@/lib/hooks";
 
@@ -72,6 +72,10 @@ export function NationHeader({ nation, wifUsd, territoryRank }: { nation: Nation
               <ExplorerLink kind="token" value={nation.token}>
                 ${nation.ticker}
               </ExplorerLink>
+              <span className="flex items-center gap-1">
+                CA {shortAddress(nation.token, 5)}
+                <CopyButton value={nation.token} label="Copy contract address" />
+              </span>
               <span>
                 Founder{" "}
                 <Link href={`/citizen/${nation.founder}`} className="text-dim hover:text-gold-bright">
@@ -80,6 +84,7 @@ export function NationHeader({ nation, wifUsd, territoryRank }: { nation: Nation
               </span>
               <span>Founded {formatDate(nation.createdAt)}</span>
             </div>
+            <StageLine nation={nation} />
           </div>
         </div>
         <div className="flex items-end gap-6">
@@ -137,5 +142,27 @@ export function NationHeader({ nation, wifUsd, territoryRank }: { nation: Nation
         <span>Price {nation.priceWif ? `${formatSmall(nation.priceWif)} WIF` : "—"}</span>
       </div>
     </header>
+  );
+}
+
+/** Current stage and exactly what the next one needs: both a citizen count and a civilization score. */
+function StageLine({ nation }: { nation: NationSummary }) {
+  const current = TIERS[nation.tier];
+  const next = TIERS[nation.tier + 1];
+  if (!current) return null;
+  if (!next) return <div className="mt-1.5 font-mono text-[11px] text-gold-bright">Stage: {current.name} · the highest stage</div>;
+  const needCitizens = Math.max(0, next.minCitizens - nation.citizens);
+  const needScore = Math.max(0, next.minScore - nation.civilizationScore);
+  return (
+    <div className="mt-1.5 font-mono text-[11px] text-dim">
+      Stage: <span className="text-fg">{current.name}</span> · next <span className="text-gold-bright">{next.name}</span> needs{" "}
+      <span className={needCitizens ? "text-fg" : "text-up"}>
+        {formatInt(next.minCitizens)} citizens ({formatInt(nation.citizens)} now)
+      </span>{" "}
+      and{" "}
+      <span className={needScore ? "text-fg" : "text-up"}>
+        civilization score {next.minScore} ({nation.civilizationScore.toFixed(0)} now)
+      </span>
+    </div>
   );
 }

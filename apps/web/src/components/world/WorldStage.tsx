@@ -5,7 +5,8 @@ import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { AnimatePresence, motion } from "motion/react";
 import { FastForward } from "lucide-react";
-import { useWorld } from "@/lib/api";
+import { isDemo } from "@/lib/demo-nations";
+import { useWorldNations } from "@/lib/world-nations";
 import { useUi } from "@/lib/store";
 import { useMediaQuery } from "@/lib/hooks";
 import { buildWorldModel, createUniforms } from "./model";
@@ -55,7 +56,7 @@ export function WorldStage() {
 }
 
 function Stage({ mode }: { mode: WorldMode }) {
-  const world = useWorld();
+  const { world, real, all } = useWorldNations();
   const router = useRouter();
   const isMobile = useIsMobile();
   const introSeen = useUi((s) => s.introSeen);
@@ -84,7 +85,8 @@ function Stage({ mode }: { mode: WorldMode }) {
     setIntroPlaying(intro !== "none");
   }, [intro, mode, setIntroPlaying]);
 
-  const nations = useMemo(() => world.data?.nations ?? [], [world.data]);
+  // On-chain nations plus the labelled demo nations (when shown); demo nations never navigate to a nation page.
+  const nations = all;
   const wars = useMemo(() => world.data?.wars ?? [], [world.data]);
   const alliances = useMemo(() => world.data?.alliances ?? [], [world.data]);
 
@@ -125,7 +127,7 @@ function Stage({ mode }: { mode: WorldMode }) {
 
   const onOpen = useCallback(
     (id: number) => {
-      if (coarse.current) setSelected(id);
+      if (coarse.current || isDemo({ id })) setSelected(id);
       else router.push(`/nation/${id}`);
     },
     [router, setSelected],
@@ -183,7 +185,7 @@ function Stage({ mode }: { mode: WorldMode }) {
       <AnimatePresence>
         {introPlaying && mode === "map" && (
           <motion.div className="pointer-events-none absolute inset-0 z-10" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <IntroTitles nations={nations.length} citizens={nations.reduce((s, n) => s + n.citizens, 0)} kind={intro} />
+            <IntroTitles nations={real.length} citizens={real.reduce((s, n) => s + n.citizens, 0)} kind={intro} />
             <button
               onClick={() => window.dispatchEvent(new Event("atlas:skip-intro"))}
               className="pointer-events-auto absolute bottom-24 right-6 flex items-center gap-2 rounded-lg border border-line-strong bg-black/50 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-dim backdrop-blur hover:text-fg sm:bottom-8"
