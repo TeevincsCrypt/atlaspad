@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
+import { PnlCardDialog } from "../pnl/PnlCard";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatUnits, parseSignature, parseUnits, type Address } from "viem";
 import { ArrowDownUp, ExternalLink, Info, Settings2 } from "lucide-react";
@@ -44,6 +45,7 @@ export function TradePanel({ nation }: { nation: NationSummary }) {
   const [slippageBps, setSlippageBps] = useState(nation.graduated ? 200 : 100);
   const [showSettings, setShowSettings] = useState(false);
   const [review, setReview] = useState(false);
+  const [pnlTx, setPnlTx] = useState<string | null>(null);
   const token = nation.token as Address;
   const id = BigInt(nation.id);
   const venue = nation.graduated ? "uniswap" : "curve";
@@ -398,7 +400,12 @@ export function TradePanel({ nation }: { nation: NationSummary }) {
               ? "After approval, review and confirm the trade."
               : undefined
         }
-        onConfirmed={() => {
+        onConfirmed={(receipt) => {
+          if (!approveCall && side === "sell") {
+            // Show the sale's PnL card once the review dialog closes.
+            setReview(false);
+            setPnlTx(receipt.transactionHash);
+          }
           void qc.invalidateQueries({ queryKey: queryKeys.nation(nation.id) });
           void qc.invalidateQueries({ queryKey: queryKeys.world });
           void tokenBal.refetch();
@@ -409,6 +416,7 @@ export function TradePanel({ nation }: { nation: NationSummary }) {
         }}
         successTitle={approveCall ? "Approval confirmed" : `${side === "buy" ? "Bought" : "Sold"} $${nation.ticker}`}
       />
+      <PnlCardDialog tx={pnlTx} onClose={() => setPnlTx(null)} />
     </div>
   );
 }

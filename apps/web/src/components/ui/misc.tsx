@@ -33,7 +33,7 @@ export function EmptyState({ icon, title, body, action }: { icon?: React.ReactNo
 }
 
 /** Copies text. Falls back to a hidden text field where the Clipboard API is blocked (common in wallet browsers). */
-async function copyText(value: string): Promise<boolean> {
+export async function copyText(value: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(value);
     return true;

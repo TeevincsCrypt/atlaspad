@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   transpilePackages: ["@atlaspad/shared", "@atlaspad/db"],
   serverExternalPackages: ["postgres"],
+  // Fonts read from disk by the generated PnL card images.
+  outputFileTracingIncludes: { "/api/pnl/[tx]/image": ["./assets/fonts/**"] },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
