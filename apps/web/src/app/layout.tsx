@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { TopNav } from "@/components/nav/TopNav";
+import { Footer } from "@/components/nav/Footer";
 import { StatusBanner } from "@/components/nav/StatusBanner";
 import { SearchPalette } from "@/components/nav/SearchPalette";
 import { WalletModal } from "@/components/wallet/WalletModal";
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <TopNav />
           <StatusBanner />
           <main className="relative z-10 min-h-[100dvh] pb-20 sm:pb-0">{children}</main>
+          <Footer />
           <IntroCinematic />
           <CinematicLayer />
           <WalletModal />
