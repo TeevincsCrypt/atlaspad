@@ -1,0 +1,511 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>AtlasPad: The Rise</title>
+<style>
+  @font-face { font-family: Unbounded; font-weight: 500; src: url(unbounded-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 600; src: url(unbounded-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 700; src: url(unbounded-latin-700-normal.woff2) format("woff2"); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #04050a; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; color: #eef0f6; font-family: Inter, sans-serif;
+    background: radial-gradient(ellipse at 62% 48%, #121522 0%, #07080f 55%, #030409 100%); }
+  #bgtint { position: absolute; inset: 0; opacity: 0; background: radial-gradient(ellipse at 62% 50%, rgba(214,178,110,.22), transparent 60%); }
+  #grid { position: absolute; inset: -60px; background-image:
+      linear-gradient(rgba(214,178,110,.04) 1px, transparent 1px), linear-gradient(90deg, rgba(214,178,110,.04) 1px, transparent 1px);
+    background-size: 60px 60px; mask-image: radial-gradient(ellipse at 60% 50%, black 15%, transparent 72%); -webkit-mask-image: radial-gradient(ellipse at 60% 50%, black 15%, transparent 72%); }
+  #grain { position: absolute; inset: 0; opacity: .07; mix-blend-mode: overlay; pointer-events: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  #vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.7) 100%); }
+  canvas { position: absolute; inset: 0; }
+  .abs { position: absolute; }
+  .hl { position: absolute; left: 0; right: 0; margin: 0; text-align: center; font-family: Unbounded; font-weight: 700; font-size: 96px; letter-spacing: -.01em; line-height: 1.1; }
+  .hl span { display: inline-block; white-space: pre; }
+  .gold { background: linear-gradient(100deg, #fbe6ad 0%, #e2bd72 45%, #b48a43 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .mono { font-family: "JetBrains Mono", monospace; letter-spacing: .2em; text-transform: uppercase; }
+  .label { font-family: "JetBrains Mono", monospace; font-size: 16px; letter-spacing: .22em; text-transform: uppercase; color: #6f7891; }
+  .panel { background: linear-gradient(180deg, rgba(22,26,40,.88), rgba(13,16,26,.88)); border: 1px solid rgba(255,255,255,.09); border-radius: 20px;
+    box-shadow: 0 40px 120px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.05); }
+  .num { font-family: Unbounded; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .req { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,.08); font-family: "JetBrains Mono", monospace; font-size: 19px; color: #9aa2b5; background: rgba(255,255,255,.02); }
+  .req b { color: #eef0f6; font-weight: 600; }
+  .req .ck { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; border: 2px solid rgba(255,255,255,.15); color: transparent; }
+  .req.ok { border-color: rgba(62,224,143,.5); background: rgba(62,224,143,.07); }
+  .req.ok .ck { border-color: #3ee08f; background: #3ee08f; color: #04140d; }
+  .ev { position: absolute; right: 70px; width: 470px; height: 84px; display: flex; align-items: center; gap: 16px; padding: 0 20px; }
+  .ev .ic { font-size: 34px; width: 46px; text-align: center; }
+  .ev .t { font-family: Unbounded; font-weight: 600; font-size: 21px; }
+  .ev .s { font-family: "JetBrains Mono", monospace; font-size: 14px; color: #8c95aa; margin-top: 5px; }
+  .ladder { display: flex; gap: 10px; }
+  .ladder div { flex: 1; height: 8px; border-radius: 4px; background: rgba(255,255,255,.08); }
+  .stamp { position: absolute; left: 50%; top: 50%; padding: 18px 40px; border: 5px solid #f3d58f; color: #f3d58f; border-radius: 18px; font-family: Unbounded; font-weight: 700; font-size: 62px; letter-spacing: .08em;
+    background: rgba(20,15,5,.85); box-shadow: 0 0 80px rgba(243,213,143,.45); white-space: nowrap; }
+  .pill { position: absolute; left: 50%; padding: 18px 46px; border-radius: 999px; font-family: Unbounded; font-weight: 700; font-size: 40px; color: #1a1306;
+    background: linear-gradient(180deg, #f8dea0, #c79e52); box-shadow: 0 0 0 1px rgba(255,235,180,.6), 0 30px 80px -20px rgba(214,178,110,.9), 0 0 60px rgba(243,213,143,.35); }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bgtint"></div>
+  <div id="grid"></div>
+  <div id="rays" style="position:absolute;left:1210px;top:540px;width:3000px;height:3000px;margin:-1500px 0 0 -1500px;opacity:0;
+    background:repeating-conic-gradient(from 0deg, rgba(243,213,143,.12) 0deg 3.4deg, transparent 3.4deg 15deg);
+    mask-image:radial-gradient(circle, black 3%, transparent 40%);-webkit-mask-image:radial-gradient(circle, black 3%, transparent 40%);"></div>
+  <canvas id="world" width="1920" height="1080"></canvas>
+  <canvas id="fx" width="1920" height="1080"></canvas>
+
+  <!-- HOOK -->
+  <div id="hook" class="abs" style="inset:0">
+    <h1 class="hl" id="h1" style="top:330px" data-text="Every empire"></h1>
+    <h1 class="hl" id="h2" style="top:450px" data-text="starts as a *settlement.*"></h1>
+  </div>
+
+  <!-- HUD -->
+  <div id="hud" class="abs" style="left:80px;top:80px;width:600px">
+    <div style="display:flex;align-items:center;gap:16px">
+      <svg id="flag" width="84" height="56" viewBox="0 0 60 40" style="border-radius:7px;flex:none;filter:drop-shadow(0 0 18px rgba(76,175,80,.5))">
+        <rect width="60" height="20" fill="#3fa34d"/><rect y="20" width="60" height="20" fill="#ffd23f"/><polygon points="0,0 30,20 0,40" fill="#0d1f0f"/>
+        <svg x="2" y="12" width="17" height="17" viewBox="0 0 24 24" fill="#7CD957"><path d="%%FROG%%"/></svg>
+      </svg>
+      <div>
+        <div style="font-family:Unbounded;font-weight:700;font-size:38px;letter-spacing:.04em">PEPELAND</div>
+        <div class="mono" style="font-size:16px;color:#e2bd72;margin-top:4px">$PEPE · on $WIF</div>
+      </div>
+    </div>
+    <div class="label" style="margin-top:46px" id="stageNo">Stage 1 / 5</div>
+    <div id="stageName" style="font-family:Unbounded;font-weight:700;font-size:104px;line-height:1.05;margin-top:6px;height:120px;white-space:nowrap"></div>
+    <div class="ladder" id="ladder" style="margin-top:20px"><div></div><div></div><div></div><div></div><div></div></div>
+
+    <div style="display:flex;gap:46px;margin-top:44px">
+      <div><div class="label">Citizens</div><div class="num" id="cit" style="font-size:66px;margin-top:6px">1</div></div>
+      <div><div class="label">Market cap</div><div class="num" id="mcap" style="font-size:66px;margin-top:6px">4.2K</div></div>
+    </div>
+    <div id="reqBox" style="margin-top:34px">
+      <div class="label" id="reqTitle" style="margin-bottom:12px">Next stage · Town</div>
+      <div style="display:grid;gap:10px">
+        <div class="req" id="reqC"><span>Citizens <b id="reqCv">1 / 10</b></span><span class="ck">✓</span></div>
+        <div class="req" id="reqS"><span>Civilization score <b id="reqSv">4 / 15</b></span><span class="ck">✓</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- event feed -->
+  <div id="events"></div>
+
+  <!-- price ribbon -->
+  <svg id="chart" width="1920" height="180" viewBox="0 0 1920 180" style="position:absolute;left:0;top:900px;overflow:visible">
+    <defs>
+      <linearGradient id="cf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3ee08f" stop-opacity=".35"/><stop offset="1" stop-color="#3ee08f" stop-opacity="0"/></linearGradient>
+    </defs>
+    <path id="chartFill" fill="url(#cf)"/>
+    <path id="chartLine" fill="none" stroke="#3ee08f" stroke-width="3.5" stroke-linejoin="round"/>
+    <g id="chartMarks"></g>
+    <circle id="chartDot" r="8" fill="#3ee08f"/>
+  </svg>
+
+  <div class="stamp" id="stamp">STAGE UP</div>
+  <div id="crownWrap" class="abs" style="left:1110px;top:150px;width:200px;height:160px">
+    <svg width="200" height="160" viewBox="0 0 24 19"><defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff2c8"/><stop offset=".5" stop-color="#e2bd72"/><stop offset="1" stop-color="#9c7633"/></linearGradient></defs>
+      <path d="M1 15.5 3 4.5l5 5L12 1l4 8.5 5-5 2 11Zm0 1.5h22v2H1z" fill="url(#cg)" stroke="#5a4119" stroke-width=".4"/></svg>
+  </div>
+
+  <!-- END -->
+  <div id="end" class="abs" style="inset:0">
+    <div id="endMark" style="position:absolute;left:840px;top:110px;width:240px;height:240px;filter:drop-shadow(0 0 40px rgba(243,213,143,.6))">
+      <svg width="240" height="240" viewBox="0 0 200 200">%%COMPASS%%</svg>
+    </div>
+    <h1 class="hl" id="e1" style="top:390px;font-size:76px" data-text="From one holder"></h1>
+    <h1 class="hl" id="e2" style="top:486px;font-size:76px" data-text="to an *empire.*"></h1>
+    <h1 class="hl" id="e3" style="top:620px;font-size:34px;font-weight:500;color:#cfd5e2" data-text="Found your nation. Grow it with $WIF."></h1>
+    <div class="pill" id="pill" style="top:712px">atlaswif.xyz</div>
+    <div class="mono" id="foot" style="position:absolute;left:0;right:0;top:860px;text-align:center;font-size:18px;color:#9aa2b5">@atlasonwif · Live on Robinhood Chain</div>
+  </div>
+
+  <div id="flash" style="position:absolute;inset:0;pointer-events:none;opacity:0;background:radial-gradient(circle at 63% 50%, #fff8e1 0%, rgba(243,213,143,.55) 28%, transparent 70%)"></div>
+  <div id="grain"></div>
+  <div id="vignette"></div>
+  <div id="fade" style="position:absolute;inset:0;background:#000;opacity:0;pointer-events:none"></div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const prog = (t, a, d) => clamp((t - a) / d);
+const eOut = (x) => 1 - Math.pow(1 - x, 3);
+const eInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eBack = (x) => { const c = 1.9, c3 = c + 1; return 1 + c3 * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
+
+// ---------------- story data ----------------
+const STAGES = [
+  { name: "Settlement", start: 3.5, cit: 0, score: 0 },
+  { name: "Town", start: 9.0, cit: 10, score: 15 },
+  { name: "City", start: 15.0, cit: 50, score: 35 },
+  { name: "Metropolis", start: 21.0, cit: 250, score: 55 },
+  { name: "Empire", start: 27.5, cit: 1000, score: 75 },
+];
+const UPS = [9.0, 15.0, 21.0, 27.5];
+// piecewise keyframes [t, value]
+const KF = {
+  cit: [[3.5, 1], [8.0, 10], [9, 12], [14.0, 50], [15, 58], [20.0, 250], [21, 268], [26.5, 1000], [27.5, 1040], [34, 1284]],
+  score: [[3.5, 4], [8.4, 15], [9, 17], [14.4, 35], [15, 37], [20.4, 55], [21, 57], [26.9, 75], [27.5, 78], [34, 91]],
+  mcap: [[3.5, 4200], [9, 26000], [15, 112000], [21, 418000], [27.5, 1620000], [34, 4250000]],
+};
+function kf(list, t) {
+  if (t <= list[0][0]) return list[0][1];
+  for (let i = 1; i < list.length; i++) {
+    const [t1, v1] = list[i];
+    if (t <= t1) { const [t0, v0] = list[i - 1]; const x = eInOut((t - t0) / (t1 - t0)); return v0 + (v1 - v0) * x; }
+  }
+  return list[list.length - 1][1];
+}
+const stageAt = (t) => { let s = 0; for (let i = 0; i < STAGES.length; i++) if (t >= STAGES[i].start) s = i; return s; };
+const fmtK = (v) => v >= 1e6 ? (v / 1e6).toFixed(2) + "M" : v >= 1e3 ? (v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + "K" : Math.round(v).toString();
+
+const EVENTS = [
+  { t: 5.2, ic: "🚩", title: "Pepeland founded", sub: "100 WIF fee · burned" },
+  { t: 7.0, ic: "👥", title: "First citizens arrive", sub: "every holder is a citizen" },
+  { t: 11.0, ic: "🏛️", title: "Town hall built", sub: "proposal #3 passed · 81% for" },
+  { t: 12.8, ic: "💰", title: "Treasury: 2,400 WIF", sub: "0.5% of every trade" },
+  { t: 16.8, ic: "⚔️", title: "War won vs Dogeland", sub: "+14 territory hexes" },
+  { t: 18.6, ic: "🤝", title: "Joined Meme Alliance", sub: "3 nations · shared borders" },
+  { t: 22.8, ic: "🌟", title: "Golden Age", sub: "+38% in 24h" },
+  { t: 24.6, ic: "🔥", title: "1,900 WIF burned", sub: "0.25% of every trade" },
+  { t: 29.6, ic: "👑", title: "Empire proclaimed", sub: "1,000+ citizens · score 75+" },
+  { t: 31.4, ic: "🦄", title: "Graduated to Uniswap", sub: "WIF/PEPE pool · LP burned" },
+];
+
+// ---------------- headline reveal ----------------
+document.querySelectorAll("[data-text]").forEach((h) => {
+  const parts = h.dataset.text.match(/\*[^*]+\*|[^\s*]+/g);
+  h.innerHTML = "";
+  parts.forEach((p) => {
+    const gold = p.startsWith("*");
+    (gold ? p.slice(1, -1) : p).split(" ").forEach((w) => {
+      const s = document.createElement("span"); s.textContent = w + " "; if (gold) s.className = "gold"; h.appendChild(s);
+    });
+  });
+});
+function reveal(h, t, start, step = 0.09, dur = 0.6) {
+  [...h.children].forEach((s, i) => {
+    const p = prog(t, start + i * step, dur), e = eOut(p);
+    s.style.opacity = p; s.style.filter = `blur(${(1 - e) * 16}px)`; s.style.transform = `translateY(${(1 - e) * 26}px)`;
+  });
+}
+// event cards DOM
+const evRoot = $("events");
+EVENTS.forEach((e, i) => {
+  const d = document.createElement("div");
+  d.className = "panel ev"; d.id = "ev" + i;
+  d.innerHTML = `<div class="ic">${e.ic}</div><div><div class="t">${e.title}</div><div class="s">${e.sub}</div></div>`;
+  evRoot.appendChild(d);
+});
+
+// ---------------- the territory ----------------
+const R = 34; // hex radius (world units)
+const NATION = { top: "#46b257", side: "#2a6e35", edge: "#9be7a6" };
+const HEXES = [];
+(() => {
+  const r = rng(11);
+  for (let q = -6; q <= 6; q++) for (let s = -6; s <= 6; s++) {
+    const d = Math.max(Math.abs(q), Math.abs(s), Math.abs(q + s));
+    if (d > 5) continue;
+    // irregular coastline at the outer ring
+    if (d === 5 && r() < 0.35) continue;
+    const x = R * Math.sqrt(3) * (q + s / 2), y = R * 1.5 * s;
+    const stage = d <= 1 ? 0 : d - 1; // ring 0-1 settlement, ring 2 town, 3 city, 4 metropolis, 5 empire
+    const st = d === 0 ? 3.25 : d === 1 ? 4.2 + r() * 3.2 : STAGES[Math.min(4, stage)].start + 0.15 + r() * 1.6;
+    const angle = Math.atan2(y, x);
+    HEXES.push({ x, y, d, appear: st + (d > 1 ? (angle + Math.PI) / (2 * Math.PI) * 0.6 : 0), bld: r(), lit: r(), h: r() });
+  }
+  HEXES.sort((a, b) => a.y - b.y);
+})();
+const NEIGHBORS = [
+  { cx: -470, cy: -290, n: 9, col: ["#5aa0ff", "#2a4f8a"], name: "Dogeland" },
+  { cx: 600, cy: -230, n: 10, col: ["#b07cff", "#56348c"], name: "Catopia" },
+  { cx: -500, cy: 320, n: 8, col: ["#ff8a4c", "#8a3f1a"], name: "Bonkistan" },
+  { cx: 560, cy: 320, n: 9, col: ["#3fd0d0", "#1d6d6d"], name: "Coralis" },
+];
+const NB_HEX = NEIGHBORS.map((nb, k) => {
+  const r = rng(40 + k), out = [{ q: 0, s: 0 }];
+  const seen = new Set(["0,0"]);
+  while (out.length < nb.n) {
+    const b = out[Math.floor(r() * out.length)], dir = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]][Math.floor(r() * 6)];
+    const key = `${b.q + dir[0]},${b.s + dir[1]}`; if (seen.has(key)) continue; seen.add(key); out.push({ q: b.q + dir[0], s: b.s + dir[1] });
+  }
+  return out.map((h) => ({ x: nb.cx + R * Math.sqrt(3) * (h.q + h.s / 2), y: nb.cy + R * 1.5 * h.s }));
+});
+
+const TILT = 0.58, DEPTH = 15;
+function hexPath(ctx, cx, cy, rr, tilt) {
+  ctx.beginPath();
+  for (let k = 0; k < 6; k++) { const a = Math.PI / 3 * k + Math.PI / 6; const px = cx + rr * Math.cos(a), py = cy + rr * Math.sin(a) * tilt; k ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+  ctx.closePath();
+}
+function drawHex(ctx, sx, sy, scale, rise, colTop, colSide, edge, edgeA, alpha) {
+  const rr = (R - 2.2) * scale, dep = DEPTH * scale;
+  ctx.globalAlpha = alpha;
+  // side (extrusion)
+  hexPath(ctx, sx, sy + dep - rise, rr, TILT); ctx.fillStyle = colSide; ctx.fill();
+  // top
+  hexPath(ctx, sx, sy - rise, rr, TILT); ctx.fillStyle = colTop; ctx.fill();
+  ctx.lineWidth = 1.6 * scale; ctx.strokeStyle = edge; ctx.globalAlpha = alpha * edgeA; ctx.stroke();
+  ctx.globalAlpha = 1;
+}
+function prism(ctx, x, y, w, h, scale, colA, colB, colTop) {
+  const ww = w * scale, hh = h * scale, d = ww * 0.5 * TILT;
+  ctx.fillStyle = colA; ctx.beginPath(); ctx.moveTo(x - ww, y); ctx.lineTo(x, y + d); ctx.lineTo(x, y + d - hh); ctx.lineTo(x - ww, y - hh); ctx.fill();
+  ctx.fillStyle = colB; ctx.beginPath(); ctx.moveTo(x + ww, y); ctx.lineTo(x, y + d); ctx.lineTo(x, y + d - hh); ctx.lineTo(x + ww, y - hh); ctx.fill();
+  ctx.fillStyle = colTop; ctx.beginPath(); ctx.moveTo(x - ww, y - hh); ctx.lineTo(x, y - hh - d); ctx.lineTo(x + ww, y - hh); ctx.lineTo(x, y + d - hh); ctx.fill();
+}
+
+function camera(t) {
+  // zoom out as the territory grows; ease between stage targets
+  const z = [[2.4, 4.4], [3.5, 3.9], [9, 3.2], [15, 2.5], [21, 1.95], [27.5, 1.62], [29, 1.5], [31.2, 1.1], [34.5, 0.98]];
+  const sc = kf(z, t);
+  const wob = Math.sin(t * 0.35) * 0.012;
+  return { cx: 1215, cy: 560, scale: sc * (1 + wob), rot: Math.sin(t * 0.2) * 0.04 };
+}
+
+function drawWorld(t) {
+  const c = $("world"), ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, 1920, 1080);
+  if (t < 2.4 || t > 36.2) return;
+  const cam = camera(t);
+  const st = stageAt(t);
+  const empire = prog(t, 27.5, 1.2);
+  const P = (x, y) => {
+    const cr = Math.cos(cam.rot), sr = Math.sin(cam.rot);
+    const rx = x * cr - y * sr, ry = x * sr + y * cr;
+    return [cam.cx + rx * cam.scale, cam.cy + ry * cam.scale * TILT];
+  };
+  // neighbours appear in the empire zoom-out
+  const nbA = prog(t, 29.0, 1.4);
+  if (nbA > 0) {
+    // alliance lines
+    ctx.setLineDash([10, 10]); ctx.lineWidth = 2.5;
+    [[0, 1], [1, 3]].forEach(([a, b], i) => {
+      const A = P(NEIGHBORS[a].cx, NEIGHBORS[a].cy), B = P(0, 0);
+      ctx.strokeStyle = `rgba(232,196,122,${0.6 * nbA})`; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+      const C = P(NEIGHBORS[b].cx, NEIGHBORS[b].cy); ctx.beginPath(); ctx.moveTo(C[0], C[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+    NEIGHBORS.forEach((nb, k) => NB_HEX[k].forEach((h) => {
+      const [sx, sy] = P(h.x, h.y);
+      drawHex(ctx, sx, sy, cam.scale, 0, nb.col[0], nb.col[1], "#ffffff", 0.25, nbA * 0.75);
+    }));
+    ctx.font = `600 ${Math.round(15 * Math.max(1, cam.scale))}px Unbounded`; ctx.textAlign = "center";
+    NEIGHBORS.forEach((nb) => { const [sx, sy] = P(nb.cx, nb.cy - 90); ctx.fillStyle = `rgba(207,214,234,${nbA * 0.8})`; ctx.fillText(nb.name.toUpperCase(), sx, sy); });
+  }
+  // territory
+  const gold = empire;
+  for (const h of HEXES) {
+    const a = prog(t, h.appear, 0.5);
+    if (a <= 0) continue;
+    const [sx, sy] = P(h.x, h.y);
+    const rise = (1 - eBack(a)) * 60 * cam.scale + Math.sin(t * 2 + h.lit * 6) * 0.6 * cam.scale;
+    const pulse = Math.max(0, 1 - Math.abs(t - h.appear - 0.25) * 4);
+    const top = gold > 0 && h.d <= 1 + gold * 4 ? mix("#46b257", "#d9b45e", gold * (1 - h.d / 7)) : NATION.top;
+    drawHex(ctx, sx, sy, cam.scale, rise, top, NATION.side, gold > 0.3 ? "#ffe9b0" : NATION.edge, 0.35 + pulse * 0.65 + gold * 0.3, clamp(a * 1.6));
+    // buildings by stage: houses (town+), blocks (city+), towers (metropolis+)
+    const age = t - h.appear;
+    const bAt = (s) => STAGES[s].start + 0.6 + h.bld * 1.8;
+    let bh = 0, bw = 10;
+    if (h.bld < 0.55 && t > bAt(1) && h.d <= 3) { bh = 10 + 8 * h.h; bw = 10; }
+    if (h.bld < 0.6 && t > bAt(2) && h.d <= 3) { bh = 22 + 18 * h.h; bw = 11; }
+    if (h.bld < 0.45 && t > bAt(3) && h.d <= 3) { bh = 46 + 60 * h.h * (h.d <= 1 ? 1.5 : 1); bw = 12; }
+    if (bh > 0 && age > 0.4) {
+      const grow = eOut(prog(t, bAt(bh > 40 ? 3 : bh > 20 ? 2 : 1), 0.7));
+      const bc = gold > 0.5 ? ["#b88c3e", "#8a6526", "#f3d58f"] : ["#cfd6e6", "#8d97ad", "#f2f5fb"];
+      prism(ctx, sx, sy - rise - 2 * cam.scale, bw, bh * grow, cam.scale * 0.95, bc[1], bc[0], bc[2]);
+      // windows / lights
+      if (st >= 2 && h.lit < 0.7) {
+        const tw = 0.55 + 0.45 * Math.sin(t * 3 + h.lit * 20);
+        ctx.fillStyle = `rgba(255,226,168,${tw})`;
+        ctx.fillRect(sx - 4 * cam.scale, sy - rise - bh * grow * cam.scale * 0.6, 3 * cam.scale, 3 * cam.scale);
+      }
+    }
+  }
+  // the flag on the capital
+  const fa = prog(t, 3.45, 0.6);
+  if (fa > 0) {
+    const [sx, sy] = P(0, 0);
+    const pole = 70 * cam.scale * eBack(fa), base = sy - 6 * cam.scale;
+    ctx.strokeStyle = "#e9edf5"; ctx.lineWidth = 2.4 * cam.scale; ctx.beginPath(); ctx.moveTo(sx, base); ctx.lineTo(sx, base - pole); ctx.stroke();
+    const fw = 34 * cam.scale, fh = 22 * cam.scale, wave = Math.sin(t * 5) * 2 * cam.scale;
+    ctx.fillStyle = "#3fa34d"; ctx.fillRect(sx, base - pole, fw, fh / 2 + wave * 0.2);
+    ctx.fillStyle = "#ffd23f"; ctx.fillRect(sx, base - pole + fh / 2, fw, fh / 2 - wave * 0.2);
+    ctx.fillStyle = "#0d1f0f"; ctx.beginPath(); ctx.moveTo(sx, base - pole); ctx.lineTo(sx + fw * 0.5, base - pole + fh / 2); ctx.lineTo(sx, base - pole + fh); ctx.fill();
+  }
+}
+function mix(a, b, x) {
+  const pa = [1, 3, 5].map((i) => parseInt(a.slice(i, i + 2), 16)), pb = [1, 3, 5].map((i) => parseInt(b.slice(i, i + 2), 16));
+  return `rgb(${pa.map((v, i) => Math.round(v + (pb[i] - v) * clamp(x))).join(",")})`;
+}
+
+// ---------------- particles ----------------
+const BURSTS = [];
+function burst(t0, n, seed, power, cols) {
+  const r = rng(seed), ps = [];
+  for (let i = 0; i < n; i++) ps.push({ a: r() * 6.283, sp: (240 + r() * 1100) * power, life: 1.1 + r() * 1.6, s: 1.2 + r() * 3.4, c: cols[Math.floor(r() * cols.length)], st: r() < 0.35 });
+  BURSTS.push({ t0, ps });
+}
+UPS.forEach((u, i) => burst(u, 120 + i * 50, 70 + i, 0.8 + i * 0.12, ["243,213,143", "255,246,220", "62,224,143"]));
+burst(27.5, 320, 99, 1.3, ["243,213,143", "255,246,220", "255,190,110"]);
+const DUST = (() => { const r = rng(5); return Array.from({ length: 100 }, () => ({ x: r() * 1920, y: r() * 1080, vx: (r() - 0.5) * 12, vy: -4 - r() * 12, s: 0.6 + r() * 1.7, ph: r() * 6 })); })();
+function drawFx(t) {
+  const c = $("fx"), x = c.getContext("2d"), cam = camera(t);
+  x.clearRect(0, 0, 1920, 1080);
+  for (const d of DUST) {
+    const px = ((d.x + d.vx * t) % 1920 + 1920) % 1920, py = ((d.y + d.vy * t) % 1080 + 1080) % 1080;
+    x.fillStyle = `rgba(243,213,143,${0.18 + 0.25 * (0.5 + 0.5 * Math.sin(t * 1.4 + d.ph))})`; x.beginPath(); x.arc(px, py, d.s, 0, 6.283); x.fill();
+  }
+  x.globalCompositeOperation = "lighter";
+  for (const b of BURSTS) {
+    const dt = t - b.t0; if (dt < 0 || dt > 3.2) continue;
+    for (const p of b.ps) {
+      if (dt > p.life) continue;
+      const k = 2.6, d = p.sp * (1 - Math.exp(-k * dt)) / k, al = (1 - dt / p.life) ** 1.4;
+      const px = cam.cx + Math.cos(p.a) * d, py = cam.cy + Math.sin(p.a) * d * 0.75 + 30 * dt * dt;
+      x.fillStyle = `rgba(${p.c},${al})`;
+      if (p.st) { x.strokeStyle = x.fillStyle; x.lineWidth = p.s * 0.7; const v = p.sp * Math.exp(-k * dt) * 0.05; x.beginPath(); x.moveTo(px, py); x.lineTo(px - Math.cos(p.a) * v, py - Math.sin(p.a) * v * 0.75); x.stroke(); }
+      else { x.beginPath(); x.arc(px, py, p.s, 0, 6.283); x.fill(); }
+    }
+  }
+  // shockwave rings at stage-ups
+  UPS.forEach((u, i) => {
+    const dt = t - u; if (dt < 0 || dt > 1.1) return;
+    const r = 60 + dt * (700 + i * 120);
+    x.strokeStyle = `rgba(255,236,190,${(1 - dt / 1.1) * 0.85})`; x.lineWidth = 6 * (1 - dt / 1.1) + 1;
+    x.beginPath(); x.ellipse(cam.cx, cam.cy, r, r * TILT, 0, 0, 6.283); x.stroke();
+  });
+  x.globalCompositeOperation = "source-over";
+}
+
+// ---------------- chart ----------------
+const CH = (() => { const r = rng(3); const pts = []; for (let i = 0; i <= 300; i++) pts.push((r() - 0.5)); return pts; })();
+function drawChart(t) {
+  const a = prog(t, 3.3, 0.6) * (1 - prog(t, 34.6, 0.6));
+  $("chart").style.opacity = a;
+  if (a <= 0) return;
+  const t0 = 3.5, t1 = 34, x0 = 0, x1 = 1920, now = clamp((t - t0) / (t1 - t0));
+  const n = Math.max(2, Math.round(now * 300));
+  const lo = Math.log(4200), hi = Math.log(4250000);
+  let d = "", f = "";
+  for (let i = 0; i <= n; i++) {
+    const tt = t0 + (i / 300) * (t1 - t0);
+    const v = (Math.log(kf(KF.mcap, tt)) - lo) / (hi - lo);
+    const y = 165 - v * 140 + CH[i] * 16 * (1 - v * 0.4);
+    const x = x0 + (i / 300) * (x1 - x0);
+    d += (i ? "L" : "M") + x.toFixed(1) + "," + y.toFixed(1);
+    if (i === n) { $("chartDot").setAttribute("cx", x); $("chartDot").setAttribute("cy", y); }
+  }
+  const lastX = (n / 300) * 1920;
+  f = d + `L${lastX},180L0,180Z`;
+  $("chartLine").setAttribute("d", d); $("chartFill").setAttribute("d", f);
+  const g = $("chartMarks"); let html = "";
+  UPS.forEach((u, i) => {
+    if (t < u) return; const x = ((u - t0) / (t1 - t0)) * 1920;
+    html += `<line x1="${x}" x2="${x}" y1="0" y2="180" stroke="rgba(243,213,143,.35)" stroke-dasharray="4 6"/><text x="${x + 8}" y="18" fill="#e2bd72" font-family="JetBrains Mono" font-size="14" letter-spacing="2">${STAGES[i + 1].name.toUpperCase()}</text>`;
+  });
+  g.innerHTML = html;
+}
+
+// ---------------- timeline ----------------
+window.render = function (t) {
+  drawWorld(t); drawFx(t); drawChart(t);
+  $("grain").style.backgroundPosition = `${Math.floor(t * 30 * 37) % 256}px ${Math.floor(t * 30 * 53) % 256}px`;
+  $("grid").style.transform = `translateY(${(t * 6) % 60}px)`;
+
+  // hook
+  const hk = 1 - prog(t, 3.1, 0.5);
+  $("hook").style.opacity = hk; $("hook").style.display = hk > 0 ? "block" : "none";
+  reveal($("h1"), t, 0.2); reveal($("h2"), t, 1.0, 0.11);
+
+  // hud
+  const hudA = prog(t, 3.4, 0.6) * (1 - prog(t, 34.4, 0.6));
+  $("hud").style.opacity = hudA; $("hud").style.transform = `translateX(${(1 - eOut(prog(t, 3.4, 0.7))) * -40}px)`;
+  const s = stageAt(t), cur = STAGES[s], nxt = STAGES[s + 1];
+  $("stageNo").textContent = `Stage ${s + 1} / 5`;
+  const sn = $("stageName");
+  if (sn.textContent !== cur.name) sn.textContent = cur.name;
+  const sp = prog(t, cur.start, 0.7), se = eOut(sp);
+  sn.style.opacity = sp; sn.style.filter = `blur(${(1 - se) * 18}px)`; sn.style.transform = `translateY(${(1 - se) * 30}px) scale(${lerp(1.25, 1, se)})`;
+  sn.className = s === 4 ? "gold" : "";
+  sn.style.fontSize = s === 3 ? "84px" : "104px";
+  [...$("ladder").children].forEach((d, i) => { d.style.background = i < s + 1 ? (i === 4 ? "linear-gradient(90deg,#fbe6ad,#c79e52)" : "#e2bd72") : "rgba(255,255,255,.08)"; d.style.boxShadow = i === s ? "0 0 16px rgba(243,213,143,.6)" : "none"; });
+  const cit = Math.round(kf(KF.cit, t)), score = kf(KF.score, t), mc = kf(KF.mcap, t);
+  $("cit").textContent = cit.toLocaleString("en-US");
+  $("mcap").innerHTML = `${fmtK(mc)}<span style="font-size:30px;color:#8c95aa;margin-left:10px">WIF</span>`;
+  if (nxt) {
+    $("reqBox").style.opacity = 1;
+    $("reqTitle").textContent = `Next stage · ${nxt.name}`;
+    $("reqCv").textContent = `${cit.toLocaleString("en-US")} / ${nxt.cit.toLocaleString("en-US")}`;
+    $("reqSv").textContent = `${Math.floor(score)} / ${nxt.score}`;
+    $("reqC").className = "req" + (cit >= nxt.cit ? " ok" : "");
+    $("reqS").className = "req" + (score >= nxt.score ? " ok" : "");
+  } else {
+    $("reqTitle").textContent = "The highest stage";
+    $("reqCv").textContent = `${cit.toLocaleString("en-US")} · 1,000+`; $("reqSv").textContent = `${Math.floor(score)} · 75+`;
+    $("reqC").className = "req ok"; $("reqS").className = "req ok";
+  }
+
+  // event feed: newest on top, max 3 visible
+  const live = EVENTS.map((e, i) => ({ e, i })).filter(({ e }) => t >= e.t && t < 34.4);
+  EVENTS.forEach((e, i) => { $("ev" + i).style.display = "none"; });
+  live.slice(-3).reverse().forEach(({ e, i }, slot) => {
+    const el = $("ev" + i), p = prog(t, e.t, 0.45);
+    el.style.display = "flex";
+    el.style.top = `${90 + slot * 100}px`;
+    el.style.opacity = clamp(p * 1.5) * (1 - prog(t, 34.0, 0.4));
+    el.style.transform = `translateX(${(1 - eBack(p)) * 120}px)`;
+    el.style.borderColor = slot === 0 && p < 1 ? "rgba(243,213,143,.6)" : "rgba(255,255,255,.09)";
+  });
+
+  // stage-up moments
+  let fl = 0, shake = 0, stampP = -1;
+  UPS.forEach((u) => {
+    if (t >= u) fl = Math.max(fl, Math.exp(-(t - u) * 5.5));
+    if (t >= u && t < u + 0.5) shake = Math.max(shake, (u + 0.5 - t) * 2);
+    if (t >= u - 0.05 && t < u + 1.6 && u !== 27.5) stampP = t - u;
+  });
+  $("flash").style.opacity = fl * 0.75;
+  $("stage").style.transform = shake ? `translate(${Math.sin(t * 95) * shake * 9}px, ${Math.cos(t * 81) * shake * 9}px)` : "none";
+  const stamp = $("stamp");
+  if (stampP >= 0) {
+    const p = prog(stampP, 0, 0.3), out = prog(stampP, 1.1, 0.45);
+    stamp.style.display = "block"; stamp.style.opacity = clamp(p * 2) * (1 - out);
+    stamp.style.transform = `translate(-50%,-50%) translate(255px, -10px) rotate(${lerp(-22, -7, eBack(p))}deg) scale(${lerp(2.4, 1, eOut(p)) * (1 + out * 0.2)})`;
+    stamp.textContent = `${STAGES[stageAt(t)].name.toUpperCase()} UNLOCKED`;
+  } else stamp.style.display = "none";
+
+  // empire climax
+  const emp = prog(t, 27.5, 1.0);
+  $("rays").style.opacity = t >= 27.4 ? Math.min(emp, 1 - prog(t, 34, 0.8)) : 0;
+  $("rays").style.transform = `rotate(${t * 8}deg)`;
+  $("bgtint").style.opacity = t >= 27.4 ? emp * (1 - prog(t, 34.2, 0.8)) : 0;
+  const cr = prog(t, 27.7, 0.9), crOut = prog(t, 34.0, 0.5);
+  const camNow = camera(t);
+  $("crownWrap").style.opacity = clamp(cr * 2) * (1 - crOut);
+  $("crownWrap").style.transform = `translate(${camNow.cx - 1210}px, ${lerp(-260, 0, eBack(cr)) + (camNow.cy - 560) + Math.sin(t * 2.2) * 6 - (camNow.scale - 1) * 60}px) rotate(${lerp(-25, 0, eOut(cr))}deg) scale(${lerp(1.6, 1, eOut(cr))})`;
+  $("crownWrap").style.filter = `drop-shadow(0 0 ${30 + 20 * Math.sin(t * 3)}px rgba(243,213,143,.75))`;
+
+  // end card
+  const endOn = t >= 34.6;
+  $("end").style.display = endOn ? "block" : "none";
+  if (endOn) {
+    const m = prog(t, 34.8, 1.0);
+    $("endMark").style.opacity = clamp(m * 2); $("endMark").style.transform = `scale(${lerp(0.4, 1, eBack(m))}) rotate(${lerp(-90, 0, eOut(m))}deg)`;
+    reveal($("e1"), t, 35.3); reveal($("e2"), t, 35.9, 0.12); reveal($("e3"), t, 36.9, 0.06);
+    const pp = prog(t, 37.8, 0.6);
+    $("pill").style.opacity = clamp(pp * 2); $("pill").style.transform = `translateX(-50%) scale(${lerp(0.6, 1, eBack(pp))})`;
+    $("foot").style.opacity = prog(t, 38.4, 0.8);
+  }
+  $("fade").style.opacity = prog(t, 40.6, 0.9);
+};
+window.render(0);
+</script>
+</body>
+</html>
