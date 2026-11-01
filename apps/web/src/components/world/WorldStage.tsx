@@ -5,7 +5,6 @@ import { Canvas } from "@react-three/fiber";
 import { Bloom, EffectComposer } from "@react-three/postprocessing";
 import { AnimatePresence, motion } from "motion/react";
 import { FastForward } from "lucide-react";
-import { isDemo } from "@/lib/demo-nations";
 import { useWorldNations } from "@/lib/world-nations";
 import { useUi } from "@/lib/store";
 import { useMediaQuery } from "@/lib/hooks";
@@ -85,7 +84,6 @@ function Stage({ mode }: { mode: WorldMode }) {
     setIntroPlaying(intro !== "none");
   }, [intro, mode, setIntroPlaying]);
 
-  // On-chain nations plus the labelled demo nations (when shown); demo nations never navigate to a nation page.
   const nations = all;
   const wars = useMemo(() => world.data?.wars ?? [], [world.data]);
   const alliances = useMemo(() => world.data?.alliances ?? [], [world.data]);
@@ -127,7 +125,7 @@ function Stage({ mode }: { mode: WorldMode }) {
 
   const onOpen = useCallback(
     (id: number) => {
-      if (coarse.current || isDemo({ id })) setSelected(id);
+      if (coarse.current) setSelected(id);
       else router.push(`/nation/${id}`);
     },
     [router, setSelected],
