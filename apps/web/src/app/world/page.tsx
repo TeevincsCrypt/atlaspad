@@ -5,7 +5,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown, ChevronUp, Layers, List, Newspaper, Search, X } from "lucide-react";
 import { formatCompact, formatWif, formatInt, shortAddress, TIERS, type NationSummary } from "@atlaspad/shared";
 import { useNews } from "@/lib/api";
-import { DEMO_ENABLED, isDemo } from "@/lib/demo-nations";
 import { effects } from "@/lib/effects";
 import { useUi, type MapFilterKey } from "@/lib/store";
 import { useWorldNations } from "@/lib/world-nations";
@@ -26,7 +25,7 @@ const FILTERS: { key: MapFilterKey; label: string }[] = [
 ];
 
 export default function WorldPage() {
-  const { world, real, demo, all } = useWorldNations();
+  const { world, real, all } = useWorldNations();
   const news = useNews({ limit: 20, severity: "notable" });
   const introPlaying = useUi((s) => s.introPlaying);
   const filter = useUi((s) => s.mapFilter);
@@ -42,7 +41,6 @@ export default function WorldPage() {
     return all.filter((n) => n.name.toLowerCase().includes(q) || n.ticker.toLowerCase().includes(q)).slice(0, 6);
   }, [all, query]);
 
-  // World totals count on-chain nations only; demo nations are never added to real figures.
   const totals = useMemo(
     () => ({
       nations: real.length,
@@ -90,7 +88,6 @@ export default function WorldPage() {
                       >
                         <Flag emblem={n.emblem} image={n.metadataUri} size={22} />
                         <span className="flex-1 truncate text-xs text-fg">{n.name}</span>
-                        {isDemo(n) && <DemoPill />}
                         <span className="font-mono text-[10px] text-faint">${n.ticker}</span>
                       </button>
                     ))}
@@ -110,7 +107,7 @@ export default function WorldPage() {
                   ))}
                 </div>
               </div>
-              <NationsPanel real={real} demo={demo} open={listOpen} setOpen={setListOpen} />
+              <NationsPanel real={real} open={listOpen} setOpen={setListOpen} />
               <Legend />
             </div>
 
@@ -153,7 +150,6 @@ export default function WorldPage() {
                         <span className="font-mono text-xs text-fg tabular">{v}</span>
                       </div>
                     ))}
-                    {demo.length > 0 && <span className="font-mono text-[10px] text-faint">On-chain only · +{demo.length} demo nations shown</span>}
                   </>
                 )}
               </div>
@@ -179,23 +175,15 @@ export default function WorldPage() {
   );
 }
 
-function DemoPill() {
-  return <span className="rounded border border-info/40 bg-info/10 px-1 py-px font-mono text-[9px] uppercase tracking-[0.14em] text-info">Demo</span>;
-}
-
-/** Every nation in one scrollable list: on-chain nations first (with their contract address), then the demo nations. */
-function NationsPanel({ real, demo, open, setOpen }: { real: NationSummary[]; demo: NationSummary[]; open: boolean; setOpen: (o: boolean) => void }) {
-  const showDemo = useUi((s) => s.showDemo);
-  const setShowDemo = useUi((s) => s.setShowDemo);
+/** Every nation in one scrollable list, with its contract address. */
+function NationsPanel({ real, open, setOpen }: { real: NationSummary[]; open: boolean; setOpen: (o: boolean) => void }) {
   const byScore = (a: NationSummary, b: NationSummary) => (a.rank ?? 1e9) - (b.rank ?? 1e9) || b.civilizationScore - a.civilizationScore;
   const realSorted = useMemo(() => [...real].sort(byScore), [real]);
-  const demoSorted = useMemo(() => [...demo].sort(byScore), [demo]);
   return (
     <div className="panel flex max-h-[36dvh] min-h-0 flex-col overflow-hidden sm:max-h-none">
       <button onClick={() => setOpen(!open)} className="flex shrink-0 items-center justify-between border-b border-line px-3.5 py-2.5">
         <span className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-gold">
           <List className="size-3.5" /> Nations · {real.length}
-          {demo.length > 0 && <span className="text-faint">+ {demo.length} demo</span>}
         </span>
         {open ? <ChevronUp className="size-3.5 text-faint" /> : <ChevronDown className="size-3.5 text-faint" />}
       </button>
@@ -205,20 +193,6 @@ function NationsPanel({ real, demo, open, setOpen }: { real: NationSummary[]; de
           {realSorted.map((n) => (
             <NationRow key={n.id} n={n} />
           ))}
-          {DEMO_ENABLED && (
-            <div className="flex items-center justify-between border-t border-line bg-white/[0.02] px-3.5 py-2">
-              <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">Demo nations · not on-chain</span>
-              <button
-                onClick={() => setShowDemo(!showDemo)}
-                className={`rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase ${showDemo ? "border-info/40 text-info" : "border-line text-faint"}`}
-              >
-                {showDemo ? "Shown" : "Hidden"}
-              </button>
-            </div>
-          )}
-          {demoSorted.map((n) => (
-            <NationRow key={n.id} n={n} />
-          ))}
         </div>
       )}
     </div>
@@ -226,15 +200,12 @@ function NationsPanel({ real, demo, open, setOpen }: { real: NationSummary[]; de
 }
 
 function NationRow({ n }: { n: NationSummary }) {
-  const demo = isDemo(n);
-  const setSelected = useUi((s) => s.setSelectedNation);
   const body = (
     <>
       <Flag emblem={n.emblem} image={n.metadataUri} size={30} />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
           <span className="truncate text-xs text-fg">{n.name}</span>
-          {demo && <DemoPill />}
         </span>
         <span className="block truncate font-mono text-[10px] text-faint">
           ${n.ticker} · {TIERS[n.tier]?.name} · {formatCompact(n.citizens)} citizens
@@ -245,22 +216,10 @@ function NationRow({ n }: { n: NationSummary }) {
   );
   return (
     <div className="flex items-center gap-1 border-b border-line/60 pr-1.5 last:border-0">
-      {demo ? (
-        <button
-          onClick={() => {
-            effects.emit({ kind: "focus", nationId: n.id });
-            setSelected(n.id);
-          }}
-          className="flex min-w-0 flex-1 items-center gap-2.5 px-3.5 py-2 text-left hover:bg-white/5"
-        >
-          {body}
-        </button>
-      ) : (
-        <Link href={`/nation/${n.id}`} className="flex min-w-0 flex-1 items-center gap-2.5 px-3.5 py-2 hover:bg-white/5">
-          {body}
-        </Link>
-      )}
-      {!demo && <CopyButton value={n.token} label="Copy contract address" />}
+      <Link href={`/nation/${n.id}`} className="flex min-w-0 flex-1 items-center gap-2.5 px-3.5 py-2 hover:bg-white/5">
+        {body}
+      </Link>
+      <CopyButton value={n.token} label="Copy contract address" />
     </div>
   );
 }
@@ -287,7 +246,6 @@ function Legend() {
 }
 
 function NationCardBody({ n }: { n: NationSummary }) {
-  const demo = isDemo(n);
   return (
     <>
       <div className="flex items-center gap-3">
@@ -295,10 +253,9 @@ function NationCardBody({ n }: { n: NationSummary }) {
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="truncate font-display text-sm uppercase tracking-wide text-fg">{n.name}</span>
-            {demo && <DemoPill />}
           </div>
           <div className="font-mono text-[11px] text-faint">
-            ${n.ticker} · {demo ? "demo" : `#${n.rank ?? "—"}`} · {TIERS[n.tier]?.name}
+            ${n.ticker} · #{n.rank ?? "—"} · {TIERS[n.tier]?.name}
           </div>
         </div>
       </div>
@@ -320,12 +277,10 @@ function NationCardBody({ n }: { n: NationSummary }) {
           <div className="font-mono text-fg">{n.economicPower.toFixed(0)}</div>
         </div>
       </div>
-      {!demo && (
-        <div className="mt-3 flex items-center justify-between rounded-md border border-line bg-black/20 px-2 py-1 font-mono text-[10px] text-dim">
-          <span>CA {shortAddress(n.token, 6)}</span>
-          <CopyButton value={n.token} label="Copy contract address" />
-        </div>
-      )}
+      <div className="mt-3 flex items-center justify-between rounded-md border border-line bg-black/20 px-2 py-1 font-mono text-[10px] text-dim">
+        <span>CA {shortAddress(n.token, 6)}</span>
+        <CopyButton value={n.token} label="Copy contract address" />
+      </div>
     </>
   );
 }
@@ -340,17 +295,16 @@ function HoverCard({ nations }: { nations: NationSummary[] }) {
   return (
     <div className="panel pointer-events-none fixed z-30 hidden w-64 p-3.5 sm:block" style={{ left, top }}>
       <NationCardBody n={n} />
-      <div className="mt-3 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-faint">{isDemo(n) ? "Demo nation" : "Click to open"}</div>
+      <div className="mt-3 text-center font-mono text-[9px] uppercase tracking-[0.2em] text-faint">Click to open</div>
     </div>
   );
 }
 
-/** Tap a nation on mobile, or click a demo nation anywhere: a card with its details. */
+/** Tap a nation on mobile: a card with its details. */
 function SelectionCard({ nations }: { nations: NationSummary[] }) {
   const selected = useUi((s) => s.selectedNation);
   const setSelected = useUi((s) => s.setSelectedNation);
   const n = selected ? nations.find((x) => x.id === selected) : null;
-  const demo = n ? isDemo(n) : false;
   return (
     <AnimatePresence>
       {n && (
@@ -358,21 +312,15 @@ function SelectionCard({ nations }: { nations: NationSummary[] }) {
           initial={{ y: 200 }}
           animate={{ y: 0 }}
           exit={{ y: 220 }}
-          className={`panel pointer-events-auto fixed inset-x-3 bottom-[76px] z-30 p-4 ${demo ? "sm:inset-x-auto sm:bottom-5 sm:right-5 sm:w-80" : "sm:hidden"}`}
+          className="panel pointer-events-auto fixed inset-x-3 bottom-[76px] z-30 p-4 sm:hidden"
         >
           <button onClick={() => setSelected(null)} className="absolute right-3 top-3 text-faint" aria-label="Close">
             <X className="size-4" />
           </button>
           <NationCardBody n={n} />
-          {demo ? (
-            <p className="mt-4 rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-[11px] leading-relaxed text-info">
-              Demo nation: an illustration of a busy Atlas. It is not on-chain, has no token and cannot be traded.
-            </p>
-          ) : (
-            <Link href={`/nation/${n.id}`} className="mt-4 block rounded-lg bg-gold/15 py-2.5 text-center font-mono text-xs uppercase tracking-[0.16em] text-gold-bright">
-              Open nation
-            </Link>
-          )}
+          <Link href={`/nation/${n.id}`} className="mt-4 block rounded-lg bg-gold/15 py-2.5 text-center font-mono text-xs uppercase tracking-[0.16em] text-gold-bright">
+            Open nation
+          </Link>
         </motion.div>
       )}
     </AnimatePresence>

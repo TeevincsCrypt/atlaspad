@@ -35,9 +35,6 @@ interface UiState {
   setActiveCinematic: (c: UiState["activeCinematic"]) => void;
   introPlaying: boolean;
   setIntroPlaying: (p: boolean) => void;
-  /** Show the clearly-labelled demo nations on the world map and list. */
-  showDemo: boolean;
-  setShowDemo: (on: boolean) => void;
   /** Nations the visitor starred (stored in this browser only). */
   watchlist: number[];
   toggleWatch: (id: number) => void;
@@ -76,8 +73,6 @@ export const useUi = create<UiState>()(
       setActiveCinematic: (activeCinematic) => set({ activeCinematic }),
       introPlaying: false,
       setIntroPlaying: (introPlaying) => set({ introPlaying }),
-      showDemo: true,
-      setShowDemo: (showDemo) => set({ showDemo }),
       watchlist: [],
       toggleWatch: (id) => set((s) => ({ watchlist: s.watchlist.includes(id) ? s.watchlist.filter((x) => x !== id) : [...s.watchlist, id] })),
     }),
@@ -89,7 +84,6 @@ export const useUi = create<UiState>()(
         seenAchievements: s.seenAchievements,
         cinematicsOn: s.cinematicsOn,
         mapFilter: s.mapFilter,
-        showDemo: s.showDemo,
         watchlist: s.watchlist,
       }),
     },
