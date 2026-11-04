@@ -26,9 +26,11 @@ import { Panel } from "@/components/ui/Panel";
 import { Button } from "@/components/ui/Button";
 import { DataUnavailable, Skeleton, Sparkline } from "@/components/ui/misc";
 import { NewsFeedItem } from "@/components/news/NewsFeedItem";
+import { ChatPanel } from "@/components/nation/ChatPanel";
 
 const TABS = [
   { key: "overview", label: "Overview" },
+  { key: "chat", label: "Chat" },
   { key: "economy", label: "Economy" },
   { key: "citizens", label: "Citizens" },
   { key: "government", label: "Government" },
@@ -117,6 +119,7 @@ export default function NationPage({ params }: { params: Promise<{ id: string }>
           <AnimatePresence mode="wait">
             <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25 }} className="min-w-0">
               {tab === "overview" && <Overview id={id} onTab={setTab} onPropose={(p) => setProposal(p ?? { type: "build" })} />}
+              {tab === "chat" && <ChatPanel nation={nation} onBuy={() => setTradeOpen(true)} />}
               {tab === "economy" && <EconomyTab nation={nation} />}
               {tab === "citizens" && <CitizensTab nation={nation} />}
               {tab === "government" && <GovernmentTab nation={nation} detail={detail.data} onPropose={(p) => setProposal(p ?? { type: "build" })} />}

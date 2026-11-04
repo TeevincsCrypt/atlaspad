@@ -14,6 +14,8 @@ export interface IndexerEnv {
   wifUsdSource: "dexscreener" | "none";
   extraExcluded: { address: Address; label: string }[];
   runMigrations: boolean;
+  /** Telegram bot (off unless TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set). */
+  telegram: { token: string; chatId: string; siteUrl: string; apiBase: string; commands: boolean; intervalMs: number } | null;
 }
 
 function int(name: string, fallback: number, min = 0): number {
@@ -66,5 +68,16 @@ export function loadEnv(): IndexerEnv {
     wifUsdSource: source,
     extraExcluded,
     runMigrations: process.env.INDEXER_RUN_MIGRATIONS !== "false",
+    telegram:
+      process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID
+        ? {
+            token: process.env.TELEGRAM_BOT_TOKEN,
+            chatId: process.env.TELEGRAM_CHAT_ID,
+            siteUrl: (process.env.PUBLIC_SITE_URL || "https://atlaswif.xyz").replace(/\/$/, ""),
+            apiBase: (process.env.TELEGRAM_API_BASE || "https://api.telegram.org").replace(/\/$/, ""),
+            commands: process.env.TELEGRAM_COMMANDS !== "false",
+            intervalMs: int("TELEGRAM_INTERVAL_MS", 20_000, 2000),
+          }
+        : null,
   };
 }

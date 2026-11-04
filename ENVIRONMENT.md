@@ -109,6 +109,7 @@ These are read at request time by route handlers, `src/proxy.ts`, `src/lib/admin
 | `INDEXER_URL` | No | none | Indexer base URL as reached **from the web server**; a private address is fine. Used only by `/api/admin/status`, which `GET`s `<INDEXER_URL>/admin/status` with an 8 s timeout. |
 | `INDEXER_ADMIN_TOKEN` | No | `""` | Sent as `Authorization: Bearer …` to the indexer's `/admin/status`. Must equal the indexer's `INDEXER_ADMIN_TOKEN`. **Secret.** |
 | `ATLAS_RPC_URL` | No | `NEXT_PUBLIC_RPC_URL`, then the chain default | Server-side RPC used only by `/api/admin/status` to read the head block and check the chain id. |
+| `CHAT_SESSION_SECRET` | No | derived from `DATABASE_URL` | Key that signs nation-chat sign-in cookies. If unset, a key is derived from `DATABASE_URL`, so chat works with no extra setup; set it to rotate sessions independently. **Secret.** |
 
 ## Indexer (`apps/indexer/src/env.ts`, `log.ts`, `migrate.ts`, `migrate-cli.ts`)
 
@@ -138,6 +139,12 @@ These are read at request time by route handlers, `src/proxy.ts`, `src/lib/admin
 | `WIF_USD_SOURCE` | No | `none` (when unset or empty) | `dexscreener` polls `https://api.dexscreener.com/latest/dex/tokens/<WIF>` every 60 s and uses the most liquid $WIF pool, but only while contracts are configured. The price is stored in `indexer_state.wif_usd`. It is used for USD display, recorded in the hourly snapshots, and feeds the `MCAP_1M_USD` ("Millionaire Economy") achievement, which cannot unlock without it. `none` disables it. Any other non-empty value means exit. |
 | `EXCLUDED_ADDRESSES` | No | `""` | Comma-separated `address[:label]` entries; the label defaults to `Excluded`. These addresses are never counted as citizens and are upserted into `excluded_addresses` with `kind = protocol`. An invalid address means exit. Burn addresses, the Uniswap infrastructure (plus the known Robinhood Universal Routers, Permit2, etc.) and the AtlasPad contracts are already excluded automatically. |
 | `LOG_LEVEL` | No | `info` | `debug`, `info`, `warn` or `error`; unknown values act as `info`. Output is JSON lines, with `warn` and `error` going to stderr. |
+| `TELEGRAM_BOT_TOKEN` | No | none | Token from @BotFather. The Telegram bot runs only when this **and** `TELEGRAM_CHAT_ID` are set. **Secret.** |
+| `TELEGRAM_CHAT_ID` | No | none | Where announcements go: a public channel's `@username`, or a numeric chat id such as `-1001234567890`. The bot must be an admin of that channel. |
+| `PUBLIC_SITE_URL` | No | `https://atlaswif.xyz` | The website's public URL, used for links and share-card images in Telegram posts. |
+| `TELEGRAM_COMMANDS` | No | on | Answers `/top`, `/new`, `/nation`, `/burned` and `/help` (long polling) unless exactly `false`. Turn it off if another process already receives this bot's updates. |
+| `TELEGRAM_INTERVAL_MS` | No | `20000` | How often to check for new events to announce. Integer ≥ 2000. |
+| `TELEGRAM_API_BASE` | No | `https://api.telegram.org` | Only for testing against a mock Telegram API. |
 
 ## Contracts / Foundry (`contracts/foundry.toml`, `contracts/script/*.s.sol`)
 

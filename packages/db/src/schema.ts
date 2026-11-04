@@ -482,3 +482,23 @@ export const nationSocials = pgTable("nation_socials", {
   signer: text("signer").notNull(),
   updatedAt: unix("updated_at").notNull(),
 });
+
+/** Nation chat. Anyone can read; only the nation's citizens can post (checked against `holders` when posting). */
+export const nationMessages = pgTable(
+  "nation_messages",
+  {
+    id: serial("id").primaryKey(),
+    nationId: integer("nation_id").notNull(),
+    author: text("author").notNull(),
+    body: text("body").notNull(),
+    createdAt: unix("created_at").notNull(),
+  },
+  (t) => [index("nation_messages_nation_idx").on(t.nationId, t.id), index("nation_messages_author_idx").on(t.author, t.createdAt)],
+);
+
+/** Small key/value store for background jobs (e.g. what the Telegram bot already announced). */
+export const botState = pgTable("bot_state", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  updatedAt: unix("updated_at").notNull(),
+});
