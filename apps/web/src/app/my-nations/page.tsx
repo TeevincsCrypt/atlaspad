@@ -1,4 +1,5 @@
 "use client";
+import { ConnectGate } from "@/components/wallet/ConnectGate";
 import Link from "next/link";
 import { useAccount } from "wagmi";
 import { formatCompact, formatWif, formatInt, TIERS } from "@atlaspad/shared";
@@ -21,15 +22,11 @@ export default function MyNationsPage() {
   if (!mounted) return null;
   if (!isConnected) {
     return (
-      <div className="mx-auto max-w-md px-4 pt-32">
-        <div className="panel p-10 text-center">
-          <h1 className="font-display text-xl text-fg">My Nations</h1>
-          <p className="mt-2 text-sm text-dim">Connect a wallet to see the nations you founded and the nations you&apos;re a citizen of.</p>
-          <Button variant="primary" className="mt-6" onClick={() => setWalletOpen(true)}>
-            Connect wallet
-          </Button>
-        </div>
-      </div>
+      <ConnectGate
+        title="My Nations"
+        body="Connect a wallet to see the nations you founded and the nations you're a citizen of."
+        perks={["Every nation you founded, in one place", "Your citizenships and your share of each", "Quick links to trade, vote and claim"]}
+      />
     );
   }
   const founded = citizen.data?.profile.foundedNationIds ?? [];

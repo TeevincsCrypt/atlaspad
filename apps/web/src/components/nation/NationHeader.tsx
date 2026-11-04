@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { Crown, Flame, Shield, Sparkles, Swords, TrendingDown } from "lucide-react";
 import {
   TIERS,
-  THEMES,
+  decodeEmblem,
   formatDate,
   formatSmall,
   formatWif,
@@ -19,6 +19,8 @@ import { Badge } from "../ui/Badge";
 import { ChangePill } from "../ui/ChangePill";
 import { CopyButton, ExplorerLink, Progress } from "../ui/misc";
 import { Flag } from "../emblem/Flag";
+import { TokenImage } from "../emblem/TokenImage";
+import { emblemImage } from "@/lib/emblem-image";
 import { SocialLinks } from "./SocialLinks";
 import { useNow } from "@/lib/hooks";
 
@@ -50,13 +52,16 @@ export function NationHeader({
       <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex items-center gap-5">
           <motion.div initial={{ opacity: 0, rotateY: -60 }} animate={{ opacity: 1, rotateY: 0 }} transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}>
-            <Flag emblem={nation.emblem} image={nation.metadataUri} size={96} glow />
+            {emblemImage(nation.metadataUri) ? (
+              <TokenImage src={nation.metadataUri} size={96} glow={decodeEmblem(nation.emblem).primary} />
+            ) : (
+              <Flag emblem={nation.emblem} image={nation.metadataUri} size={96} glow />
+            )}
           </motion.div>
           <div className="min-w-0">
             <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
               <Badge tone="gold">#{nation.rank ?? "—"} World</Badge>
               <Badge>{TIERS[nation.tier]?.name}</Badge>
-              <Badge>{THEMES[nation.theme]?.name}</Badge>
               {nation.graduated ? <Badge tone="info">Uniswap · locked LP</Badge> : <Badge tone="warn">Bonding curve</Badge>}
               {nation.activeWars > 0 && (
                 <Badge tone="war">
@@ -126,21 +131,22 @@ export function NationHeader({
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-4 lg:grid-cols-8">
+      <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-line bg-line sm:grid-cols-5">
         {[
-          { label: "Citizens", value: <AnimatedNumber value={nation.citizens} format={(v) => formatInt(v)} />, hint: "Wallets holding ≥0.0001% of supply (system & DEX addresses excluded)" },
-          { label: "Population score", value: nation.populationScore.toFixed(0) },
-          { label: "Economic power", value: <AnimatedNumber value={nation.economicPower} format={(v) => v.toFixed(0)} /> },
-          { label: "Military power", value: <AnimatedNumber value={nation.militaryPower} format={(v) => v.toFixed(0)} /> },
-          { label: "Influence", value: <AnimatedNumber value={nation.influenceScore} format={(v) => v.toFixed(0)} /> },
-          { label: "Territory", value: territoryRank ? `#${territoryRank}` : "—", hint: `${nation.territoryCells} hexes` },
-          { label: "24h volume", value: formatWif(nation.volume24hWif) },
-          { label: "Treasury", value: formatWif(nation.treasuryWif) },
-          { label: "$WIF burned", value: formatWif(nation.wifBurned), hint: "Founding fee + 0.25% of every curve trade, burned on-chain" },
+          { label: "Citizens", value: <AnimatedNumber value={nation.citizens} format={(v) => formatInt(v)} />, hint: "Wallets holding ≥0.0001% of supply (system & DEX addresses excluded)", accent: "text-fg" },
+          { label: "24h volume", value: formatWif(nation.volume24hWif), accent: "text-fg" },
+          { label: "Treasury", value: formatWif(nation.treasuryWif), accent: "text-up" },
+          { label: "$WIF burned", value: formatWif(nation.wifBurned), hint: "Founding fee + 0.25% of every curve trade, burned on-chain", accent: "text-[#ffb489]" },
+          { label: "Liquidity", value: formatWif(nation.liquidityWif), accent: "text-fg" },
+          { label: "Population score", value: nation.populationScore.toFixed(0), accent: "text-dim" },
+          { label: "Economic power", value: <AnimatedNumber value={nation.economicPower} format={(v) => v.toFixed(0)} />, accent: "text-dim" },
+          { label: "Military power", value: <AnimatedNumber value={nation.militaryPower} format={(v) => v.toFixed(0)} />, accent: "text-dim" },
+          { label: "Influence", value: <AnimatedNumber value={nation.influenceScore} format={(v) => v.toFixed(0)} />, accent: "text-dim" },
+          { label: "Territory", value: territoryRank ? `#${territoryRank}` : "—", hint: `${nation.territoryCells} hexes`, accent: "text-dim" },
         ].map((s) => (
-          <div key={s.label} className="bg-panel/90 px-4 py-3" title={s.hint}>
-            <div className="label mb-1 truncate">{s.label}</div>
-            <div className="truncate whitespace-nowrap font-display text-base text-fg tabular sm:text-lg">{s.value}</div>
+          <div key={s.label} className="bg-panel/90 px-4 py-3.5 transition hover:bg-raised/90" title={s.hint}>
+            <div className="label mb-1.5 truncate">{s.label}</div>
+            <div className={`truncate whitespace-nowrap font-display text-base tabular sm:text-xl ${s.accent}`}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -152,7 +158,6 @@ export function NationHeader({
         <span>
           Wars {nation.warWins}W–{nation.warLosses}L
         </span>
-        <span>Liquidity {formatWif(nation.liquidityWif)}</span>
         <span>Price {nation.priceWif ? `${formatSmall(nation.priceWif)} WIF` : "—"}</span>
       </div>
     </header>

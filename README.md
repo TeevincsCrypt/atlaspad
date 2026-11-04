@@ -34,7 +34,7 @@ Burns, locked liquidity and treasury balances are on-chain counters (`totalWifBu
 
 ### Pages
 
-`/` landing globe · `/world` interactive map (search, filters, hover cards, live events) · `/discover` · `/found` 8-step founding wizard · `/nation/[id]` (Overview, Economy, Citizens, Government, Infrastructure, Military, Diplomacy, History, Treasury) · `/war/[id]` · `/alliance/[id]` · `/leaderboard` (Overall Civilization, Largest Economy, Most Citizens, Strongest Nation, Fastest Growing, Most Active, Most Developed, Most Influential) · `/news` · `/my-nations` · `/profile` and `/citizen/[address]` · `/admin` (HTTP Basic auth, disabled unless configured).
+`/` landing globe · `/world` interactive map (search, filters, hover cards, live events) · `/discover` · `/found` 7-step founding wizard (token image upload required) · `/nation/[id]` (Overview, Economy, Citizens, Government, Infrastructure, Military, Diplomacy, History, Treasury) · `/war/[id]` · `/alliance/[id]` · `/leaderboard` (Overall Civilization, Largest Economy, Most Citizens, Strongest Nation, Fastest Growing, Most Active, Most Developed, Most Influential) · `/news` · `/my-nations` · `/profile` and `/citizen/[address]` · `/admin` (HTTP Basic auth, disabled unless configured).
 
 ### Trader features
 

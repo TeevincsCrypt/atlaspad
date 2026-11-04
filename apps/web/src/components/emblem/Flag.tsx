@@ -155,16 +155,24 @@ export const Flag = memo(function Flag({ emblem, size = 36, className = "", roun
           <stop offset="1" stopColor="#000" stopOpacity="0.25" />
         </linearGradient>
         {img && (
-          <clipPath id={`${id}-clip`}>
-            <rect width="60" height="40" rx={rounded ? 2.5 : 0} />
-          </clipPath>
+          <>
+            <clipPath id={`${id}-clip`}>
+              <rect width="60" height="40" rx={rounded ? 2.5 : 0} />
+            </clipPath>
+            <filter id={`${id}-blur`} x="-10%" y="-10%" width="120%" height="120%">
+              <feGaussianBlur stdDeviation="3" />
+            </filter>
+          </>
         )}
       </defs>
       {img ? (
-        <>
+        <g clipPath={`url(#${id}-clip)`}>
+          {/* Uploaded token images are usually square: show the whole image, over a blurred, darkened fill of itself. */}
           <rect width="60" height="40" fill={e.primary} />
-          <image href={img} width="60" height="40" preserveAspectRatio="xMidYMid slice" clipPath={`url(#${id}-clip)`} />
-        </>
+          <image href={img} x="-6" y="-6" width="72" height="52" preserveAspectRatio="xMidYMid slice" filter={`url(#${id}-blur)`} opacity="0.75" />
+          <rect width="60" height="40" fill="#000" opacity="0.35" />
+          <image href={img} x="12" y="2" width="36" height="36" preserveAspectRatio="xMidYMid meet" />
+        </g>
       ) : (
         <>
           <Pattern e={e} id={id} />
