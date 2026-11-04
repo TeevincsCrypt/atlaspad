@@ -1,4 +1,5 @@
 "use client";
+import { ConnectGate } from "@/components/wallet/ConnectGate";
 import { useAccount } from "wagmi";
 import { useUi } from "@/lib/store";
 import { CitizenProfileView } from "@/components/citizen/CitizenProfileView";
@@ -14,14 +15,11 @@ export default function ProfilePage() {
       {mounted && isConnected && address ? (
         <CitizenProfileView address={address.toLowerCase()} />
       ) : (
-        <div className="panel mx-auto max-w-md p-10 text-center">
-          <div className="text-3xl">🪪</div>
-          <h1 className="mt-3 font-display text-xl text-fg">Your citizen profile</h1>
-          <p className="mt-2 text-sm text-dim">Connect a wallet to see your citizenships, achievements, XP and governance record.</p>
-          <Button variant="primary" className="mt-6" onClick={() => setWalletOpen(true)}>
-            Connect wallet
-          </Button>
-        </div>
+        <ConnectGate
+          title="Your citizen profile"
+          body="Connect a wallet to see your citizenships, achievements, XP and governance record."
+          perks={["Profit & loss on every nation you trade", "PnL cards for every sale", "XP, ranks and achievements"]}
+        />
       )}
     </div>
   );

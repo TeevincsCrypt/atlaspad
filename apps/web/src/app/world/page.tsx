@@ -208,7 +208,7 @@ function NationRow({ n }: { n: NationSummary }) {
           <span className="truncate text-xs text-fg">{n.name}</span>
         </span>
         <span className="block truncate font-mono text-[10px] text-faint">
-          ${n.ticker} · {TIERS[n.tier]?.name} · {formatCompact(n.citizens)} citizens
+          ${n.ticker} · {formatCompact(n.citizens)} citizens
         </span>
       </span>
       <span className="text-right font-mono text-[10px] text-dim">{formatWif(n.marketCapWif)}</span>

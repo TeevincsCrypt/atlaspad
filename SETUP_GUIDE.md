@@ -158,13 +158,13 @@ It prints one block for Railway and one for Vercel. If PowerShell refuses to run
 2. Deployments, the latest one, Redeploy. `NEXT_PUBLIC_` values only apply after a rebuild.
 3. Check `https://useatlaspad.vercel.app/api/status`: you should see `"deployed":true` and `"database":"ok"`. The blue banner is gone and your GENESIS nation is on the map.
 
-### Optional: let founders upload an image instead of a flag
+### Required for founding: token image uploads
 
 1. Supabase, **Storage**, **New bucket**: name it exactly `emblems` and switch **Public bucket** on. (Optional: limit it to image types and 1 MB.)
 2. Supabase, **Project Settings**, **API**: copy the **Project URL** (`https://xxxx.supabase.co`) and the **service_role** (or **secret**) key.
 3. Vercel, Environment Variables: add `NEXT_PUBLIC_SUPABASE_URL` (the Project URL) and `SUPABASE_SERVICE_ROLE_KEY` (the key, never with a `NEXT_PUBLIC_` name), then **Redeploy**.
 
-The founding wizard then shows "Upload an image" on the symbol step. Without these two values the option stays hidden and every nation uses its flag.
+Every new nation must upload a token image in the founding wizard (step 3). Without these two values the wizard shows a warning and no nation can be founded.
 
 ## Part 6. Submit
 

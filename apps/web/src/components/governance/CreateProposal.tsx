@@ -24,7 +24,7 @@ import { queryKeys, useWorld, type NationDetail } from "@/lib/api";
 import { Dialog } from "../ui/Dialog";
 import { Button } from "../ui/Button";
 import { TxDialog } from "../tx/TxDialog";
-import { EmblemEditor } from "../emblem/EmblemEditor";
+import { EmblemUpload, type UploadedImage } from "../emblem/EmblemUpload";
 import { toast } from "../ui/Toaster";
 import { useVotingPower } from "./useGovernance";
 
@@ -46,7 +46,7 @@ const TYPES: { key: ProposalPreset["type"]; label: string; hint: string }[] = [
   { key: "alliance-join", label: "Join an alliance", hint: "Accept a pending invitation" },
   { key: "alliance-leave", label: "Leave alliance", hint: "Withdraw from the current alliance" },
   { key: "treasury", label: "Treasury spending", hint: "Send $WIF from the national treasury (max 25% per week)" },
-  { key: "symbol", label: "Change national symbol", hint: "Update the on-chain flag" },
+  { key: "symbol", label: "Change nation image", hint: "Adopt a new token image" },
 ];
 
 export function CreateProposal({
@@ -73,7 +73,7 @@ export function CreateProposal({
   const [allianceName, setAllianceName] = useState("");
   const [recipient, setRecipient] = useState("");
   const [amount, setAmount] = useState("");
-  const [emblem, setEmblem] = useState<bigint>(BigInt(nation.emblem));
+  const [newImage, setNewImage] = useState<UploadedImage | null>(null);
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [review, setReview] = useState(false);
@@ -122,12 +122,13 @@ export function CreateProposal({
           return { kind: ProposalKind.Treasury, payload: encodeTreasuryPayload(recipient as Address, wei), summary: `Send ${formatWif(Number(amount))} from the treasury`, error: null };
         }
         case "symbol":
-          return { kind: ProposalKind.Symbol, payload: encodeSymbolPayload(emblem, ""), summary: "Adopt a new national symbol", error: null };
+          if (!newImage) return { kind: ProposalKind.Symbol, payload: "0x" as Hex, summary: "", error: "Upload the new image first." };
+          return { kind: ProposalKind.Symbol, payload: encodeSymbolPayload(newImage.emblem, newImage.url), summary: "Adopt a new nation image", error: null };
       }
     } catch {
       return { kind: ProposalKind.GameAction, payload: "0x", summary: "", error: "Invalid input." };
     }
-  }, [type, building, target, allianceName, allianceId, recipient, amount, emblem, nation.allianceId, others]);
+  }, [type, building, target, allianceName, allianceId, recipient, amount, newImage, nation.allianceId, others]);
 
   const description = `${title.trim() || draft?.summary || "Proposal"}${body.trim() ? `\n${body.trim()}` : ""}`;
   const voting = draft?.kind === ProposalKind.Treasury ? GOVERNANCE.treasuryVotingSeconds : GOVERNANCE.standardVotingSeconds;
@@ -208,7 +209,7 @@ export function CreateProposal({
               </p>
             </div>
           )}
-          {type === "symbol" && <EmblemEditor value={emblem} onChange={setEmblem} />}
+          {type === "symbol" && <EmblemUpload value={newImage?.url ?? null} onChange={setNewImage} />}
 
           <div className="space-y-2">
             <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={120} placeholder={draft?.summary || "Title"} className={input} />

@@ -8,29 +8,30 @@ import { decodeEventLog, formatEther, formatUnits, parseUnits } from "viem";
 import { atlasLaunchpadAbi, nationTokenAbi } from "@atlaspad/shared/abis";
 import {
   LAUNCHPAD,
-  THEMES,
   WIF_DECIMALS,
   curveMilestones,
-  encodeEmblem,
+  decodeEmblem,
   formatCompact,
   formatWif,
   initialCurve,
   normalizeSocials,
   quoteBuy,
-  type Emblem,
 } from "@atlaspad/shared";
 import { contracts, getWifUrl, isDeployed, network, wifToken } from "@/lib/env";
 import { queryKeys } from "@/lib/api";
 import { useUi } from "@/lib/store";
 import { useAtlasTx } from "@/lib/tx";
 import { Button } from "@/components/ui/Button";
-import { Flag } from "@/components/emblem/Flag";
-import { EmblemEditor } from "@/components/emblem/EmblemEditor";
-import { EmblemUpload } from "@/components/emblem/EmblemUpload";
+import { EmblemUpload, emblemFromPalette, type UploadedImage } from "@/components/emblem/EmblemUpload";
+import { TokenImage } from "@/components/emblem/TokenImage";
 import { FoundingSequence } from "@/components/found/FoundingSequence";
 import { pendingSocialsKey } from "@/components/nation/SocialLinks";
 
-const STEPS = ["Name", "Ticker", "Description", "Theme", "Symbol", "Token", "Review", "Launch"] as const;
+const STEPS = ["Name", "Ticker", "Image", "About", "Token", "Review", "Launch"] as const;
+const LAUNCH_STEP = STEPS.length - 1;
+const DEFAULT_EMBLEM = emblemFromPalette(["#d6b26e", "#7a5a26", "#14100a"]);
+/** Themes are no longer chosen when founding; every nation is founded with this one (it is only a label on-chain). */
+const DEFAULT_THEME = 5;
 const NAME_RE = /^[A-Za-z0-9 .'-]+$/;
 const SUPPLIES = [
   { label: "1M", value: 1_000_000n },
@@ -40,9 +41,6 @@ const SUPPLIES = [
   { label: "100B", value: 100_000_000_000n },
   { label: "1T", value: 1_000_000_000_000n },
 ];
-const THEME_GLYPH: Record<string, Emblem["glyph"]> = {
-  medieval: "crown", cyberpunk: "chip", space: "planet", ocean: "wave", jungle: "leaf", meme: "frog", ai: "eye", fantasy: "dragon",
-};
 
 function validateName(n: string): string | null {
   if (n.length < 2 || n.length > 32) return "2–32 characters.";
@@ -76,11 +74,9 @@ export default function FoundPage() {
   const [description, setDescription] = useState("");
   const [socials, setSocials] = useState({ x: "", telegram: "", website: "" });
   const socialsNorm = normalizeSocials(socials);
-  const [theme, setTheme] = useState(5);
-  // The theme presets the emblem until the founder customizes it.
-  const [customEmblem, setCustomEmblem] = useState<bigint | null>(null);
-  // Optional uploaded picture; its URL is written on-chain as the nation's metadataURI.
-  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  // Required uploaded picture: its URL is written on-chain as the nation's metadataURI, and its colors as the emblem.
+  const [image, setImage] = useState<UploadedImage | null>(null);
+  const imageUrl = image?.url ?? null;
   const [supply, setSupply] = useState(1_000_000_000n);
   const [founderBps, setFounderBps] = useState(0);
   const [initialBuy, setInitialBuy] = useState("");
@@ -106,11 +102,8 @@ export default function FoundPage() {
     query: { enabled: Boolean(address && contracts) },
   });
 
-  const emblem = useMemo(() => {
-    if (customEmblem !== null) return customEmblem;
-    const t = THEMES[theme]!;
-    return encodeEmblem({ glyph: THEME_GLYPH[t.key] ?? "star", pattern: "chevron", primary: t.palette[0], secondary: t.palette[1], accent: t.palette[2] });
-  }, [customEmblem, theme]);
+  const emblem = image?.emblem ?? DEFAULT_EMBLEM;
+  const tint = decodeEmblem(emblem).primary;
 
   const totalSupplyWei = supply * 10n ** 18n;
   const initialBuyWei = (() => {
@@ -145,7 +138,7 @@ export default function FoundPage() {
             symbol: ticker,
             description: description.trim(),
             metadataURI: imageUrl ?? "",
-            theme,
+            theme: DEFAULT_THEME,
             emblem,
             totalSupply: totalSupplyWei,
             founderBps,
@@ -162,9 +155,8 @@ export default function FoundPage() {
   const canNext = [
     !validateName(name.trim()) && nameAvail.data === true && dName === name.trim(),
     !validateTicker(ticker) && tickerAvail.data === true && dTicker === ticker,
+    Boolean(imageUrl),
     description.length <= 280 && socialsNorm.ok,
-    true,
-    true,
     initialBuyWei !== null && !buyPreview?.tooLarge,
     true,
     true,
@@ -172,7 +164,7 @@ export default function FoundPage() {
 
   useEffect(() => {
     // The founding call can only be simulated once the launchpad may pull the $WIF.
-    if (step === 7 && call && isConnected && !needsApproval) void tx.prepare(call);
+    if (step === LAUNCH_STEP && call && isConnected && !needsApproval) void tx.prepare(call);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, isConnected, needsApproval]);
 
@@ -223,11 +215,10 @@ export default function FoundPage() {
   }
 
   const input = "w-full rounded-xl border border-line bg-black/30 px-4 py-3.5 text-lg text-fg outline-none transition focus:border-gold/50";
-  const t = THEMES[theme]!;
 
   return (
     <div className="relative min-h-[100dvh] pb-24 pt-20">
-      <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(ellipse at 70% 10%, ${t.palette[0]}1a, transparent 55%)` }} />
+      <div className="pointer-events-none absolute inset-0" style={{ background: `radial-gradient(ellipse at 70% 10%, ${tint}1f, transparent 55%)` }} />
       <div className="relative mx-auto grid max-w-6xl gap-8 px-5 lg:grid-cols-[1fr_340px]">
         <div>
           <div className="label mb-2">Found a nation · step {step + 1} of {STEPS.length}</div>
@@ -259,6 +250,11 @@ export default function FoundPage() {
                 </Step>
               )}
               {step === 2 && (
+                <Step title="Upload your token image" sub="Your nation's face on the map, in every list and on its share cards. Saved with the nation on-chain.">
+                  <EmblemUpload value={imageUrl} onChange={setImage} />
+                </Step>
+              )}
+              {step === 3 && (
                 <Step title="Describe your nation" sub="Stored on-chain in the founding event. Up to 280 characters.">
                   <textarea autoFocus value={description} onChange={(e) => setDescription(e.target.value.slice(0, 280))} rows={4} placeholder="A swamp republic of frogs and memes." className={`${input} text-base`} />
                   <div className="mt-2 text-right font-mono text-[11px] text-faint">{description.length}/280</div>
@@ -285,42 +281,7 @@ export default function FoundPage() {
                   <p className="mt-2 text-[11px] text-faint">Links are saved after founding with one free signature from your wallet, and you can change them any time.</p>
                 </Step>
               )}
-              {step === 3 && (
-                <Step title="Choose a theme" sub="Sets your nation's palette and starting symbol.">
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {THEMES.map((th) => (
-                      <button
-                        key={th.id}
-                        onClick={() => setTheme(th.id)}
-                        className={`relative overflow-hidden rounded-xl border p-4 text-left transition ${theme === th.id ? "border-gold/60" : "border-line hover:border-line-strong"}`}
-                        style={{ background: `linear-gradient(135deg, ${th.palette[2]}, ${th.palette[0]}22)` }}
-                      >
-                        <div className="flex gap-1">
-                          {th.palette.map((c) => (
-                            <span key={c} className="size-3 rounded-full" style={{ background: c }} />
-                          ))}
-                        </div>
-                        <div className="mt-6 font-display text-sm text-fg">{th.name}</div>
-                        {theme === th.id && <Check className="absolute right-3 top-3 size-4 text-gold" />}
-                      </button>
-                    ))}
-                  </div>
-                </Step>
-              )}
               {step === 4 && (
-                <Step title="Design your national symbol" sub="Design a flag from a single on-chain value, or upload your own image.">
-                  <div className="space-y-5">
-                    <EmblemUpload value={imageUrl} onChange={setImageUrl} />
-                    <EmblemEditor
-                      value={emblem}
-                      onChange={(v) => {
-                        setCustomEmblem(v);
-                      }}
-                    />
-                  </div>
-                </Step>
-              )}
-              {step === 5 && (
                 <Step title="Token parameters" sub="Fixed supply, minted once. No minting, no owner, no taxes.">
                   <div className="space-y-6">
                     <div>
@@ -376,15 +337,15 @@ export default function FoundPage() {
                   </div>
                 </Step>
               )}
-              {step === 6 && (
+              {step === 5 && (
                 <Step title="Review your nation" sub="Everything below is written permanently on-chain.">
                   <div className="space-y-4">
                     <div className="flex items-center gap-4 rounded-xl border border-line p-4">
-                      <Flag emblem={emblem} image={imageUrl} size={72} glow />
+                      <TokenImage src={imageUrl} size={72} />
                       <div>
                         <div className="font-display text-2xl uppercase text-fg">{name}</div>
                         <div className="font-mono text-sm text-dim">
-                          ${ticker} · {t.name} · {formatCompact(Number(supply))} supply
+                          ${ticker} · {formatCompact(Number(supply))} supply
                         </div>
                       </div>
                     </div>
@@ -393,7 +354,7 @@ export default function FoundPage() {
                       {[
                         ["Total supply", `${formatCompact(Number(supply))} (fixed, minted once to the launchpad)`],
                         ["Founder allocation", `${founderBps / 100}% · 30-day vesting · claimable after graduation`],
-                        ["Symbol", imageUrl ? "Uploaded image (flag colors used on the map)" : "Generated flag"],
+                        ["Image", "Uploaded · its main color marks your territory on the map"],
                         ["Initial buy", initialBuyWei ? wif(initialBuyWei) : "None"],
                         ["Founding fee", `${wif(fee)} · burned forever`],
                         ["Trade fee on the curve", "1% in $WIF (0.5% to your nation's treasury · 0.25% burned · 0.25% to the protocol)"],
@@ -420,7 +381,7 @@ export default function FoundPage() {
                   </div>
                 </Step>
               )}
-              {step === 7 && (
+              {step === LAUNCH_STEP && (
                 <Step title="Launch" sub="Final check before your wallet asks for confirmation.">
                   <div className="space-y-4">
                     <div className="rounded-xl border border-line">
@@ -464,7 +425,7 @@ export default function FoundPage() {
             <Button variant="ghost" onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}>
               <ArrowLeft className="size-4" /> Back
             </Button>
-            {step < 7 ? (
+            {step < LAUNCH_STEP ? (
               <Button variant="primary" onClick={() => setStep(step + 1)} disabled={!canNext}>
                 Continue <ArrowRight className="size-4" />
               </Button>
@@ -493,14 +454,14 @@ export default function FoundPage() {
         <aside className="hidden lg:block">
           <div className="sticky top-24 space-y-4">
             <div className="panel overflow-hidden">
-              <div className="relative grid h-56 place-items-center" style={{ background: `radial-gradient(circle at 50% 60%, ${t.palette[0]}33, transparent 70%)` }}>
-                <motion.div key={`${emblem}-${imageUrl ?? ""}`} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="animate-float">
-                  <Flag emblem={emblem} image={imageUrl} size={150} glow />
+              <div className="relative grid h-60 place-items-center" style={{ background: `radial-gradient(circle at 50% 60%, ${tint}40, transparent 70%)` }}>
+                <motion.div key={imageUrl ?? "none"} initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="animate-float">
+                  <TokenImage src={imageUrl} size={160} glow={tint} />
                 </motion.div>
               </div>
               <div className="border-t border-line p-4">
                 <div className="truncate font-display text-lg uppercase tracking-wide text-fg">{name || "Your nation"}</div>
-                <div className="font-mono text-xs text-faint">${ticker || "TICKER"} · {t.name}</div>
+                <div className="font-mono text-xs text-faint">${ticker || "TICKER"}</div>
                 {description && <p className="mt-2 line-clamp-3 text-xs text-dim">{description}</p>}
               </div>
             </div>

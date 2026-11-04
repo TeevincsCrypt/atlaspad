@@ -121,7 +121,15 @@ export function Sparkline({
   className?: string;
   color?: string;
 }) {
-  if (values.length < 2) return <svg width={width} height={height} className={className} />;
+  if (values.length < 2)
+    return (
+      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className={className} aria-label="Not enough history yet">
+        <line x1="0" x2={width} y1={height - 6} y2={height - 6} stroke="rgb(255 255 255 / 0.12)" strokeDasharray="3 5" />
+        <text x="0" y={height - 12} fill="var(--color-faint)" fontSize="10" fontFamily="var(--font-mono)" letterSpacing="1">
+          CHART BUILDS AS TRADES ARRIVE
+        </text>
+      </svg>
+    );
   const min = Math.min(...values);
   const max = Math.max(...values);
   const span = max - min || 1;
