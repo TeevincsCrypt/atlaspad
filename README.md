@@ -44,6 +44,8 @@ Burns, locked liquidity and treasury balances are on-chain counters (`totalWifBu
 - **Profit & loss** on every citizen profile: average cost, realized and unrealized P&L per nation, from on-chain trades.
 - **Social links** (X, Telegram, website) per nation. The founder sets them with a free signed message (no gas), during founding or later from the nation page; links are normalised to `x.com`, `t.me` and `https` URLs.
 - **PnL cards**: after every sale a shareable card pops up with the % gain or loss, entry and exit price, hold time and $WIF realized, built only from that transaction's on-chain trades (`/pnl/[tx]`, image at `/api/pnl/[tx]/image`). Sells in a profile's trade history have a *PnL card* button too.
+- **Nation chat**: a Chat tab on every nation. Anyone can read; only citizens and the founder can post, after one free wallet signature.
+- **Telegram bot**: announces launches (with share cards), graduations, stage-ups, wars and whale buys in your channel, and answers `/top`, `/new`, `/nation`, `/burned`. Runs inside the indexer; see SETUP_GUIDE.md.
 - **Share cards**: every `/nation/[id]` link unfurls on X, Telegram and Discord with the nation's flag, market cap, citizens, stage and $WIF burned, plus a one-click *Share on X* button.
 
 ## Quick start (local chain)

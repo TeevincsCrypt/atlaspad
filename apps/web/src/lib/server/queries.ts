@@ -12,6 +12,7 @@ import {
   type AchievementDTO,
   type BuildingDTO,
   type CandleDTO,
+  type ChatMessageDTO,
   type CitizenProfile,
   type HolderDTO,
   type NationSocials,
@@ -616,6 +617,28 @@ export async function getSellPnl(sql: Sql, txHash: string): Promise<SellPnl | nu
     pnlPct: cost === null || cost === 0 ? null : wifReceived / cost - 1,
     heldSeconds: b?.first_at === null || b?.first_at === undefined ? null : Math.max(0, Number(s.ts) - Number(b.first_at)),
   };
+}
+
+/** Chat messages for a nation, oldest first: the latest 80, or everything after `after`. */
+export async function getChatMessages(sql: Sql, nationId: number, after: number): Promise<ChatMessageDTO[]> {
+  const rows = await sql`
+    SELECT * FROM (
+      SELECT m.id, m.author, m.body, m.created_at, n.founder, n.total_supply, COALESCE(h.balance, 0) AS balance
+      FROM nation_messages m
+      JOIN nations n ON n.id = m.nation_id
+      LEFT JOIN holders h ON h.nation_id = m.nation_id AND h.address = m.author
+      WHERE m.nation_id = ${nationId} AND m.id > ${after}
+      ORDER BY m.id DESC
+      LIMIT 80
+    ) x ORDER BY id ASC`;
+  return rows.map((r) => ({
+    id: Number(r.id),
+    author: r.author as string,
+    body: r.body as string,
+    createdAt: Number(r.created_at),
+    share: Number((BigInt(String(r.balance)) * 1_000_000n) / BigInt(String(r.total_supply))) / 1_000_000,
+    isFounder: r.founder === r.author,
+  }));
 }
 
 export async function getTopCitizens(sql: Sql, limit: number) {

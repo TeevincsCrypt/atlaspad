@@ -166,6 +166,30 @@ It prints one block for Railway and one for Vercel. If PowerShell refuses to run
 
 Every new nation must upload a token image in the founding wizard (step 3). Without these two values the wizard shows a warning and no nation can be founded.
 
+### Optional: Telegram bot
+
+The bot posts every new nation (with its share card), graduations, stage-ups, wars, alliances and whale buys to your Telegram channel. It also answers `/top`, `/new`, `/nation $TICKER` and `/burned`. It runs inside the indexer, so there is nothing new to host.
+
+1. In Telegram, open **@BotFather**, send `/newbot`, pick a name (e.g. *AtlasPad*) and a username ending in `bot`. Copy the **token** it gives you.
+2. Create your channel (or use an existing group). Open its settings, **Administrators**, **Add admin**, search your bot's username and add it (posting rights are enough).
+3. Railway, the indexer service, **Variables**: add
+   - `TELEGRAM_BOT_TOKEN` = the token from step 1
+   - `TELEGRAM_CHAT_ID` = your channel's `@username` (for a private group, its numeric id such as `-1001234567890`)
+   - `PUBLIC_SITE_URL` = `https://atlaswif.xyz`
+4. Railway redeploys. The logs show `Telegram bot enabled`. The bot starts from "now": it does not repost old history.
+5. Optional, in @BotFather: `/setcommands`, choose your bot, and paste:
+   ```
+   top - Leading nations
+   new - Newest nations
+   nation - A nation's card, e.g. /nation $PEPE
+   burned - Total $WIF burned
+   help - What this bot does
+   ```
+
+### Nation chat
+
+Every nation page has a **Chat** tab. Anyone can read it; only citizens (wallets holding the nation's token) and the founder can post, after one free sign-in signature. It uses your existing database (the indexer creates the table on its next deploy), so there is nothing to configure.
+
 ## Part 6. Submit
 
 Follow [HACKATHON.md](HACKATHON.md) section 5 and fill in its proof-transaction table: found a nation, buy, sell, propose and vote from the website with your own wallet, then copy the explorer links. Keep the indexer and website running until the final closes.

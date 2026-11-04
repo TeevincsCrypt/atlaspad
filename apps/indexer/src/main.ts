@@ -7,6 +7,7 @@ import { runMigrations } from "./migrate";
 import { refreshWifUsd } from "./price";
 import { startServer } from "./realtime/server";
 import { ChainSync } from "./sync/sync";
+import { TelegramBot } from "./telegram/bot";
 
 const env = loadEnv();
 if (env.runMigrations) await runMigrations(env.databaseUrl, env.databaseSsl);
@@ -18,11 +19,14 @@ const sql = postgres(env.databaseUrl, {
 });
 const ctx = createCtx(env, sql);
 const server = startServer(ctx);
+const telegram = env.telegram ? new TelegramBot(sql, env.telegram) : null;
+telegram?.start();
 
 let running = true;
 const shutdown = async (signal: string) => {
   log.info("Shutting down", { signal });
   running = false;
+  telegram?.stop();
   server.close();
   await sql.end({ timeout: 5 });
   process.exit(0);
