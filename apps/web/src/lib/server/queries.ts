@@ -80,10 +80,9 @@ export interface NationDetail {
 }
 
 export async function getNationDetail(sql: Sql, id: number): Promise<NationDetail | null> {
-  const [nation] = await nationSummaries(sql, { ids: [id] });
+  // Independent reads run together: every sequential query costs a full round trip to the database.
+  const [[nation], [raw], now] = await Promise.all([nationSummaries(sql, { ids: [id] }), sql`SELECT * FROM nations WHERE id = ${id}`, chainNow(sql)]);
   if (!nation) return null;
-  const [raw] = await sql`SELECT * FROM nations WHERE id = ${id}`;
-  const now = await chainNow(sql);
   const [buildings, achievements, wars, allianceRow, invites, ledger, holderCount, health, socials] = await Promise.all([
     sql`SELECT * FROM game_buildings WHERE nation_id = ${id} ORDER BY started_at`,
     sql`SELECT code, unlocked_at FROM game_nation_achievements WHERE nation_id = ${id} ORDER BY unlocked_at`,

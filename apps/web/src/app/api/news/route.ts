@@ -16,7 +16,7 @@ export async function GET(req: Request) {
         limit: intParam(url.searchParams.get("limit"), 50, 1, 200),
         minSeverity: severity === "major" || severity === "notable" ? severity : "minor",
       }),
-      { maxAge: 2 },
+      { maxAge: 10 },
     ),
   );
 }
