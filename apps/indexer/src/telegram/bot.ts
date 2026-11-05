@@ -15,6 +15,22 @@ export interface TelegramConfig {
 
 type Sql = postgres.Sql;
 
+/** Shown on the indexer's /health page so a misconfigured bot is easy to spot. Never contains the token. */
+export const telegramStatus: {
+  enabled: boolean;
+  bot: string | null;
+  chat: string | null;
+  canPost: boolean | null;
+  lastPostAt: number | null;
+  lastError: string | null;
+  lastErrorAt: number | null;
+} = { enabled: false, bot: null, chat: null, canPost: null, lastPostAt: null, lastError: null, lastErrorAt: null };
+
+function noteError(where: string, err: unknown) {
+  telegramStatus.lastError = `${where}: ${String((err as Error)?.message ?? err)}`.slice(0, 300);
+  telegramStatus.lastErrorAt = Math.floor(Date.now() / 1000);
+}
+
 /**
  * AtlasPad's Telegram bot, running inside the indexer:
  *  - announces launches, graduations, stage-ups, wars and other big moments in TELEGRAM_CHAT_ID;
@@ -32,8 +48,50 @@ export class TelegramBot {
 
   start() {
     log.info("Telegram bot enabled", { chat: this.cfg.chatId, commands: this.cfg.commands });
-    void this.announceLoop();
-    if (this.cfg.commands) void this.commandLoop();
+    telegramStatus.enabled = true;
+    telegramStatus.chat = this.cfg.chatId;
+    void this.selfCheck().finally(() => {
+      void this.announceLoop();
+      if (this.cfg.commands) void this.commandLoop();
+    });
+  }
+
+  /**
+   * Checks the token and that the bot can post in the chat, and says hello there once (ever), so the owner sees at a
+   * glance that it works. Problems are logged and shown on /health.
+   */
+  async selfCheck() {
+    try {
+      const me = await this.api<{ username: string }>("getMe", {});
+      telegramStatus.bot = `@${me.username}`;
+    } catch (err) {
+      noteError("token check (getMe)", err);
+      log.error("Telegram: the bot token was rejected. Check TELEGRAM_BOT_TOKEN.", { err: String(err) });
+      return;
+    }
+    try {
+      await this.api("getChat", { chat_id: this.cfg.chatId });
+    } catch (err) {
+      telegramStatus.canPost = false;
+      noteError(`chat check (getChat ${this.cfg.chatId})`, err);
+      log.error("Telegram: cannot reach TELEGRAM_CHAT_ID. Use the channel's @username (public) or numeric id, and add the bot as an admin.", { err: String(err) });
+      return;
+    }
+    try {
+      const helloKey = `telegram:hello:${this.cfg.chatId}`;
+      if ((await this.getState(helloKey)) === null) {
+        await this.send(this.cfg.chatId, {
+          text: "🧭 <b>AtlasPad alerts are live.</b>\n\nNew nations, graduations, stage-ups, wars and whales will be posted here as they happen.\n\nTry /top, /new or /nation $TICKER.",
+          buttons: [{ text: "Open AtlasPad", url: this.cfg.siteUrl }],
+        });
+        await this.setState(helloKey, String(Math.floor(Date.now() / 1000)));
+      }
+      telegramStatus.canPost = true;
+    } catch (err) {
+      telegramStatus.canPost = false;
+      noteError("first post", err);
+      log.error("Telegram: could not post in TELEGRAM_CHAT_ID. Make the bot an admin of the channel with permission to post.", { err: String(err) });
+    }
   }
 
   stop() {
@@ -59,12 +117,20 @@ export class TelegramBot {
     if (post.photo) {
       try {
         await this.api("sendPhoto", { ...common, photo: post.photo, caption: post.text.slice(0, 1024) });
+        if (String(chatId) === this.cfg.chatId) {
+          telegramStatus.lastPostAt = Math.floor(Date.now() / 1000);
+          telegramStatus.canPost = true;
+        }
         return;
       } catch (err) {
         log.warn("Telegram photo failed, sending text", { err: String(err) });
       }
     }
     await this.api("sendMessage", { ...common, text: post.text, link_preview_options: { is_disabled: true } });
+    if (String(chatId) === this.cfg.chatId) {
+      telegramStatus.lastPostAt = Math.floor(Date.now() / 1000);
+      telegramStatus.canPost = true;
+    }
   }
 
   // --------------------------------------------------------------------------------------------- state
@@ -86,8 +152,12 @@ export class TelegramBot {
     const [{ max }] = (await this.sql`SELECT COALESCE(max(id), 0)::int AS max FROM game_events`) as unknown as [{ max: number }];
     const cursorRaw = await this.getState(cursorKey);
     if (cursorRaw === null) {
-      // First run: start from now instead of replaying history into the channel.
-      await this.setState(cursorKey, String(max));
+      // First run: skip history, but still announce the last hour (e.g. a launch made while the bot was being set up).
+      const [{ before }] = (await this.sql`
+        SELECT COALESCE(max(id), 0)::int AS before FROM game_events
+        WHERE created_at < ${Math.floor(Date.now() / 1000) - 3600}`) as unknown as [{ before: number }];
+      await this.setState(cursorKey, String(Math.min(before, max)));
+      return this.announceOnce(maxPosts);
     } else {
       const events = await this.sql`
         SELECT id, type, title, body, nation_id FROM game_events
@@ -137,6 +207,7 @@ export class TelegramBot {
       try {
         await this.announceOnce();
       } catch (err) {
+        noteError("announce", err);
         log.warn("Telegram announce failed", { err: String(err) });
       }
       await new Promise((r) => setTimeout(r, this.cfg.intervalMs));

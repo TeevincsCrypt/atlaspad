@@ -3,6 +3,7 @@ import { timingSafeEqual } from "node:crypto";
 import { indexerHealth } from "@atlaspad/db/queries";
 import type { Ctx } from "../context";
 import { log } from "../log";
+import { telegramStatus } from "../telegram/bot";
 
 const HEARTBEAT_MS = 15_000;
 const MAX_CLIENTS = 5_000;
@@ -11,6 +12,7 @@ function json(res: ServerResponse, status: number, body: unknown, cors: string) 
   res.writeHead(status, {
     "Content-Type": "application/json",
     "Access-Control-Allow-Origin": cors,
+    Vary: "Origin",
     "Cache-Control": "no-store",
   });
   res.end(JSON.stringify(body));
@@ -25,13 +27,26 @@ function authorized(req: IncomingMessage, token: string | null): boolean {
 }
 
 /**
+ * INDEXER_CORS_ORIGIN is "*" or a comma-separated list of site origins. The matching request origin is echoed back,
+ * and "https://example.com" also allows "https://www.example.com" (and the reverse).
+ */
+export function corsResolver(setting: string): (origin: string | undefined) => string {
+  const norm = (o: string) => o.trim().replace(/\/$/, "").toLowerCase().replace("://www.", "://");
+  const list = setting.split(",").map((s) => s.trim()).filter(Boolean);
+  if (list.length === 0 || list.includes("*")) return () => "*";
+  const allowed = new Set(list.map(norm));
+  return (origin) => (origin && allowed.has(norm(origin)) ? origin : list[0]!);
+}
+
+/**
  * Public:  GET /health, GET /stream (Server-Sent Events).
  * Private: GET /admin/status (Authorization: Bearer INDEXER_ADMIN_TOKEN). Read-only; there are no admin controls.
  */
 export function startServer(ctx: Ctx) {
-  const cors = ctx.env.corsOrigin;
+  const allowCors = corsResolver(ctx.env.corsOrigin);
   const server = createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", "http://localhost");
+    const cors = allowCors(req.headers.origin);
     try {
       if (req.method === "OPTIONS") {
         res.writeHead(204, {
@@ -57,6 +72,7 @@ export function startServer(ctx: Ctx) {
             lagBlocks: h?.lagBlocks ?? null,
             lastSyncAt: ctx.stats.lastSyncAt,
             subscribers: ctx.bus.subscribers,
+            telegram: telegramStatus,
           },
           cors,
         );
@@ -69,6 +85,7 @@ export function startServer(ctx: Ctx) {
           "Cache-Control": "no-cache, no-transform",
           Connection: "keep-alive",
           "Access-Control-Allow-Origin": cors,
+          Vary: "Origin",
           "X-Accel-Buffering": "no",
         });
         res.write("retry: 3000\n\n");

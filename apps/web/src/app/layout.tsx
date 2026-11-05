@@ -7,7 +7,7 @@ import { StatusBanner } from "@/components/nav/StatusBanner";
 import { SearchPalette } from "@/components/nav/SearchPalette";
 import { WalletModal } from "@/components/wallet/WalletModal";
 import { Toaster } from "@/components/ui/Toaster";
-import { WorldStage } from "@/components/world/WorldStage";
+import { LazyWorldStage } from "@/components/world/LazyWorldStage";
 import { CinematicLayer } from "@/components/cinematic/CinematicLayer";
 import { IntroCinematic } from "@/components/cinematic/IntroCinematic";
 import { publicEnv } from "@/lib/env";
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         <Providers>
-          <WorldStage />
+          <LazyWorldStage />
           <TopNav />
           <StatusBanner />
           <main className="relative z-10 min-h-[100dvh] pb-20 sm:pb-0">{children}</main>

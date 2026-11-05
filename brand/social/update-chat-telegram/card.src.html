@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Unbounded; font-weight: 500; src: url(unbounded-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 600; src: url(unbounded-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 700; src: url(unbounded-latin-700-normal.woff2) format("woff2"); }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1600px; height: 900px; overflow: hidden; }
+  body { position: relative; font-family: Inter, sans-serif; color: #eef0f6;
+    background: radial-gradient(900px 600px at 18% 20%, rgba(214,178,110,.16), transparent 65%),
+                radial-gradient(900px 700px at 85% 85%, rgba(42,171,238,.13), transparent 65%), #05060b; }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(214,178,110,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(214,178,110,.05) 1px, transparent 1px);
+    background-size: 56px 56px; mask-image: radial-gradient(ellipse at 40% 40%, black 10%, transparent 75%); }
+  .gold { background: linear-gradient(100deg, #fbe6ad 0%, #e2bd72 45%, #b48a43 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .mono { font-family: "JetBrains Mono", monospace; letter-spacing: .2em; text-transform: uppercase; }
+  .panel { background: linear-gradient(180deg, rgba(22,26,40,.94), rgba(12,15,25,.94)) padding-box,
+      linear-gradient(180deg, rgba(255,255,255,.16), rgba(255,255,255,.04)) border-box;
+    border: 1px solid transparent; border-radius: 24px; box-shadow: 0 40px 100px -30px rgba(0,0,0,.9); }
+  .feat { display: flex; gap: 18px; align-items: flex-start; margin-top: 26px; }
+  .feat .ic { width: 52px; height: 52px; border-radius: 15px; display: grid; place-items: center; font-size: 26px; flex: none; }
+  .feat .t { font-family: Unbounded; font-weight: 600; font-size: 25px; }
+  .feat .s { font-size: 18px; color: #9aa2b5; margin-top: 6px; line-height: 1.45; }
+  .msg { display: flex; gap: 12px; margin-top: 16px; }
+  .av { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-family: "JetBrains Mono"; font-size: 12px; flex: none; }
+  .meta { font-family: "JetBrains Mono", monospace; font-size: 12px; color: #6f7891; display: flex; gap: 8px; align-items: center; }
+  .bub { margin-top: 6px; display: inline-block; padding: 10px 15px; border-radius: 18px; border-top-left-radius: 5px; background: rgba(255,255,255,.06); font-size: 17px; }
+  .me .bub { background: rgba(214,178,110,.18); border-top-left-radius: 18px; border-top-right-radius: 5px; }
+  .badge { border: 1px solid rgba(243,213,143,.45); color: #f3d58f; border-radius: 5px; padding: 1px 6px; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+
+  <!-- left: headline -->
+  <div style="position:absolute;left:96px;top:140px;width:740px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <svg width="44" height="44" viewBox="0 0 200 200">%%COMPASS%%</svg>
+      <span style="font-family:Unbounded;font-weight:700;font-size:22px;letter-spacing:.3em">ATLASPAD</span>
+      <span class="mono" style="font-size:13px;color:#0b0d14;background:linear-gradient(180deg,#f8dea0,#c79e52);padding:6px 12px;border-radius:999px;letter-spacing:.16em;margin-left:6px">New</span>
+    </div>
+    <h1 style="font-family:Unbounded;font-weight:700;font-size:66px;line-height:1.08;margin-top:44px;letter-spacing:-.01em">
+      Rally your<br><span class="gold">nation.</span>
+    </h1>
+    <p style="font-size:22px;color:#b6bdcc;margin-top:20px;line-height:1.5;max-width:600px">Two new ways to keep your citizens together, live now.</p>
+
+    <div class="feat" style="margin-top:42px">
+      <div class="ic" style="background:rgba(214,178,110,.14);border:1px solid rgba(214,178,110,.35)">💬</div>
+      <div><div class="t">Citizens-only chat</div><div class="s">Every nation gets its own town square.<br>Anyone can read. Only holders can post.</div></div>
+    </div>
+    <div class="feat">
+      <div class="ic" style="background:rgba(42,171,238,.14);border:1px solid rgba(42,171,238,.4)">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="#2AABEE"><path d="M21.9 4.3 18.8 19c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.6 12.8 1.9 11.3c-1-.3-1-1 .2-1.5L20.5 2.8c.9-.3 1.6.2 1.4 1.5Z"/></svg>
+      </div>
+      <div><div class="t">Telegram alerts bot</div><div class="s">New nations, graduations, stage-ups, wars and whales,<br>posted live. Try /nation $TICKER</div></div>
+    </div>
+
+    <div class="mono" style="margin-top:56px;font-size:15px;color:#9aa2b5">atlaswif.xyz · Every nation runs on <span style="color:#e2bd72">$WIF</span></div>
+  </div>
+
+  <!-- right: chat mock -->
+  <div class="panel" style="position:absolute;left:880px;top:120px;width:640px;height:440px;padding:22px 26px;transform:rotate(-1.2deg)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.07)">
+      <div style="font-family:Unbounded;font-weight:600;font-size:19px">💬 Pepeland chat</div>
+      <div class="mono" style="font-size:11px;color:#6f7891;display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:#35d29a;display:inline-block"></span>Live</div>
+    </div>
+    <div class="msg">
+      <div class="av" style="background:hsl(45 70% 22%);color:hsl(45 70% 72%)">70</div>
+      <div><div class="meta"><span style="color:hsl(45 70% 72%)">0x7099…79c8</span><span class="badge">👑 founder</span><span>5.4%</span></div>
+        <div class="bub">gm citizens 🐸 the curve is ours</div></div>
+    </div>
+    <div class="msg">
+      <div class="av" style="background:hsl(300 70% 22%);color:hsl(300 70% 72%)">99</div>
+      <div><div class="meta"><span style="color:hsl(300 70% 72%)">0x9965…a4dc</span><span>8.1%</span></div>
+        <div class="bub">just bought more. harbor next? 🏗️</div></div>
+    </div>
+    <div class="msg me" style="flex-direction:row-reverse;text-align:right">
+      <div class="av" style="background:hsl(190 70% 22%);color:hsl(190 70% 72%)">3c</div>
+      <div><div class="meta" style="justify-content:flex-end"><span style="color:hsl(190 70% 72%)">you</span><span>1.2%</span></div>
+        <div class="bub">voting yes on #12 ✅</div></div>
+    </div>
+  </div>
+
+  <!-- right: telegram post mock -->
+  <div style="position:absolute;left:950px;top:500px;width:580px;transform:rotate(1.6deg);border-radius:22px;overflow:hidden;background:#17212b;box-shadow:0 40px 100px -24px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.06)">
+    <div style="display:flex;align-items:center;gap:12px;padding:14px 18px;background:#1f2c3a">
+      <div style="width:38px;height:38px;border-radius:50%;background:#0b0d14;display:grid;place-items:center"><svg width="26" height="26" viewBox="0 0 200 200">%%COMPASS2%%</svg></div>
+      <div><div style="font-weight:600;font-size:17px">AtlasPad · Live Atlas</div><div style="font-size:13px;color:#7f91a4">channel</div></div>
+    </div>
+    <div style="padding:16px 18px 6px;font-size:16.5px;line-height:1.5">
+      <div>🏳️ <b>New nation founded</b></div>
+      <div style="margin-top:8px"><b>Dogeland</b> ($DOGE)</div>
+      <div style="color:#c9d4df">💰 85.7K WIF mcap · 👥 4 citizens · 🏕️ Settlement</div>
+      <div style="margin-top:8px;color:#c9d4df">Buy with $WIF and become a citizen 👇</div>
+    </div>
+    <div style="margin:10px 14px 14px;border-radius:12px;background:#2b5278;text-align:center;padding:11px;font-weight:600;font-size:16px">Buy $DOGE ↗</div>
+  </div>
+</body>
+</html>
