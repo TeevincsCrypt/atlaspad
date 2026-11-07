@@ -12,7 +12,8 @@ import { TelegramBot } from "./telegram/bot";
 const env = loadEnv();
 if (env.runMigrations) await runMigrations(env.databaseUrl, env.databaseSsl);
 const sql = postgres(env.databaseUrl, {
-  max: 10,
+  // Supabase's session pooler has few slots; leave room for other clients. Override with INDEXER_DB_POOL_MAX.
+  max: Math.max(1, Number(process.env.INDEXER_DB_POOL_MAX) || 6),
   ssl: env.databaseSsl ? "require" : undefined,
   types: { bigint: postgres.BigInt },
   onnotice: () => {},

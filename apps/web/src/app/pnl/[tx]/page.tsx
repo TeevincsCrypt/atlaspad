@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getSql } from "@/lib/server/db";
+import { getSql, withTimeout } from "@/lib/server/db";
 import { getSellPnl } from "@/lib/server/queries";
 import { formatPnlPct } from "@/lib/pnl";
 import { PnlCardView } from "@/components/pnl/PnlCard";
@@ -12,7 +12,7 @@ export async function generateMetadata({ params }: { params: Promise<{ tx: strin
   if (valid) {
     try {
       const sql = getSql();
-      const p = sql ? await getSellPnl(sql, tx) : null;
+      const p = sql ? await withTimeout(getSellPnl(sql, tx), 1500, null) : null;
       if (p) title = `${p.pnlPct === null ? "Sold" : formatPnlPct(p.pnlPct)} on $${p.ticker}`;
     } catch {
       /* metadata falls back to the generic title */

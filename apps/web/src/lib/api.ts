@@ -29,7 +29,13 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string): Promise<T> {
-  const res = await fetch(path, { cache: "no-store" });
+  let res: Response;
+  try {
+    // Never wait forever: a stuck request becomes an error the page can show (and retry) instead of an endless skeleton.
+    res = await fetch(path, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
+  } catch (err) {
+    throw new ApiError(0, (err as Error)?.name === "TimeoutError" ? "The server took too long to answer." : "Network error.");
+  }
   if (!res.ok) {
     let reason = `Request failed (${res.status})`;
     try {
