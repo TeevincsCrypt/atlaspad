@@ -438,19 +438,22 @@ const XP_SQL = (sql: Sql, now: number) => sql`
 
 export async function getCitizen(sql: Sql, address: string): Promise<CitizenProfile> {
   const a = address.toLowerCase();
+  // Every sequential query costs a full round trip to the database, so the independent reads run together.
   const now = await chainNow(sql);
-  const [xpRow] = await sql`SELECT * FROM (${XP_SQL(sql, now)}) x WHERE address = ${a}`;
-  const holdings = await sql`
-    SELECT h.nation_id, h.balance, h.first_held_at, n.name, n.ticker, n.emblem, n.metadata_uri, n.total_supply, n.founder
-    FROM holders h JOIN nations n ON n.id = h.nation_id
-    WHERE h.address = ${a} AND h.balance >= n.total_supply / 1000000 ORDER BY h.balance DESC`;
-  const founded = await sql`SELECT id FROM nations WHERE founder = ${a} ORDER BY id`;
-  const achievements = await sql`SELECT code, nation_id, unlocked_at FROM game_citizen_achievements WHERE address = ${a} ORDER BY unlocked_at`;
-  const [counts] = await sql`
-    SELECT (SELECT count(*)::int FROM votes WHERE voter = ${a}) AS votes,
-           (SELECT count(*)::int FROM proposals WHERE proposer = ${a}) AS proposals,
-           (SELECT count(DISTINCT w.id)::int FROM game_wars w JOIN votes v ON v.proposal_id = w.id AND v.voter = ${a}) AS wars`;
-  const recent = await sql`SELECT proposal_id, nation_id, support, weight, timestamp FROM votes WHERE voter = ${a} ORDER BY timestamp DESC LIMIT 20`;
+  const [[xpRow], holdings, founded, achievements, [counts], recent] = await Promise.all([
+    sql`SELECT * FROM (${XP_SQL(sql, now)}) x WHERE address = ${a}`,
+    sql`
+      SELECT h.nation_id, h.balance, h.first_held_at, n.name, n.ticker, n.emblem, n.metadata_uri, n.total_supply, n.founder
+      FROM holders h JOIN nations n ON n.id = h.nation_id
+      WHERE h.address = ${a} AND h.balance >= n.total_supply / 1000000 ORDER BY h.balance DESC`,
+    sql`SELECT id FROM nations WHERE founder = ${a} ORDER BY id`,
+    sql`SELECT code, nation_id, unlocked_at FROM game_citizen_achievements WHERE address = ${a} ORDER BY unlocked_at`,
+    sql`
+      SELECT (SELECT count(*)::int FROM votes WHERE voter = ${a}) AS votes,
+             (SELECT count(*)::int FROM proposals WHERE proposer = ${a}) AS proposals,
+             (SELECT count(DISTINCT w.id)::int FROM game_wars w JOIN votes v ON v.proposal_id = w.id AND v.voter = ${a}) AS wars`,
+    sql`SELECT proposal_id, nation_id, support, weight, timestamp FROM votes WHERE voter = ${a} ORDER BY timestamp DESC LIMIT 20`,
+  ]);
   const xp = Number(xpRow?.xp ?? 0);
   return {
     address: a,
