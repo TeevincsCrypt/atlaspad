@@ -38,8 +38,9 @@ export function getSql(): postgres.Sql | null {
     globalForDb.__atlasSql = postgres(url, {
       max: poolMax(),
       ssl: process.env.DATABASE_SSL === "true" ? "require" : undefined,
-      // Release idle connections quickly: each serverless instance has its own pool.
-      idle_timeout: 5,
+      // Opening a connection through the pooler (TLS + auth) costs far more than a query, so keep them warm between
+      // requests. The transaction pooler is built for many clients, so this no longer starves anyone.
+      idle_timeout: 60,
       max_lifetime: 5 * 60,
       connect_timeout: 8,
       // Compatible with transaction-mode poolers (PgBouncer, Neon, Supabase).

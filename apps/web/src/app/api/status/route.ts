@@ -11,11 +11,16 @@ export async function GET() {
   let indexer = null;
   let database = sql ? "ok" : "not_configured";
   let databaseMs: number | null = null;
+  let databaseQueryMs: number | null = null;
   if (sql) {
     const t0 = Date.now();
     try {
+      // The first read may include opening a connection; the second shows the plain query round trip.
       indexer = await indexerHealth(sql);
       databaseMs = Date.now() - t0;
+      const t1 = Date.now();
+      await sql`SELECT 1`;
+      databaseQueryMs = Date.now() - t1;
     } catch {
       database = "unavailable";
     }
@@ -30,6 +35,7 @@ export async function GET() {
     database,
     // How long one read took from this server and which kind of database connection it uses (no host or secret).
     databaseMs,
+    databaseQueryMs,
     databaseMode: dbMode(),
     region: process.env.VERCEL_REGION ?? null,
     indexer,
