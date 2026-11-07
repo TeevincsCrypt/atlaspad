@@ -36,7 +36,7 @@ export function getSql(): postgres.Sql | null {
     const { url, mode } = webDatabaseUrl(raw);
     globalForDb.__atlasDbMode = mode;
     globalForDb.__atlasSql = postgres(url, {
-      max: poolMax(),
+      max: poolMax(mode),
       ssl: process.env.DATABASE_SSL === "true" ? "require" : undefined,
       // Opening a connection through the pooler (TLS + auth) costs far more than a query, so keep them warm between
       // requests. The transaction pooler is built for many clients, so this no longer starves anyone.
@@ -55,9 +55,13 @@ export function dbMode(): DbMode {
   return globalForDb.__atlasDbMode ?? "unknown";
 }
 
-function poolMax(): number {
+/**
+ * A page runs up to ~10 independent reads at once. On the transaction pooler client connections are cheap, so allow
+ * enough to run them side by side (they open in parallel, so a cold start costs one connection setup, not five).
+ */
+function poolMax(mode: DbMode): number {
   const raw = process.env.DATABASE_POOL_MAX;
-  if (!raw) return 2;
+  if (!raw) return mode === "transaction-pooler" ? 6 : 2;
   const n = Number(raw);
   if (!Number.isInteger(n) || n < 1) throw new Error("DATABASE_POOL_MAX must be a positive integer");
   return n;
