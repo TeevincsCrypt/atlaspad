@@ -79,22 +79,37 @@ export interface NationDetail {
   socials: NationSocials | null;
 }
 
+/** Awaits a non-essential read; on failure logs it and returns `fallback` so the rest of the page can still load. */
+async function soft<T>(label: string, p: PromiseLike<T>, fallback: T): Promise<T> {
+  try {
+    return await p;
+  } catch (err) {
+    console.error(`[nation-detail] ${label} failed:`, (err as Error)?.message ?? err);
+    return fallback;
+  }
+}
+
 export async function getNationDetail(sql: Sql, id: number): Promise<NationDetail | null> {
   // Independent reads run together: every sequential query costs a full round trip to the database.
   const [[nation], [raw], now] = await Promise.all([nationSummaries(sql, { ids: [id] }), sql`SELECT * FROM nations WHERE id = ${id}`, chainNow(sql)]);
   if (!nation) return null;
+  // Secondary sections: if one fails, the page still loads with that section empty (and the cause is logged).
   const [buildings, achievements, wars, allianceRow, invites, ledger, holderCount, health, socials] = await Promise.all([
-    sql`SELECT * FROM game_buildings WHERE nation_id = ${id} ORDER BY started_at`,
-    sql`SELECT code, unlocked_at FROM game_nation_achievements WHERE nation_id = ${id} ORDER BY unlocked_at`,
-    warSummaries(sql, { nationId: id, limit: 50 }),
+    soft("buildings", sql`SELECT * FROM game_buildings WHERE nation_id = ${id} ORDER BY started_at`, [] as never),
+    soft("achievements", sql`SELECT code, unlocked_at FROM game_nation_achievements WHERE nation_id = ${id} ORDER BY unlocked_at`, [] as never),
+    soft("wars", warSummaries(sql, { nationId: id, limit: 50 }), []),
     nation.allianceId === null
-      ? Promise.resolve([])
-      : sql`SELECT a.id, a.name, a.leader_id, COALESCE((SELECT array_agg(m.nation_id ORDER BY m.joined_at) FROM game_alliance_members m WHERE m.alliance_id = a.id AND m.left_at IS NULL), '{}') AS members FROM game_alliances a WHERE a.id = ${nation.allianceId}`,
-    sql`SELECT i.alliance_id, i.invited_at, a.name FROM game_alliance_invites i JOIN game_alliances a ON a.id = i.alliance_id WHERE i.nation_id = ${id} AND a.active AND i.invited_at > ${now - ALLIANCE.inviteTtlSeconds}`,
-    sql`SELECT at, influence, culture, energy, materials, reason FROM game_resource_ledger WHERE nation_id = ${id} AND reason <> 'Hourly production' ORDER BY at DESC LIMIT 40`,
-    sql`SELECT count(*)::int AS c FROM holders WHERE nation_id = ${id}`,
-    indexerHealth(sql),
-    getSocials(sql, id),
+      ? Promise.resolve([] as never)
+      : soft(
+          "alliance",
+          sql`SELECT a.id, a.name, a.leader_id, COALESCE((SELECT array_agg(m.nation_id ORDER BY m.joined_at) FROM game_alliance_members m WHERE m.alliance_id = a.id AND m.left_at IS NULL), '{}') AS members FROM game_alliances a WHERE a.id = ${nation.allianceId}`,
+          [] as never,
+        ),
+    soft("invites", sql`SELECT i.alliance_id, i.invited_at, a.name FROM game_alliance_invites i JOIN game_alliances a ON a.id = i.alliance_id WHERE i.nation_id = ${id} AND a.active AND i.invited_at > ${now - ALLIANCE.inviteTtlSeconds}`, [] as never),
+    soft("ledger", sql`SELECT at, influence, culture, energy, materials, reason FROM game_resource_ledger WHERE nation_id = ${id} AND reason <> 'Hourly production' ORDER BY at DESC LIMIT 40`, [] as never),
+    soft("holders", sql`SELECT count(*)::int AS c FROM holders WHERE nation_id = ${id}`, [] as never),
+    soft("health", indexerHealth(sql), { lastIndexedBlock: null, lastIndexedAt: null, chainHeadBlock: null, lagBlocks: null, wifUsd: null, gameCursor: null }),
+    soft("socials", getSocials(sql, id), null),
   ]);
   const a = allianceRow[0];
   return {

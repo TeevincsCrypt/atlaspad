@@ -32,7 +32,11 @@ export async function withDb(handler: (sql: postgres.Sql) => Promise<Response>):
     return await handler(sql);
   } catch (err) {
     console.error("[api]", err);
-    return unavailable("The AtlasPad index is temporarily unavailable.");
+    // Database errors (they carry a Postgres code) are safe to show and make problems diagnosable from the browser;
+    // anything else stays generic. Connection strings never appear in these messages.
+    const e = err as { code?: unknown; message?: unknown };
+    const detail = typeof e?.code === "string" && /^[0-9A-Z]{5}$|^[A-Z_]+$/.test(e.code) ? `${e.code}: ${String(e.message ?? "").slice(0, 160)}` : (err as Error)?.name === "TypeError" ? `TypeError: ${String(e?.message ?? "").slice(0, 160)}` : null;
+    return json({ error: "data_unavailable", reason: "The AtlasPad index is temporarily unavailable.", detail }, { status: 503 });
   }
 }
 

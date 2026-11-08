@@ -72,7 +72,12 @@ export default function NationPage({ params }: { params: Promise<{ id: string }>
             </Link>
           </div>
         ) : (
-          <DataUnavailable reason={(detail.error as Error)?.message} />
+          <div className="space-y-3 text-center">
+            <DataUnavailable reason={(detail.error as Error)?.message} />
+            <Button variant="secondary" size="sm" onClick={() => void detail.refetch()} loading={detail.isFetching}>
+              Try again
+            </Button>
+          </div>
         )}
       </div>
     );

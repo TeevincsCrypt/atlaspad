@@ -40,7 +40,8 @@ export async function api<T>(path: string): Promise<T> {
     let reason = `Request failed (${res.status})`;
     try {
       const body = (await res.json()) as { reason?: string; error?: string };
-      reason = body.reason ?? body.error ?? reason;
+      const detail = (body as { detail?: string | null }).detail;
+      reason = `${body.reason ?? body.error ?? reason}${detail ? ` (${detail})` : ""}`;
     } catch {
       /* ignore */
     }
@@ -117,7 +118,15 @@ export interface NationDetail {
 
 export function useNation(id: number) {
   const poll = usePoll(20_000);
-  return useQuery({ queryKey: queryKeys.nation(id), queryFn: () => api<NationDetail>(`/api/nations/${id}`), refetchInterval: poll, enabled: id > 0 });
+  return useQuery({
+    queryKey: queryKeys.nation(id),
+    queryFn: () => api<NationDetail>(`/api/nations/${id}`),
+    refetchInterval: poll,
+    enabled: id > 0,
+    // Show a problem quickly (with its reason) instead of retrying silently behind the skeleton.
+    retry: (n, err) => n < 1 && !(err instanceof ApiError && err.status === 404),
+    retryDelay: 1500,
+  });
 }
 
 export function useCandles(id: number, interval: number) {
