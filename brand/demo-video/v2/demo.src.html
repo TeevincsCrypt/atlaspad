@@ -1,0 +1,389 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>AtlasPad demo</title>
+<style>
+  @font-face { font-family: Unbounded; font-weight: 600; src: url(%%FONTS%%/unbounded-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 700; src: url(%%FONTS%%/unbounded-latin-700-normal.woff2) format("woff2"); }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: #04050a; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; color: #eef0f6; font-family: Inter, sans-serif;
+    background: radial-gradient(ellipse at 50% 40%, #12141f 0%, #07080f 55%, #030409 100%); }
+  .layer { position: absolute; inset: 0; }
+  #bgimg { position: absolute; inset: -60px; width: 2040px; height: 1200px; object-fit: cover; filter: brightness(.38) saturate(1.2); opacity: 0; }
+  #grid { background-image: linear-gradient(rgba(214,178,110,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(214,178,110,.045) 1px, transparent 1px);
+    background-size: 60px 60px; mask-image: radial-gradient(ellipse at 50% 45%, black 20%, transparent 78%); -webkit-mask-image: radial-gradient(ellipse at 50% 45%, black 20%, transparent 78%); }
+  #grain { opacity: .06; mix-blend-mode: overlay; background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='256' height='256'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+  #vignette { background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.7) 100%); }
+  .gold { background: linear-gradient(100deg, #fbe6ad 0%, #e2bd72 45%, #b48a43 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .mono { font-family: "JetBrains Mono", monospace; letter-spacing: .2em; text-transform: uppercase; }
+
+  /* footage card */
+  #cardwrap { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; perspective: 2400px; }
+  #card { position: absolute; left: 120px; top: 238px; width: 1680px; height: 619px; border-radius: 22px; overflow: hidden; opacity: 0;
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,.14), 0 0 0 1px rgba(214,178,110,.25) inset, 0 70px 140px -30px rgba(0,0,0,.95), 0 0 120px -30px rgba(243,213,143,.35);
+    transform-origin: 50% 50%; background: #05060b; }
+  #cardimg { position: absolute; left: 0; top: 0; width: 1680px; height: 619px; transform-origin: 50% 50%; }
+  #cardflash { position: absolute; inset: 0; background: #fff; opacity: 0; }
+
+  #topchip { position: absolute; left: 120px; top: 120px; display: flex; align-items: center; gap: 18px; opacity: 0; }
+  #topchip .n { font-family: "JetBrains Mono", monospace; font-size: 22px; letter-spacing: .2em; color: #e2bd72; padding: 8px 14px; border: 1px solid rgba(226,189,114,.45); border-radius: 10px; background: rgba(20,16,8,.6); }
+  #topchip .t { font-family: Unbounded; font-weight: 700; font-size: 40px; }
+  #brand { position: absolute; right: 120px; top: 128px; display: flex; align-items: center; gap: 12px; font-family: Unbounded; font-weight: 700; font-size: 20px; letter-spacing: .3em; opacity: 0; }
+  #progress { position: absolute; right: 120px; top: 190px; display: flex; gap: 8px; opacity: 0; }
+  #progress div { width: 44px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.12); }
+
+  /* callout */
+  #callout { position: absolute; display: flex; align-items: center; gap: 16px; padding: 18px 26px 18px 20px; border-radius: 20px; opacity: 0;
+    background: linear-gradient(180deg, rgba(26,30,46,.96), rgba(12,15,24,.96)); border: 1px solid rgba(243,213,143,.45);
+    box-shadow: 0 30px 70px -20px rgba(0,0,0,.9), 0 0 50px -10px rgba(243,213,143,.4); white-space: nowrap; }
+  #callout .i { font-size: 40px; }
+  #callout .h { font-family: Unbounded; font-weight: 700; font-size: 34px; }
+  #callout .s { font-family: "JetBrains Mono", monospace; font-size: 16px; letter-spacing: .12em; text-transform: uppercase; color: #9aa2b5; margin-top: 6px; }
+
+  /* captions */
+  #caps { position: absolute; left: 0; right: 0; top: 905px; text-align: center; font-family: Inter, sans-serif; font-weight: 800; font-size: 52px; letter-spacing: -.01em;
+    text-shadow: 0 4px 24px rgba(0,0,0,.95), 0 2px 4px rgba(0,0,0,.9); }
+  #caps span { display: inline-block; margin: 0 9px; transition: none; }
+
+  /* chapter slam */
+  #chapter { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column;
+    background: radial-gradient(ellipse at 50% 50%, #1a1609 0%, #07080f 55%, #030409 100%); }
+  #chapter .num { font-family: "JetBrains Mono", monospace; font-size: 30px; letter-spacing: .4em; color: #e2bd72; }
+  #chapter .title { font-family: Unbounded; font-weight: 700; font-size: 124px; line-height: 1.05; margin-top: 22px; text-align: center; letter-spacing: -.01em; }
+  #chapter .title span { display: inline-block; white-space: pre; }
+  #chrays { position: absolute; left: 50%; top: 50%; width: 3000px; height: 3000px; margin: -1500px 0 0 -1500px;
+    background: repeating-conic-gradient(from 0deg, rgba(243,213,143,.07) 0deg 3deg, transparent 3deg 14deg);
+    mask-image: radial-gradient(circle, black 3%, transparent 40%); -webkit-mask-image: radial-gradient(circle, black 3%, transparent 40%); }
+
+  .full { position: absolute; inset: 0; display: none; }
+  .node { position: absolute; width: 360px; padding: 18px 22px; border-radius: 18px; background: linear-gradient(180deg, rgba(22,26,40,.95), rgba(13,16,26,.95)); border: 1px solid rgba(255,255,255,.12); }
+  .node .t { font-family: Unbounded; font-weight: 600; font-size: 25px; }
+  .node .s { font-family: "JetBrains Mono", monospace; font-size: 16px; color: #9aa2b5; margin-top: 7px; }
+  .stage { display: flex; align-items: center; justify-content: space-between; width: 760px; padding: 16px 26px; border-radius: 16px; margin-top: 14px;
+    background: rgba(14,17,27,.9); border: 1px solid rgba(255,255,255,.1); font-family: Unbounded; font-weight: 600; font-size: 30px; }
+  .stage .c { font-family: "JetBrains Mono", monospace; font-size: 20px; color: #9aa2b5; }
+  .pill { display: inline-flex; align-items: center; gap: 14px; padding: 18px 40px; border-radius: 999px; font-family: Unbounded; font-weight: 700; font-size: 40px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <img id="bgimg" alt="">
+  <div class="layer" id="grid"></div>
+
+  <!-- footage -->
+  <div id="cardwrap"><div id="card"><img id="cardimg" alt=""><div id="cardflash"></div></div></div>
+  <div id="topchip"><span class="n" id="tcn">01 / 09</span><span class="t" id="tct">Title</span></div>
+  <div id="brand"><svg width="34" height="34" viewBox="0 0 200 200">%%COMPASS_A%%</svg>ATLASPAD</div>
+  <div id="progress"></div>
+  <div id="callout"><span class="i" id="coi"></span><div><div class="h" id="coh"></div><div class="s" id="cos"></div></div></div>
+
+  <!-- intro -->
+  <div class="full" id="intro">
+    <div id="introrays" style="position:absolute;left:50%;top:44%;width:3000px;height:3000px;margin:-1500px 0 0 -1500px;opacity:0;background:repeating-conic-gradient(from 0deg, rgba(243,213,143,.12) 0deg 3.2deg, transparent 3.2deg 15deg);mask-image:radial-gradient(circle, black 3%, transparent 42%);-webkit-mask-image:radial-gradient(circle, black 3%, transparent 42%)"></div>
+    <div id="hook" style="position:absolute;left:0;right:0;top:390px;text-align:center;font-family:Unbounded;font-weight:700;font-size:112px;line-height:1.1">
+      <div id="hook1"><span>Every</span> <span>token</span></div>
+      <div id="hook2"><span>is</span> <span>a</span> <span class="gold">nation.</span></div>
+    </div>
+    <div id="logo" style="position:absolute;left:0;right:0;top:250px;text-align:center;opacity:0">
+      <svg id="logomark" width="300" height="300" viewBox="0 0 200 200" style="filter:drop-shadow(0 0 50px rgba(243,213,143,.6))">%%COMPASS_B%%</svg>
+      <div id="logoword" style="font-family:Unbounded;font-weight:700;font-size:118px;letter-spacing:.3em;padding-left:.3em;margin-top:24px">ATLASPAD</div>
+      <div class="mono" style="font-size:24px;color:#e2bd72;margin-top:22px">Product demo · Live on Robinhood Chain</div>
+    </div>
+  </div>
+
+  <!-- flywheel -->
+  <div class="full" id="fly">
+    <div style="position:absolute;left:0;right:0;top:96px;text-align:center;font-family:Unbounded;font-weight:700;font-size:64px">Every nation runs on <span class="gold">$WIF.</span></div>
+    <svg width="1920" height="1080" style="position:absolute;inset:0">
+      <defs><linearGradient id="fwg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fbe6ad"/><stop offset="1" stop-color="#b48a43"/></linearGradient>
+        <radialGradient id="pg"><stop offset="0" stop-color="#fff6dc"/><stop offset=".4" stop-color="#f3d58f"/><stop offset="1" stop-color="#f3d58f" stop-opacity="0"/></radialGradient></defs>
+      <circle id="flyc" cx="960" cy="560" r="262" fill="none" stroke="url(#fwg)" stroke-width="5" stroke-dasharray="1647" stroke-dashoffset="1647" transform="rotate(-90 960 560)"/>
+      <circle id="flyp" r="46" fill="url(#pg)"/>
+    </svg>
+    <div id="flycenter" style="position:absolute;left:760px;top:500px;width:400px;text-align:center">
+      <div class="gold" style="font-family:Unbounded;font-weight:700;font-size:104px;line-height:1">$WIF</div>
+    </div>
+    <div class="node" id="fn0" style="left:780px;top:248px"><div class="t">🏳️ Launch</div><div class="s">founding fee · burned</div></div>
+    <div class="node" id="fn1" style="left:1262px;top:510px"><div class="t">🔁 Trade</div><div class="s">0.25% of every trade · burned</div></div>
+    <div class="node" id="fn2" style="left:780px;top:776px"><div class="t">🏛️ Treasury</div><div class="s">0.5% to the nation</div></div>
+    <div class="node" id="fn3" style="left:298px;top:510px"><div class="t">🔒 Graduate</div><div class="s">Uniswap · LP burned</div></div>
+  </div>
+
+  <!-- stage ladder -->
+  <div class="full" id="ladder" style="background:rgba(4,5,10,.55)">
+    <div style="position:absolute;left:580px;top:200px">
+      <div class="mono" style="font-size:20px;color:#e2bd72">Citizens grow your nation</div>
+      <div id="stages"></div>
+    </div>
+  </div>
+
+  <!-- telegram -->
+  <div class="full" id="tg">
+    <div id="tgtext" style="position:absolute;left:150px;top:300px;width:820px">
+      <div class="mono" style="font-size:20px;color:#45b6f2">Live alerts</div>
+      <div style="font-family:Unbounded;font-weight:700;font-size:82px;line-height:1.08;margin-top:18px">Every launch,<br>on <span style="color:#45b6f2">Telegram.</span></div>
+      <div class="pill" style="margin-top:44px;background:linear-gradient(180deg,#4cc0f5,#229ED9);color:#fff;font-size:34px">t.me/atlas_wif</div>
+    </div>
+    <div id="phone" style="position:absolute;left:1180px;top:110px;width:420px;height:860px;border-radius:56px;padding:12px;background:linear-gradient(160deg,#2a2f3d,#0b0d14);box-shadow:0 60px 140px -30px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.14),0 0 140px -20px rgba(69,182,242,.5)">
+      <div style="width:100%;height:100%;border-radius:46px;overflow:hidden;background:#000"><img src="%%TG%%" style="width:100%;display:block" alt=""></div>
+    </div>
+  </div>
+
+  <!-- outro -->
+  <div class="full" id="outro">
+    <div id="orays" style="position:absolute;left:50%;top:30%;width:3000px;height:3000px;margin:-1500px 0 0 -1500px;background:repeating-conic-gradient(from 0deg, rgba(243,213,143,.12) 0deg 3.2deg, transparent 3.2deg 15deg);mask-image:radial-gradient(circle, black 3%, transparent 42%);-webkit-mask-image:radial-gradient(circle, black 3%, transparent 42%)"></div>
+    <div style="position:absolute;left:0;right:0;top:150px;text-align:center">
+      <svg id="omark" width="240" height="240" viewBox="0 0 200 200" style="filter:drop-shadow(0 0 40px rgba(243,213,143,.6))">%%COMPASS_C%%</svg>
+      <div id="oword" style="font-family:Unbounded;font-weight:700;font-size:110px;letter-spacing:.28em;padding-left:.28em;margin-top:18px">ATLASPAD</div>
+      <div id="otag" style="font-family:Unbounded;font-weight:600;font-size:40px;margin-top:22px">Every nation runs on <span class="gold">$WIF.</span></div>
+      <div id="opills" style="margin-top:46px;display:flex;justify-content:center;gap:22px">
+        <span class="pill" style="background:linear-gradient(180deg,#f8dea0,#c79e52);color:#1a1306;box-shadow:0 30px 80px -20px rgba(214,178,110,.9)">atlaswif.xyz</span>
+        <span class="pill" style="background:rgba(69,182,242,.15);border:1px solid rgba(69,182,242,.6);color:#8fd3fb;font-size:32px">t.me/atlas_wif</span>
+      </div>
+      <div class="mono" id="ofoot" style="font-size:18px;color:#9aa2b5;margin-top:40px">@atlasonwif · Live on Robinhood Chain</div>
+    </div>
+  </div>
+
+  <div id="chapter"><div id="chrays"></div><div class="num" id="chn">01 / 09</div><div class="title" id="cht"></div></div>
+  <div id="caps"></div>
+  <div class="layer" id="flash" style="background:radial-gradient(circle at 50% 45%, #fff8e1 0%, rgba(243,213,143,.6) 30%, transparent 70%);opacity:0"></div>
+  <div class="layer" id="grain"></div>
+  <div class="layer" id="vignette"></div>
+  <div class="layer" id="fade" style="background:#000;opacity:0"></div>
+</div>
+
+<script>
+const SHOTS = %%SHOTS%%;
+const VOICE = %%VOICE%%;
+const SHOT_DIR = "%%SHOT_DIR%%";
+const $ = (id) => document.getElementById(id);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const prog = (t, a, d) => clamp((t - a) / d);
+const eOut = (x) => 1 - Math.pow(1 - x, 3);
+const eInOut = (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
+const eBack = (x) => { const c = 1.7, c3 = c + 1; return 1 + c3 * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+
+// ---- sections (chapter slam at t0, lasting 1 s)
+const SECTIONS = [
+  { key: "flywheel", title: "The $WIF\nflywheel", short: "The $WIF flywheel", t0: 4.0, t1: 13.0, vo: 4.6 },
+  { key: "launch", title: "Launch a\nnation", short: "Launch a nation", t0: 13.0, t1: 23.0, vo: 14.1 },
+  { key: "buy", title: "Buy with\n$WIF", short: "Buy with $WIF", t0: 23.0, t1: 30.0, vo: 24.2 },
+  { key: "citizens", title: "Holders become\ncitizens", short: "Holders become citizens", t0: 30.0, t1: 37.0, vo: 31.0 },
+  { key: "chat", title: "Citizens-only\nchat", short: "Citizens-only chat", t0: 37.0, t1: 42.0, vo: 38.3 },
+  { key: "sell", title: "Sell in one\nsignature", short: "Sell", t0: 42.0, t1: 46.5, vo: 43.2 },
+  { key: "pnl", title: "PnL\ncards", short: "PnL cards", t0: 46.5, t1: 53.0, vo: 47.7 },
+  { key: "profile", title: "Your\nprofile", short: "Your profile", t0: 53.0, t1: 57.0, vo: 54.2 },
+  { key: "telegram", title: "Telegram\nalerts", short: "Telegram alerts", t0: 57.0, t1: 62.0, vo: 58.3 },
+];
+const OUTRO = { t0: 62.0, vo: 63.0, end: 69.5 };
+const TOTAL = 69.5;
+
+const CALLOUTS = [
+  { t0: 7.2, t1: 9.5, i: "🔥", h: "201.122 WIF burned", s: "forever · live counter", x: 1180, y: 300 },
+  { t0: 18.25, t1: 19.5, i: "🔥", h: "100 WIF fee · burned", s: "on every launch", x: 1150, y: 300 },
+  { t0: 20.4, t1: 23.0, i: "✅", h: "$MUSK is live", s: "founded on Robinhood Chain", x: 1180, y: 300 },
+  { t0: 27.5, t1: 30.0, i: "🪙", h: "+791.4K $MUSK", s: "bought on the curve", x: 160, y: 300 },
+  { t0: 31.3, t1: 33.0, i: "👥", h: "Holder = citizen", s: "counted on-chain", x: 1180, y: 300 },
+  { t0: 38.6, t1: 42.0, i: "🔒", h: "Citizens only", s: "only holders can post", x: 1220, y: 300 },
+  { t0: 44.9, t1: 46.5, i: "✍️", h: "1 gasless signature", s: "permit + sell", x: 1150, y: 300 },
+  { t0: 48.4, t1: 53.0, i: "✅", h: "Verified on-chain", s: "share to X · download", x: 1200, y: 300 },
+  { t0: 54.4, t1: 57.0, i: "📈", h: "P&L on every nation", s: "realized + unrealized", x: 1150, y: 300 },
+];
+
+// progress bars
+const prog_el = $("progress");
+SECTIONS.forEach(() => prog_el.appendChild(document.createElement("div")));
+const STAGES = [["🏕️ Settlement", "day one"], ["🏘️ Town", "10 citizens"], ["🏙️ City", "50 citizens"], ["🌆 Metropolis", "250 citizens"], ["👑 Empire", "1,000 citizens"]];
+$("stages").innerHTML = STAGES.map(([a, b]) => `<div class="stage"><span>${a}</span><span class="c">${b}</span></div>`).join("");
+
+// ---- captions: phrases of up to 4 words, split at punctuation
+const PHRASES = [];
+const addPhrases = (key, start) => {
+  const ws = VOICE[key].words.map((w, i, all) => ({ w: w.w.replace(/\bwif\b/gi, "$WIF").replace("atlas", "atlaswif.xyz"), t: start + w.t, end: start + (w.end ?? all[i + 1]?.t ?? w.t + 0.4) }));
+  // join "atlaswif.xyz wif dot x y z" into one token
+  const clean = [];
+  for (let i = 0; i < ws.length; i++) {
+    if (ws[i].w.startsWith("atlaswif.xyz")) { const last = ws.slice(i).at(-1); clean.push({ w: "atlaswif.xyz", t: ws[i].t, end: last.end }); break; }
+    clean.push(ws[i]);
+  }
+  let cur = [];
+  clean.forEach((w, i) => {
+    cur.push(w);
+    const brk = /[.,!?]$/.test(w.w) || cur.length >= 4 || i === clean.length - 1;
+    if (brk) { PHRASES.push({ words: cur, t0: cur[0].t, t1: cur.at(-1).end }); cur = []; }
+  });
+};
+SECTIONS.forEach((s) => addPhrases(s.key, s.vo));
+addPhrases("outro", OUTRO.vo);
+PHRASES.forEach((p, i) => { const n = PHRASES[i + 1]; p.show1 = Math.min(p.t1 + 0.35, n ? n.t0 - 0.02 : p.t1 + 0.35); });
+
+const imgCache = new Map();
+async function setImg(el, src) {
+  if (el.dataset.src === src) return;
+  el.dataset.src = src; el.src = src;
+  try { await el.decode(); } catch {}
+}
+function zoomTransform(z0, z1, p) {
+  const cx = lerp(z0[0], z1[0], p), cy = lerp(z0[1], z1[1], p), z = lerp(z0[2], z1[2], p);
+  const W = 1680, H = 619;
+  let tx = (0.5 - cx / 1280) * W * z, ty = (0.5 - cy / 472) * H * z;
+  const mx = ((z - 1) * W) / 2, my = ((z - 1) * H) / 2;
+  tx = clamp(tx, -mx, mx); ty = clamp(ty, -my, my);
+  return `translate(${tx}px, ${ty}px) scale(${z})`;
+}
+const pad = (n) => String(n).padStart(4, "0");
+
+window.render = async function (t) {
+  const sec = SECTIONS.find((s) => t >= s.t0 && t < s.t1);
+  const shot = SHOTS.find((s) => t >= s.t[0] && t < s.t[1]);
+  const inIntro = t < 4.0, inOutro = t >= OUTRO.t0;
+
+  // ---- footage card
+  const card = $("card");
+  if (shot) {
+    const k = Math.min(Math.floor((t - shot.t[0]) * 30), Math.round((shot.t[1] - shot.t[0]) * 30) - 1);
+    await Promise.all([setImg($("cardimg"), `${SHOT_DIR}/${shot.id}/f${pad(k + 1)}.jpg`), setImg($("bgimg"), `${SHOT_DIR}/${shot.id}/b${pad(k + 1)}.jpg`)]);
+    const zt = shot.zoomT ?? shot.t;
+    $("cardimg").style.transform = zoomTransform(shot.zoom[0], shot.zoom[1], eInOut(prog(t, zt[0], zt[1] - zt[0])));
+    // card motion: enter at the first shot of a section, gentle drift otherwise
+    const secStart = sec ? sec.t0 + 1.0 : shot.t[0];
+    const e = eOut(prog(t, secStart, 0.55));
+    const drift = sec ? prog(t, secStart, sec.t1 - secStart) : 0;
+    card.style.opacity = e;
+    card.style.transform = `translateY(${(1 - e) * 90}px) rotateX(${lerp(5, 1.5, drift) + (1 - e) * 16}deg) rotateY(${lerp(-4, -1, drift)}deg) scale(${lerp(0.92, 1, e) * lerp(0.985, 1.02, drift)})`;
+    $("bgimg").style.opacity = 0.9 * e;
+    $("cardflash").style.opacity = Math.max(0, 0.35 - (t - shot.t[0]) * 3);
+  } else {
+    card.style.opacity = 0; $("bgimg").style.opacity = 0;
+  }
+
+  // ---- chrome: section label, brand, progress
+  const fullScene = (t >= 9.5 && t < 13.0) || (t >= 35.0 && t < 37.0) || (t >= 58.0 && t < 62.0);
+  const chromeOn = sec && t >= sec.t0 + 1.0 && !fullScene;
+  const ca = sec ? eOut(prog(t, sec.t0 + 1.0, 0.4)) : 0;
+  [$("topchip"), $("brand"), $("progress")].forEach((el) => (el.style.opacity = chromeOn ? ca : 0));
+  if (sec) {
+    const i = SECTIONS.indexOf(sec);
+    $("tcn").textContent = `${String(i + 1).padStart(2, "0")} / ${String(SECTIONS.length).padStart(2, "0")}`;
+    $("tct").innerHTML = sec.short.replace("$WIF", '<span class="gold">$WIF</span>');
+    $("topchip").style.transform = `translateX(${(1 - ca) * -30}px)`;
+    [...prog_el.children].forEach((d, j) => (d.style.background = j < i ? "#8a6a2f" : j === i ? "#f3d58f" : "rgba(255,255,255,.12)"));
+  }
+
+  // ---- callout
+  const co = CALLOUTS.find((c) => t >= c.t0 && t < c.t1);
+  const coel = $("callout");
+  if (co) {
+    $("coi").textContent = co.i; $("coh").textContent = co.h; $("cos").textContent = co.s;
+    const p = prog(t, co.t0, 0.35), q = prog(t, co.t1 - 0.25, 0.25);
+    coel.style.left = co.x + "px"; coel.style.top = co.y + "px";
+    coel.style.opacity = Math.min(p * 2, 1 - q);
+    coel.style.transform = `translateY(${(1 - eBack(p)) * 30}px) scale(${lerp(0.8, 1, eBack(p))})`;
+  } else coel.style.opacity = 0;
+
+  // ---- full-screen scenes
+  ["intro", "fly", "ladder", "tg", "outro"].forEach((id) => ($(id).style.display = "none"));
+  if (inIntro) {
+    $("intro").style.display = "block";
+    const words = [...$("hook1").children, ...$("hook2").children];
+    words.forEach((w, i) => {
+      const p = prog(t, 0.15 + i * 0.22, 0.45), e2 = eOut(p);
+      w.style.opacity = p * (1 - prog(t, 2.35, 0.2)); w.style.filter = `blur(${(1 - e2) * 16}px)`; w.style.transform = `translateY(${(1 - e2) * 30}px)`;
+    });
+    const l = prog(t, 2.5, 0.8);
+    $("logo").style.opacity = clamp(l * 3) * (1 - prog(t, 3.75, 0.25));
+    $("logomark").style.transform = `scale(${lerp(0.3, 1, eBack(l))}) rotate(${lerp(-120, 0, eOut(l))}deg)`;
+    $("logoword").style.letterSpacing = `${lerp(0.6, 0.3, eOut(l))}em`;
+    $("introrays").style.opacity = t > 2.5 ? Math.min(1, (t - 2.5) * 3) * (1 - prog(t, 3.7, 0.3)) : 0;
+    $("introrays").style.transform = `rotate(${t * 9}deg)`;
+  }
+  if (t >= 9.5 && t < 13.0) {
+    const f = $("fly"); f.style.display = "block";
+    const a = eOut(prog(t, 9.5, 0.4)); f.style.opacity = a * (1 - prog(t, 12.75, 0.25));
+    $("flyc").setAttribute("stroke-dashoffset", 1647 * (1 - eInOut(prog(t, 9.6, 1.1))));
+    for (let i = 0; i < 4; i++) { const n = $("fn" + i), p = prog(t, 9.8 + i * 0.25, 0.4); n.style.opacity = p; n.style.transform = `scale(${lerp(0.8, 1, eBack(p))})`; }
+    const ang = (-90 + Math.max(0, t - 10.6) * 160) * Math.PI / 180;
+    $("flyp").setAttribute("cx", 960 + 262 * Math.cos(ang)); $("flyp").setAttribute("cy", 560 + 262 * Math.sin(ang));
+    $("flyp").style.opacity = t > 10.6 ? 1 : 0;
+    $("flycenter").style.transform = `scale(${lerp(0.6, 1, eBack(prog(t, 9.6, 0.6)))})`;
+  }
+  if (t >= 35.0 && t < 37.0) {
+    const l2 = $("ladder"); l2.style.display = "block"; l2.style.opacity = eOut(prog(t, 35.0, 0.3)) * (1 - prog(t, 36.8, 0.2));
+    [...$("stages").children].forEach((s, i) => {
+      const p = prog(t, 35.1 + i * 0.22, 0.3);
+      s.style.opacity = p; s.style.transform = `translateX(${(1 - eOut(p)) * -40}px)`;
+      s.style.borderColor = p >= 1 ? (i === 4 ? "rgba(243,213,143,.8)" : "rgba(243,213,143,.35)") : "rgba(255,255,255,.1)";
+      s.style.boxShadow = i === 4 && p >= 1 ? "0 0 40px rgba(243,213,143,.35)" : "none";
+    });
+  }
+  if (t >= 58.0 && t < 62.0) {
+    const g = $("tg"); g.style.display = "block"; g.style.opacity = eOut(prog(t, 58.0, 0.3)) * (1 - prog(t, 61.75, 0.25));
+    const p = eOut(prog(t, 58.0, 0.7));
+    $("phone").style.transform = `translateY(${(1 - p) * 300 - prog(t, 58.7, 3.3) * 40}px) rotate(${lerp(10, 3, p)}deg)`;
+    $("tgtext").style.transform = `translateX(${(1 - p) * -60}px)`; $("tgtext").style.opacity = p;
+  }
+  if (inOutro) {
+    $("outro").style.display = "block";
+    const m = prog(t, OUTRO.t0, 0.9);
+    $("omark").style.transform = `scale(${lerp(0.3, 1, eBack(m))}) rotate(${lerp(-120, 0, eOut(m))}deg)`;
+    $("oword").style.opacity = prog(t, 62.4, 0.5); $("oword").style.letterSpacing = `${lerp(0.5, 0.28, eOut(prog(t, 62.4, 0.8)))}em`;
+    $("otag").style.opacity = prog(t, 63.0, 0.5);
+    const pp = prog(t, 64.6, 0.5); $("opills").style.opacity = pp; $("opills").style.transform = `scale(${lerp(0.8, 1, eBack(pp))})`;
+    $("ofoot").style.opacity = prog(t, 65.4, 0.6);
+    $("orays").style.opacity = Math.min(1, (t - 62) * 2); $("orays").style.transform = `rotate(${t * 8}deg)`;
+  }
+
+  // ---- chapter slam (1 s at each section start)
+  const ch = SECTIONS.find((s) => t >= s.t0 && t < s.t0 + 1.0);
+  const chel = $("chapter");
+  if (ch) {
+    chel.style.display = "flex";
+    const i = SECTIONS.indexOf(ch), lt = t - ch.t0;
+    $("chn").textContent = `${String(i + 1).padStart(2, "0")} / ${String(SECTIONS.length).padStart(2, "0")}`;
+    if ($("cht").dataset.k !== ch.key) {
+      $("cht").dataset.k = ch.key;
+      $("cht").innerHTML = ch.title.split("\n").map((line) => line.split(" ").map((w) => `<span>${w.replace("$WIF", '<span class="gold">$WIF</span>')}</span>`).join(" ")).join("<br>");
+    }
+    [...$("cht").querySelectorAll(":scope > span")].forEach((w, j) => {
+      const p = prog(lt, 0.02 + j * 0.07, 0.3), e2 = eOut(p);
+      w.style.opacity = p; w.style.filter = `blur(${(1 - e2) * 14}px)`; w.style.transform = `scale(${lerp(1.35, 1, e2)})`;
+    });
+    $("chn").style.opacity = prog(lt, 0, 0.2);
+    const out = prog(lt, 0.8, 0.2);
+    chel.style.opacity = 1 - out;
+    chel.style.transform = `scale(${1 + out * 0.08})`;
+    $("chrays").style.transform = `rotate(${t * 20}deg)`;
+  } else chel.style.display = "none";
+
+  // ---- flash on every chapter / logo hit
+  const hits = [2.5, ...SECTIONS.map((s) => s.t0), OUTRO.t0];
+  const fl = Math.max(0, ...hits.map((h) => (t >= h ? Math.exp(-(t - h) * 9) : 0)));
+  $("flash").style.opacity = fl * 0.55;
+
+  // ---- captions
+  const ph = PHRASES.find((p) => t >= p.t0 - 0.06 && t < p.show1);
+  const capel = $("caps");
+  if (ph) {
+    if (capel.dataset.k !== String(ph.t0)) {
+      capel.dataset.k = String(ph.t0);
+      capel.innerHTML = ph.words.map((w) => `<span>${w.w.replace(/\$WIF/g, "$WIF")}</span>`).join("");
+    }
+    [...capel.children].forEach((el, i) => {
+      const w = ph.words[i]; const spoken = t >= w.t - 0.03; const active = spoken && t < (ph.words[i + 1]?.t ?? ph.t1 + 0.3);
+      el.style.opacity = spoken ? 1 : 0.35;
+      el.style.color = active || /\$WIF|atlaswif/.test(w.w) ? "#f3d58f" : "#ffffff";
+      el.style.transform = `scale(${active ? 1.08 : 1}) translateY(${spoken ? 0 : 6}px)`;
+    });
+    capel.style.opacity = Math.min(1, (t - ph.t0 + 0.06) / 0.1);
+  } else capel.innerHTML = "";
+
+  $("fade").style.opacity = Math.max(prog(t, TOTAL - 1.1, 1.1), t < 0.1 ? 1 - t / 0.1 : 0);
+  $("grain").style.backgroundPosition = `${Math.floor(t * 30 * 37) % 256}px ${Math.floor(t * 30 * 53) % 256}px`;
+};
+window.render(0);
+</script>
+</body>
+</html>
