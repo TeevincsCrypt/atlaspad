@@ -23,3 +23,13 @@ describe("telegram bot formatting", () => {
     expect(findNation(ns, "zzz")).toBeNull();
   });
 });
+
+import { normalizeSiteUrl } from "../src/env";
+describe("PUBLIC_SITE_URL", () => {
+  it("always yields a full https URL Telegram accepts", () => {
+    expect(normalizeSiteUrl(undefined)).toBe("https://atlaswif.xyz");
+    expect(normalizeSiteUrl("atlaswif.xyz")).toBe("https://atlaswif.xyz");
+    expect(normalizeSiteUrl(" https://www.atlaswif.xyz/ ")).toBe("https://www.atlaswif.xyz");
+    expect(normalizeSiteUrl('"https://atlaswif.xyz"')).toBe("https://atlaswif.xyz");
+  });
+});
