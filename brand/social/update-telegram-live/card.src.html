@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Unbounded; font-weight: 500; src: url(unbounded-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 600; src: url(unbounded-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 700; src: url(unbounded-latin-700-normal.woff2) format("woff2"); }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1600px; height: 900px; overflow: hidden; }
+  body { position: relative; font-family: Inter, sans-serif; color: #eef0f6;
+    background: radial-gradient(800px 600px at 15% 15%, rgba(214,178,110,.16), transparent 65%),
+                radial-gradient(900px 800px at 82% 60%, rgba(42,171,238,.20), transparent 62%), #05060b; }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(214,178,110,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(214,178,110,.05) 1px, transparent 1px);
+    background-size: 56px 56px; mask-image: radial-gradient(ellipse at 35% 45%, black 10%, transparent 75%); }
+  .gold { background: linear-gradient(100deg, #fbe6ad 0%, #e2bd72 45%, #b48a43 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tg { color: #45b6f2; }
+  .mono { font-family: "JetBrains Mono", monospace; letter-spacing: .2em; text-transform: uppercase; }
+  .alert { display: flex; align-items: center; gap: 14px; font-size: 21px; color: #c9cfdc; margin-top: 14px; }
+  .alert .i { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); font-size: 21px; }
+  .chip { position: absolute; display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 16px; font-size: 18px; font-weight: 600;
+    background: linear-gradient(180deg, rgba(24,29,44,.96), rgba(13,16,26,.96)); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 20px 50px -14px rgba(0,0,0,.85); white-space: nowrap; }
+</style>
+</head>
+<body>
+  <div class="grid"></div>
+
+  <div style="position:absolute;left:96px;top:110px;width:780px">
+    <div style="display:flex;align-items:center;gap:14px">
+      <svg width="44" height="44" viewBox="0 0 200 200">%%COMPASS%%</svg>
+      <span style="font-family:Unbounded;font-weight:700;font-size:22px;letter-spacing:.3em">ATLASPAD</span>
+      <span class="mono" style="display:inline-flex;align-items:center;gap:8px;font-size:13px;color:#04140d;background:#3ee08f;padding:6px 12px;border-radius:999px;letter-spacing:.16em;margin-left:6px">
+        <span style="width:7px;height:7px;border-radius:50%;background:#04140d;display:inline-block"></span>Live
+      </span>
+    </div>
+    <h1 style="font-family:Unbounded;font-weight:700;font-size:64px;line-height:1.08;margin-top:40px;letter-spacing:-.01em">
+      Every launch,<br>live on <span class="tg">Telegram.</span>
+    </h1>
+    <p style="font-size:22px;color:#b6bdcc;margin-top:20px;line-height:1.5">Our alerts bot posts the Atlas as it happens,<br>each with a share card and a buy button.</p>
+
+    <div style="margin-top:30px">
+      <div class="alert"><span class="i">🏳️</span>New nations, the second they're founded</div>
+      <div class="alert"><span class="i">🎓</span>Graduations to Uniswap, LP burned</div>
+      <div class="alert"><span class="i">⬆️</span>Stage-ups, from Settlement to Empire</div>
+      <div class="alert"><span class="i">⚔️</span>Wars, alliances and whale buys</div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:18px;margin-top:40px">
+      <div style="display:flex;align-items:center;gap:12px;padding:15px 26px;border-radius:999px;background:linear-gradient(180deg,#4cc0f5,#229ED9);font-family:Unbounded;font-weight:700;font-size:24px;color:#fff;box-shadow:0 20px 50px -16px rgba(34,158,217,.9)">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="#fff"><path d="M21.9 4.3 18.8 19c-.2 1-.9 1.3-1.7.8l-4.8-3.5-2.3 2.2c-.3.3-.5.5-1 .5l.3-4.9 8.9-8c.4-.3-.1-.5-.6-.2L6.6 12.8 1.9 11.3c-1-.3-1-1 .2-1.5L20.5 2.8c.9-.3 1.6.2 1.4 1.5Z"/></svg>
+        t.me/atlas_wif
+      </div>
+      <span class="mono" style="font-size:15px;color:#9aa2b5">atlaswif.xyz</span>
+    </div>
+  </div>
+
+  <!-- phone with the real channel -->
+  <div style="position:absolute;left:1010px;top:46px;width:420px;height:858px;transform:rotate(3deg);border-radius:54px;padding:12px;background:linear-gradient(160deg,#2a2f3d,#0b0d14);box-shadow:0 60px 140px -30px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.12),0 0 120px -20px rgba(69,182,242,.45)">
+    <div style="width:100%;height:100%;border-radius:44px;overflow:hidden;background:#000">
+      <img src="tg-screenshot.jpg" style="width:100%;display:block" alt="">
+    </div>
+  </div>
+
+  <div class="chip" style="left:1360px;top:380px;transform:rotate(5deg)">⬆️ Now a <span class="gold">City</span></div>
+</body>
+</html>
