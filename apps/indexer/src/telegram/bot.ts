@@ -126,7 +126,14 @@ export class TelegramBot {
         log.warn("Telegram photo failed, sending text", { err: String(err) });
       }
     }
-    await this.api("sendMessage", { ...common, text: post.text, link_preview_options: { is_disabled: true } });
+    try {
+      await this.api("sendMessage", { ...common, text: post.text, link_preview_options: { is_disabled: true } });
+    } catch (err) {
+      // A rejected button link must never block the alert itself: send it without buttons.
+      if (!markup || !/BUTTON/i.test(String(err))) throw err;
+      log.warn("Telegram rejected a button link; sending without buttons. Check PUBLIC_SITE_URL.", { err: String(err) });
+      await this.api("sendMessage", { ...common, reply_markup: undefined, text: post.text, link_preview_options: { is_disabled: true } });
+    }
     if (String(chatId) === this.cfg.chatId) {
       telegramStatus.lastPostAt = Math.floor(Date.now() / 1000);
       telegramStatus.canPost = true;

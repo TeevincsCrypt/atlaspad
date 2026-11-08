@@ -26,6 +26,14 @@ function int(name: string, fallback: number, min = 0): number {
   return n;
 }
 
+/** "atlaswif.xyz", " https://atlaswif.xyz/ " → "https://atlaswif.xyz". Telegram rejects buttons without a scheme. */
+export function normalizeSiteUrl(raw: string | undefined): string {
+  let v = (raw ?? "").trim().replace(/^['"]|['"]$/g, "");
+  if (!v) return "https://atlaswif.xyz";
+  if (!/^https?:\/\//i.test(v)) v = `https://${v}`;
+  return v.replace(/\/+$/, "");
+}
+
 export function loadEnv(): IndexerEnv {
   const network = resolveNetwork({
     network: process.env.ATLAS_NETWORK,
@@ -73,7 +81,7 @@ export function loadEnv(): IndexerEnv {
         ? {
             token: process.env.TELEGRAM_BOT_TOKEN,
             chatId: process.env.TELEGRAM_CHAT_ID,
-            siteUrl: (process.env.PUBLIC_SITE_URL || "https://atlaswif.xyz").replace(/\/$/, ""),
+            siteUrl: normalizeSiteUrl(process.env.PUBLIC_SITE_URL),
             apiBase: (process.env.TELEGRAM_API_BASE || "https://api.telegram.org").replace(/\/$/, ""),
             commands: process.env.TELEGRAM_COMMANDS !== "false",
             intervalMs: int("TELEGRAM_INTERVAL_MS", 20_000, 2000),
