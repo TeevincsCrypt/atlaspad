@@ -1,0 +1,25 @@
+"""Narration for the AtlasPad demo. One entry per section; '|' marks a short pause between sentences.
+'wif' is written lowercase so the voice says it as a word."""
+SECTIONS = [
+    ("intro", "", ""),
+    ("flywheel", "The $WIF flywheel",
+     "This is AtlasPad, on Robinhood Chain. Every token is a nation, and every nation runs on wif. | Founding fees, and a cut of every trade, are burned forever. | That counter only goes up."),
+    ("launch", "Launch a nation",
+     "Launching takes a minute. | Pick a name and a ticker, upload your token's image, and tell the world what your nation stands for. | Review, sign once, and your nation is founded on chain, with its founding fee burned."),
+    ("buy", "Buy with $WIF",
+     "Buying is simple. Enter an amount of wif, approve, and confirm. | Prices follow a bonding curve in wif, and every nation graduates to Uniswap with its liquidity locked forever."),
+    ("citizens", "Holders become citizens",
+     "Every holder becomes a citizen. | Citizens grow your territory on the world map, and push your nation from Settlement, to Town, City, Metropolis, and Empire."),
+    ("chat", "Citizens-only chat",
+     "Every nation has its own chat. | Anyone can read it, but only citizens can post."),
+    ("sell", "Sell",
+     "Selling uses a gasless permit, so it's one signature, and one confirmation."),
+    ("pnl", "PnL cards",
+     "After every sale, you get a PnL card, built straight from the trade on chain. | Share it to X, or download it."),
+    ("profile", "Your profile",
+     "Your profile tracks your profit and loss on every nation, your citizenships, and your achievements."),
+    ("telegram", "Telegram alerts",
+     "And our Telegram bot posts every launch, graduation, and stage-up, live, with a one-tap buy button."),
+    ("outro", "",
+     "Every launch burns wif. Every trade burns wif. | Found your nation, at atlas wif dot x y z."),
+]
