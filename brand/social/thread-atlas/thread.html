@@ -1,0 +1,143 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: Unbounded; font-weight: 500; src: url(unbounded-latin-500-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 600; src: url(unbounded-latin-600-normal.woff2) format("woff2"); }
+  @font-face { font-family: Unbounded; font-weight: 700; src: url(unbounded-latin-700-normal.woff2) format("woff2"); }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #000; font-family: Inter, sans-serif; color: #eef0f6; }
+  .card { position: relative; width: 1600px; height: 900px; overflow: hidden;
+    background: radial-gradient(900px 650px at 12% 10%, rgba(214,178,110,.17), transparent 65%),
+                radial-gradient(900px 800px at 88% 85%, rgba(214,178,110,.10), transparent 62%), #05060b; }
+  .grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(214,178,110,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(214,178,110,.05) 1px, transparent 1px);
+    background-size: 56px 56px; mask-image: radial-gradient(ellipse at 35% 45%, black 10%, transparent 75%); }
+  .gold { background: linear-gradient(100deg, #fbe6ad 0%, #e2bd72 45%, #b48a43 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .mono { font-family: "JetBrains Mono", monospace; letter-spacing: .2em; text-transform: uppercase; }
+  .brand { position: absolute; left: 96px; top: 70px; display: flex; align-items: center; gap: 14px; }
+  .brand span { font-family: Unbounded; font-weight: 700; font-size: 20px; letter-spacing: .3em; }
+  .count { position: absolute; right: 96px; top: 76px; font-size: 15px; color: #8c95aa; }
+  .h1 { font-family: Unbounded; font-weight: 700; font-size: 66px; line-height: 1.08; letter-spacing: -.01em; }
+  .sub { font-size: 23px; color: #b6bdcc; line-height: 1.5; }
+  .panel { background: linear-gradient(180deg, rgba(24,29,44,.92), rgba(13,16,26,.92)); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; box-shadow: 0 24px 60px -18px rgba(0,0,0,.9); }
+  .shot { position: absolute; border-radius: 18px; overflow: hidden; border: 1px solid rgba(243,213,143,.25); box-shadow: 0 50px 120px -30px rgba(0,0,0,.95), 0 0 100px -30px rgba(214,178,110,.45); }
+  .shot img { display: block; width: 100%; }
+  .row { display: flex; align-items: center; gap: 16px; font-size: 22px; color: #d3d8e3; }
+  .row .i { width: 46px; height: 46px; border-radius: 13px; display: grid; place-items: center; background: rgba(214,178,110,.08); border: 1px solid rgba(214,178,110,.25); font-size: 22px; flex: none; }
+  .foot { position: absolute; left: 96px; bottom: 60px; font-size: 15px; color: #8c95aa; }
+</style>
+</head>
+<body>
+
+<!-- 1 · hook -->
+<div class="card" id="c1">
+  <div class="grid"></div>
+  <div class="brand"><svg width="40" height="40" viewBox="0 0 200 200"><defs><linearGradient id="cA-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8e9b8"/><stop offset="0.5" stop-color="#dcb76c"/><stop offset="1" stop-color="#9c7633"/></linearGradient><radialGradient id="cA-core" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.35" stop-color="#fff3cc" stop-opacity="0.95"/><stop offset="1" stop-color="#f6dc9a" stop-opacity="0"/></radialGradient></defs><path d="M65.96 47.58 A62.5 62.5 0 0 1 134.04 47.58 L119.95 59.10 A45.5 45.5 0 0 0 80.05 59.10 Z" fill="url(#cA-ring)"/><path d="M152.42 65.96 A62.5 62.5 0 0 1 152.42 134.04 L140.90 119.95 A45.5 45.5 0 0 0 140.90 80.05 Z" fill="url(#cA-ring)"/><path d="M134.04 152.42 A62.5 62.5 0 0 1 65.96 152.42 L80.05 140.90 A45.5 45.5 0 0 0 119.95 140.90 Z" fill="url(#cA-ring)"/><path d="M47.58 134.04 A62.5 62.5 0 0 1 47.58 65.96 L59.10 80.05 A45.5 45.5 0 0 0 59.10 119.95 Z" fill="url(#cA-ring)"/><path d="M152.33 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 47.67 L111.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M152.33 152.33 L111.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 152.33 L89.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 47.67 L89.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M100.00 4.00 L90.81 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 4.00 L109.19 90.81 L100.00 100.00 Z" fill="#c9a258"/><path d="M196.00 100.00 L109.19 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M196.00 100.00 L109.19 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M100.00 196.00 L109.19 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 196.00 L90.81 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M4.00 100.00 L90.81 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M4.00 100.00 L90.81 90.81 L100.00 100.00 Z" fill="#c9a258"/><circle cx="100" cy="100" r="22" fill="url(#cA-core)"/>
+</svg><span>ATLASPAD</span></div>
+  <div class="count mono">1 / 5 · Thread 🧵</div>
+  <div style="position:absolute;left:96px;top:220px;width:640px">
+    <div class="h1">Every token<br>is a <span class="gold">nation.</span></div>
+    <p class="sub" style="margin-top:26px">The $WIF launchpad on Robinhood Chain.<br>Launch a token, grow a civilization,<br>become a citizen.</p>
+    <div style="display:flex;gap:14px;margin-top:40px">
+      <div class="mono" style="padding:14px 22px;border-radius:999px;background:linear-gradient(180deg,#f6dc9a,#c99a4c);color:#1a1205;font-size:15px;font-weight:700">atlaswif.xyz</div>
+      <div class="mono" style="padding:14px 22px;border-radius:999px;border:1px solid rgba(243,213,143,.35);color:#f3d58f;font-size:15px">Live on chain 4663</div>
+    </div>
+  </div>
+  <div class="shot" style="left:800px;top:190px;width:900px;transform:rotate(-2deg)"><img src="shot-landing.png"></div>
+</div>
+
+<!-- 2 · flywheel -->
+<div class="card" id="c2">
+  <div class="grid"></div>
+  <div class="brand"><svg width="40" height="40" viewBox="0 0 200 200"><defs><linearGradient id="cA-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8e9b8"/><stop offset="0.5" stop-color="#dcb76c"/><stop offset="1" stop-color="#9c7633"/></linearGradient><radialGradient id="cA-core" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.35" stop-color="#fff3cc" stop-opacity="0.95"/><stop offset="1" stop-color="#f6dc9a" stop-opacity="0"/></radialGradient></defs><path d="M65.96 47.58 A62.5 62.5 0 0 1 134.04 47.58 L119.95 59.10 A45.5 45.5 0 0 0 80.05 59.10 Z" fill="url(#cA-ring)"/><path d="M152.42 65.96 A62.5 62.5 0 0 1 152.42 134.04 L140.90 119.95 A45.5 45.5 0 0 0 140.90 80.05 Z" fill="url(#cA-ring)"/><path d="M134.04 152.42 A62.5 62.5 0 0 1 65.96 152.42 L80.05 140.90 A45.5 45.5 0 0 0 119.95 140.90 Z" fill="url(#cA-ring)"/><path d="M47.58 134.04 A62.5 62.5 0 0 1 47.58 65.96 L59.10 80.05 A45.5 45.5 0 0 0 59.10 119.95 Z" fill="url(#cA-ring)"/><path d="M152.33 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 47.67 L111.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M152.33 152.33 L111.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 152.33 L89.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 47.67 L89.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M100.00 4.00 L90.81 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 4.00 L109.19 90.81 L100.00 100.00 Z" fill="#c9a258"/><path d="M196.00 100.00 L109.19 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M196.00 100.00 L109.19 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M100.00 196.00 L109.19 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 196.00 L90.81 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M4.00 100.00 L90.81 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M4.00 100.00 L90.81 90.81 L100.00 100.00 Z" fill="#c9a258"/><circle cx="100" cy="100" r="22" fill="url(#cA-core)"/>
+</svg><span>ATLASPAD</span></div>
+  <div class="count mono">2 / 5</div>
+  <div style="position:absolute;left:96px;top:250px;width:600px">
+    <div class="h1" style="font-size:58px">Every nation<br>runs on <span class="gold">$WIF.</span></div>
+    <p class="sub" style="margin-top:24px">Priced in $WIF. Traded in $WIF.<br>Pooled with $WIF. Burns $WIF.</p>
+    <div style="margin-top:40px;display:flex;gap:16px">
+      <div class="panel" style="padding:20px 24px"><div class="mono" style="font-size:12px;color:#8c95aa">Founding fee</div><div style="font-family:Unbounded;font-weight:700;font-size:30px;margin-top:8px">100 <span class="gold">$WIF</span></div><div style="font-size:15px;color:#ff8a5c;margin-top:6px">🔥 burned</div></div>
+      <div class="panel" style="padding:20px 24px"><div class="mono" style="font-size:12px;color:#8c95aa">Graduation</div><div style="font-family:Unbounded;font-weight:700;font-size:30px;margin-top:8px">200K <span class="gold">$WIF</span></div><div style="font-size:15px;color:#3ee08f;margin-top:6px">→ Uniswap, LP burned</div></div>
+    </div>
+  </div>
+  <!-- fee split -->
+  <div class="panel" style="position:absolute;left:820px;top:230px;width:690px;padding:40px 44px">
+    <div class="mono" style="font-size:14px;color:#f3d58f">1% fee on every trade</div>
+    <div style="display:flex;height:22px;border-radius:11px;overflow:hidden;margin-top:26px">
+      <div style="flex:2;background:linear-gradient(90deg,#f6dc9a,#c99a4c)"></div>
+      <div style="flex:1;background:#ff6b3d"></div>
+      <div style="flex:1;background:#4a5268"></div>
+    </div>
+    <div style="margin-top:34px;display:grid;gap:26px">
+      <div class="row"><span class="i">🏛️</span><div><b style="font-family:Unbounded;font-size:24px">0.50%</b> → the nation's $WIF treasury<div style="font-size:16px;color:#8c95aa;margin-top:4px">citizens vote on how it's spent</div></div></div>
+      <div class="row"><span class="i">🔥</span><div><b style="font-family:Unbounded;font-size:24px">0.25%</b> → $WIF burned forever<div style="font-size:16px;color:#8c95aa;margin-top:4px">every buy, every sell</div></div></div>
+      <div class="row"><span class="i">⚙️</span><div><b style="font-family:Unbounded;font-size:24px">0.25%</b> → protocol<div style="font-size:16px;color:#8c95aa;margin-top:4px">keeps the Atlas running</div></div></div>
+    </div>
+  </div>
+  <div class="foot mono">No admin keys · immutable contracts</div>
+</div>
+
+<!-- 3 · citizens + stages -->
+<div class="card" id="c3">
+  <div class="grid"></div>
+  <div class="brand"><svg width="40" height="40" viewBox="0 0 200 200"><defs><linearGradient id="cA-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8e9b8"/><stop offset="0.5" stop-color="#dcb76c"/><stop offset="1" stop-color="#9c7633"/></linearGradient><radialGradient id="cA-core" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.35" stop-color="#fff3cc" stop-opacity="0.95"/><stop offset="1" stop-color="#f6dc9a" stop-opacity="0"/></radialGradient></defs><path d="M65.96 47.58 A62.5 62.5 0 0 1 134.04 47.58 L119.95 59.10 A45.5 45.5 0 0 0 80.05 59.10 Z" fill="url(#cA-ring)"/><path d="M152.42 65.96 A62.5 62.5 0 0 1 152.42 134.04 L140.90 119.95 A45.5 45.5 0 0 0 140.90 80.05 Z" fill="url(#cA-ring)"/><path d="M134.04 152.42 A62.5 62.5 0 0 1 65.96 152.42 L80.05 140.90 A45.5 45.5 0 0 0 119.95 140.90 Z" fill="url(#cA-ring)"/><path d="M47.58 134.04 A62.5 62.5 0 0 1 47.58 65.96 L59.10 80.05 A45.5 45.5 0 0 0 59.10 119.95 Z" fill="url(#cA-ring)"/><path d="M152.33 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 47.67 L111.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M152.33 152.33 L111.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 152.33 L89.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 47.67 L89.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M100.00 4.00 L90.81 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 4.00 L109.19 90.81 L100.00 100.00 Z" fill="#c9a258"/><path d="M196.00 100.00 L109.19 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M196.00 100.00 L109.19 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M100.00 196.00 L109.19 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 196.00 L90.81 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M4.00 100.00 L90.81 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M4.00 100.00 L90.81 90.81 L100.00 100.00 Z" fill="#c9a258"/><circle cx="100" cy="100" r="22" fill="url(#cA-core)"/>
+</svg><span>ATLASPAD</span></div>
+  <div class="count mono">3 / 5</div>
+  <div style="position:absolute;left:96px;top:260px;width:640px">
+    <div class="h1" style="font-size:58px">Holders become<br><span class="gold">citizens.</span></div>
+    <p class="sub" style="margin-top:24px">Hold 0.0001% of a nation and you're in.</p>
+    <div style="margin-top:36px;display:grid;gap:20px">
+      <div class="row"><span class="i">🗳️</span>Vote on how the treasury's $WIF is spent</div>
+      <div class="row"><span class="i">💬</span>Join the citizens-only nation chat</div>
+      <div class="row"><span class="i">🗺️</span>Grow your territory on the world map</div>
+    </div>
+  </div>
+  <div style="position:absolute;left:880px;top:240px;width:620px;display:grid;gap:14px">
+    <div class="panel" style="display:flex;justify-content:space-between;align-items:center;padding:20px 26px;"><span style="font-family:Unbounded;font-weight:600;font-size:26px" class="">Settlement</span><span class="mono" style="font-size:15px;color:#8c95aa">0+ citizens</span></div><div class="panel" style="display:flex;justify-content:space-between;align-items:center;padding:20px 26px;"><span style="font-family:Unbounded;font-weight:600;font-size:26px" class="">Town</span><span class="mono" style="font-size:15px;color:#8c95aa">10+ citizens</span></div><div class="panel" style="display:flex;justify-content:space-between;align-items:center;padding:20px 26px;"><span style="font-family:Unbounded;font-weight:600;font-size:26px" class="">City</span><span class="mono" style="font-size:15px;color:#8c95aa">50+ citizens</span></div><div class="panel" style="display:flex;justify-content:space-between;align-items:center;padding:20px 26px;"><span style="font-family:Unbounded;font-weight:600;font-size:26px" class="">Metropolis</span><span class="mono" style="font-size:15px;color:#8c95aa">250+ citizens</span></div><div class="panel" style="display:flex;justify-content:space-between;align-items:center;padding:20px 26px;border-color:rgba(243,213,143,.55);"><span style="font-family:Unbounded;font-weight:600;font-size:26px" class="gold">Empire</span><span class="mono" style="font-size:15px;color:#8c95aa">1,000+ citizens</span></div>
+  </div>
+</div>
+
+<!-- 4 · features -->
+<div class="card" id="c4">
+  <div class="grid"></div>
+  <div class="brand"><svg width="40" height="40" viewBox="0 0 200 200"><defs><linearGradient id="cA-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8e9b8"/><stop offset="0.5" stop-color="#dcb76c"/><stop offset="1" stop-color="#9c7633"/></linearGradient><radialGradient id="cA-core" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.35" stop-color="#fff3cc" stop-opacity="0.95"/><stop offset="1" stop-color="#f6dc9a" stop-opacity="0"/></radialGradient></defs><path d="M65.96 47.58 A62.5 62.5 0 0 1 134.04 47.58 L119.95 59.10 A45.5 45.5 0 0 0 80.05 59.10 Z" fill="url(#cA-ring)"/><path d="M152.42 65.96 A62.5 62.5 0 0 1 152.42 134.04 L140.90 119.95 A45.5 45.5 0 0 0 140.90 80.05 Z" fill="url(#cA-ring)"/><path d="M134.04 152.42 A62.5 62.5 0 0 1 65.96 152.42 L80.05 140.90 A45.5 45.5 0 0 0 119.95 140.90 Z" fill="url(#cA-ring)"/><path d="M47.58 134.04 A62.5 62.5 0 0 1 47.58 65.96 L59.10 80.05 A45.5 45.5 0 0 0 59.10 119.95 Z" fill="url(#cA-ring)"/><path d="M152.33 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 47.67 L111.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M152.33 152.33 L111.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 152.33 L89.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 47.67 L89.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M100.00 4.00 L90.81 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 4.00 L109.19 90.81 L100.00 100.00 Z" fill="#c9a258"/><path d="M196.00 100.00 L109.19 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M196.00 100.00 L109.19 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M100.00 196.00 L109.19 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 196.00 L90.81 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M4.00 100.00 L90.81 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M4.00 100.00 L90.81 90.81 L100.00 100.00 Z" fill="#c9a258"/><circle cx="100" cy="100" r="22" fill="url(#cA-core)"/>
+</svg><span>ATLASPAD</span></div>
+  <div class="count mono">4 / 5</div>
+  <div style="position:absolute;left:96px;top:200px;width:620px">
+    <div class="h1" style="font-size:54px">Built for<br><span class="gold">degens.</span></div>
+    <div style="margin-top:40px;display:grid;gap:20px">
+      <div class="row"><span class="i">🖼️</span>Image-only launches, live in a minute</div>
+      <div class="row"><span class="i">📈</span>PnL card on every sell</div>
+      <div class="row"><span class="i">⭐</span>Watchlist, pulse feed & share cards</div>
+      <div class="row"><span class="i">📣</span>Telegram alerts for every launch</div>
+      <div class="row"><span class="i">🔥</span>Live $WIF burn counter</div>
+    </div>
+  </div>
+  <div class="shot" style="left:790px;top:120px;width:760px;transform:rotate(2deg)"><img src="shot-world.png"></div>
+  <div style="position:absolute;left:1210px;top:420px;width:300px;height:620px;transform:rotate(-4deg);border-radius:44px;padding:10px;background:linear-gradient(160deg,#2a2f3d,#0b0d14);box-shadow:0 50px 120px -30px rgba(0,0,0,.95),0 0 0 1px rgba(255,255,255,.12)">
+    <div style="width:100%;height:100%;border-radius:36px;overflow:hidden;background:#000"><img src="tg-screenshot.jpg" style="width:100%;display:block"></div>
+  </div>
+</div>
+
+<!-- 5 · end -->
+<div class="card" id="c5" style="background:radial-gradient(800px 600px at 50% 40%, rgba(214,178,110,.18), transparent 65%), #05060b">
+  <div class="grid" style="mask-image:radial-gradient(ellipse at 50% 45%, black 10%, transparent 70%)"></div>
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+    <svg width="96" height="96" viewBox="0 0 200 200"><defs><linearGradient id="cA-ring" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8e9b8"/><stop offset="0.5" stop-color="#dcb76c"/><stop offset="1" stop-color="#9c7633"/></linearGradient><radialGradient id="cA-core" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.35" stop-color="#fff3cc" stop-opacity="0.95"/><stop offset="1" stop-color="#f6dc9a" stop-opacity="0"/></radialGradient></defs><path d="M65.96 47.58 A62.5 62.5 0 0 1 134.04 47.58 L119.95 59.10 A45.5 45.5 0 0 0 80.05 59.10 Z" fill="url(#cA-ring)"/><path d="M152.42 65.96 A62.5 62.5 0 0 1 152.42 134.04 L140.90 119.95 A45.5 45.5 0 0 0 140.90 80.05 Z" fill="url(#cA-ring)"/><path d="M134.04 152.42 A62.5 62.5 0 0 1 65.96 152.42 L80.05 140.90 A45.5 45.5 0 0 0 119.95 140.90 Z" fill="url(#cA-ring)"/><path d="M47.58 134.04 A62.5 62.5 0 0 1 47.58 65.96 L59.10 80.05 A45.5 45.5 0 0 0 59.10 119.95 Z" fill="url(#cA-ring)"/><path d="M152.33 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 47.67 L111.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M152.33 152.33 L111.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M152.33 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 152.33 L100.00 111.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 152.33 L89.00 100.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M47.67 47.67 L89.00 100.00 L100.00 100.00 Z" fill="#efd796"/><path d="M47.67 47.67 L100.00 89.00 L100.00 100.00 Z" fill="#b38c46"/><path d="M100.00 4.00 L90.81 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 4.00 L109.19 90.81 L100.00 100.00 Z" fill="#c9a258"/><path d="M196.00 100.00 L109.19 90.81 L100.00 100.00 Z" fill="#fbeec4"/><path d="M196.00 100.00 L109.19 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M100.00 196.00 L109.19 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M100.00 196.00 L90.81 109.19 L100.00 100.00 Z" fill="#c9a258"/><path d="M4.00 100.00 L90.81 109.19 L100.00 100.00 Z" fill="#fbeec4"/><path d="M4.00 100.00 L90.81 90.81 L100.00 100.00 Z" fill="#c9a258"/><circle cx="100" cy="100" r="22" fill="url(#cA-core)"/>
+</svg>
+    <div class="mono" style="font-size:16px;color:#f3d58f;margin-top:26px">End of thread</div>
+    <div class="h1" style="font-size:60px;margin-top:20px">Anything below this<br>is a <span style="color:#ff5a4e">scam.</span></div>
+    <p class="sub" style="margin-top:22px">We never DM first. Never share your seed phrase.<br>Only trust these links:</p>
+    <div style="display:flex;gap:16px;margin-top:36px">
+      <div class="panel mono" style="padding:16px 24px;font-size:16px;color:#f3d58f">🌍 atlaswif.xyz</div>
+      <div class="panel mono" style="padding:16px 24px;font-size:16px;color:#eef0f6">𝕏 @atlasonwif</div>
+      <div class="panel mono" style="padding:16px 24px;font-size:16px;color:#45b6f2">✈ t.me/atlas_wif</div>
+    </div>
+  </div>
+  <div style="position:absolute;left:0;right:0;bottom:0;height:10px;background:repeating-linear-gradient(135deg,#f3d58f 0 22px,#05060b 22px 44px);opacity:.8"></div>
+  <div style="position:absolute;left:0;right:0;top:0;height:10px;background:repeating-linear-gradient(135deg,#f3d58f 0 22px,#05060b 22px 44px);opacity:.8"></div>
+</div>
+
+</body>
+</html>
